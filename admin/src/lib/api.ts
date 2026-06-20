@@ -126,6 +126,12 @@ export const api = {
       body: JSON.stringify({ role }),
     }),
 
+  makeAdmin: (id: string, password: string) =>
+    request<{ message: string }>(`/admin/users/${id}/make-admin`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+
   banUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/ban`, { method: "POST" }),
   unbanUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/unban`, { method: "POST" }),
 

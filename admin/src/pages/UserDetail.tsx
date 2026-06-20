@@ -13,6 +13,7 @@ export function UserDetail() {
   const [busy, setBusy] = useState(false);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [adminPw, setAdminPw] = useState("");
 
   const u = data?.user;
 
@@ -38,6 +39,15 @@ export function UserDetail() {
     await run(() => api.adjustBalance(id, sign * n, reason), `Balance ${sign > 0 ? "credited" : "debited"}`);
     setAmount("");
     setReason("");
+  };
+
+  const makeAdmin = async () => {
+    if (adminPw.trim().length < 8) {
+      push("Password must be at least 8 characters.", "error");
+      return;
+    }
+    await run(() => api.makeAdmin(id, adminPw), "User is now an admin with a password");
+    setAdminPw("");
   };
 
   return (
@@ -88,7 +98,26 @@ export function UserDetail() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="border-t border-edge pt-4">
+                <div className="mb-2 text-sm text-slate-300">
+                  {u.role === "admin" ? "Reset admin password" : "Make admin (set login password)"}
+                </div>
+                <input
+                  type="password"
+                  value={adminPw}
+                  onChange={(e) => setAdminPw(e.target.value)}
+                  placeholder="New password (min 8 chars)"
+                  className="mb-2 w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
+                />
+                <Button variant="primary" disabled={busy} onClick={makeAdmin} className="w-full">
+                  {u.role === "admin" ? "Update admin password" : "Make admin & set password"}
+                </Button>
+                <p className="mt-1 text-xs text-slate-500">
+                  They sign in with their Telegram ID ({u.telegram_id}) and this password.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-edge pt-4">
                 <span className="text-sm text-slate-300">Account</span>
                 {u.banned ? (
                   <Button variant="success" disabled={busy} onClick={() => run(() => api.unbanUser(id), "User unbanned")}>
