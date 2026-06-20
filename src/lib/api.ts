@@ -84,22 +84,20 @@ export const api = {
     }),
 
   // ---- Profile ----
-  me: () => request<User>("GET", "/api/v1/me"),
+  me: () => request<{ user: User }>("GET", "/api/v1/me").then((r) => r.user),
   updateName: (first_name: string, last_name?: string | null) =>
-    request<User>("PUT", "/api/v1/me/name", { first_name, last_name }),
+    request<{ user: User }>("PUT", "/api/v1/me/name", { first_name, last_name }).then((r) => r.user),
 
   // ---- Wallet ----
   myWallet: () => request<{ wallet: Wallet }>("GET", "/api/v1/me/wallet").then((r) => r.wallet),
   deposits: () =>
-    request<{ transactions?: Transaction[] }>(
-      "GET",
-      "/api/v1/me/wallet/deposits",
-    ),
+    request<{ deposits?: Transaction[] }>("GET", "/api/v1/me/wallet/deposits").then((r) => ({
+      transactions: r.deposits ?? [],
+    })),
   withdrawals: () =>
-    request<{ transactions?: Transaction[] }>(
-      "GET",
-      "/api/v1/me/wallet/withdrawals",
-    ),
+    request<{ withdrawals?: Transaction[] }>("GET", "/api/v1/me/wallet/withdrawals").then((r) => ({
+      transactions: r.withdrawals ?? [],
+    })),
   transfers: () =>
     request<{ transfers?: any[] }>("GET", "/api/v1/me/wallet/transfers"),
   deposit: (amount: number, transaction_type: PaymentMethod, transaction_id: string) =>
