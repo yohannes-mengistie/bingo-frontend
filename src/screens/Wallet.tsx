@@ -34,17 +34,11 @@ export function WalletScreen() {
     <ScreenShell>
       <Header title={t("wallet.title")} />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Card className="!p-4">
           <div className="text-xs text-ink-faint">{t("wallet.realBalance")}</div>
           <div className="font-display text-2xl font-extrabold text-neon-gold">
             {money(wallet?.balance)}
-          </div>
-        </Card>
-        <Card className="!p-4">
-          <div className="text-xs text-ink-faint">{t("wallet.demoBalance")}</div>
-          <div className="font-display text-2xl font-extrabold text-neon-cyan">
-            {money(wallet?.demo_balance)}
           </div>
         </Card>
       </div>

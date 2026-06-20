@@ -12,7 +12,6 @@ import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
 import { ResultOverlay, GameResult } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
-import { LocalGameEngine } from "@/lib/localGame";
 import { claimPositions, findWinningPositions } from "@/lib/bingo";
 import { api, ApiError } from "@/lib/api";
 import { sound } from "@/lib/audio";
@@ -22,7 +21,7 @@ import { COUNTDOWN_SECONDS } from "@/lib/constants";
 import { useAuth } from "@/store/authStore";
 import { useWallet } from "@/store/walletStore";
 import { useSettings } from "@/store/settingsStore";
-import type { BingoCard, GameState, GameType, WsMessage } from "@/types/api";
+import type { BingoCard, GameState, WsMessage } from "@/types/api";
 
 interface Feed {
   on(l: (m: WsMessage) => void): () => void;
@@ -41,8 +40,6 @@ export function GameRoom() {
   const { soundEnabled, hapticsEnabled, autoDaub } = useSettings();
   const push = useToast((s) => s.push);
 
-  const isDemo = gameId.startsWith("demo-");
-  const demoType = (isDemo ? gameId.slice("demo-".length) : "G1") as GameType;
   const stateCardId = (location.state as { cardId?: number } | null)?.cardId;
 
   const [card, setCard] = useState<BingoCard | null>(null);
@@ -76,7 +73,7 @@ export function GameRoom() {
     let cancelled = false;
     (async () => {
       let cardId = stateCardId;
-      if (!cardId && !isDemo) {
+      if (!cardId) {
         try {
           const { player } = await api.myPlayerInGame(gameId);
           cardId = player?.card_id;
@@ -95,7 +92,7 @@ export function GameRoom() {
     return () => {
       cancelled = true;
     };
-  }, [gameId, isDemo, stateCardId]);
+  }, [gameId, stateCardId]);
 
   const handleMessage = useCallback(
     (msg: WsMessage) => {
@@ -142,7 +139,7 @@ export function GameRoom() {
           const won = !!myId && msg.data.user_id === myId;
           setResult(won ? { type: "win", prize: msg.data.prize ?? prize } : { type: "lose" });
           if (won && soundEnabled) sound.win();
-          if (!isDemo) refreshWallet().catch(() => {});
+          refreshWallet().catch(() => {});
           break;
         }
         case "PLAYER_ELIMINATED":
@@ -152,13 +149,13 @@ export function GameRoom() {
           break;
       }
     },
-    [autoDaub, hapticsEnabled, isDemo, myId, numToPos, prize, refreshWallet, soundEnabled],
+    [autoDaub, hapticsEnabled, myId, numToPos, prize, refreshWallet, soundEnabled],
   );
 
-  // Set up the feed (real socket or local practice engine).
+  // Set up the live game socket.
   const feedRef = useRef<Feed | null>(null);
   useEffect(() => {
-    const feed: Feed = isDemo ? new LocalGameEngine(demoType) : new GameSocket(gameId);
+    const feed: Feed = new GameSocket(gameId);
     feedRef.current = feed;
     const offMsg = feed.on(handleMessage);
     const offStatus = feed.onStatus(setConn);
@@ -171,7 +168,7 @@ export function GameRoom() {
     };
     // handleMessage is stable enough; re-subscribing on each draw would reset the socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, isDemo, demoType]);
+  }, [gameId]);
 
   const onDaub = (pos: number) => {
     if (result) return;
@@ -193,14 +190,9 @@ export function GameRoom() {
     haptic.impact("heavy");
     setClaiming(true);
     try {
-      if (isDemo) {
-        // Button is gated on a real pattern, so this is always a win in practice.
-        setResult({ type: "win", prize });
-      } else {
-        const r = await api.claimBingo(gameId, claimPositions(daubed));
-        setResult(r.winner ? { type: "win", prize } : { type: "eliminated" });
-        await refreshWallet().catch(() => {});
-      }
+      const r = await api.claimBingo(gameId, claimPositions(daubed));
+      setResult(r.winner ? { type: "win", prize } : { type: "eliminated" });
+      await refreshWallet().catch(() => {});
     } catch (e) {
       push(e instanceof ApiError ? e.message : "error", "error");
     } finally {
@@ -209,7 +201,7 @@ export function GameRoom() {
   };
 
   const onLeave = async () => {
-    if (!isDemo && (phase === "WAITING" || phase === "COUNTDOWN")) {
+    if (phase === "WAITING" || phase === "COUNTDOWN") {
       try {
         await api.leave(gameId);
         await refreshWallet().catch(() => {});
@@ -229,15 +221,14 @@ export function GameRoom() {
     );
   }
 
-  const canRefund = !isDemo && (phase === "WAITING" || phase === "COUNTDOWN");
+  const canRefund = phase === "WAITING" || phase === "COUNTDOWN";
 
   return (
     <div className="flex min-h-screen flex-col px-4 pb-4 pt-3">
       <Header
         title={
           <span className="text-lg">
-            {isDemo ? t("common.practice") : money(prize)}{" "}
-            {!isDemo && <span className="text-xs text-ink-faint">🏆</span>}
+            {money(prize)} <span className="text-xs text-ink-faint">🏆</span>
           </span>
         }
         right={

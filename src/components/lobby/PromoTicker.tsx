@@ -11,7 +11,6 @@ export function PromoTicker() {
   const { t } = useTranslation();
   const messages = [
     `🎁 ${t("lobby.higherBigger")}`,
-    `🆓 ${t("lobby.demoNotice")}`,
     `⚡ ${t("app.tagline")}`,
   ];
   const [i, setI] = useState(0);

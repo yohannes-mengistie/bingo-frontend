@@ -24,26 +24,24 @@ export function CardSelect() {
   const { gameType } = useParams<{ gameType: GameType }>();
   const type = (gameType ?? "G1") as GameType;
   const bet = BET_BY_TYPE[type] ?? 0;
-  const { mode, balance } = useWallet();
-  const isDemo = mode === "demo";
+  const balance = useWallet((s) => s.balance);
   const push = useToast((s) => s.push);
 
   const [selected, setSelected] = useState<number | null>(null);
   const [joining, setJoining] = useState(false);
 
-  // Real mode: fetch/create the active game for this stake (creates if none).
+  // Fetch/create the active game for this stake (creates if none).
   const gameQ = useQuery({
     queryKey: ["game-for-type", type],
     queryFn: async () => (await api.games(type)).games[0] ?? null,
-    enabled: !isDemo,
   });
   const gameId = gameQ.data?.id ?? null;
 
-  // Real mode: poll taken cards from game state.
+  // Poll taken cards from game state.
   const stateQ = useQuery({
     queryKey: ["game-state", gameId],
     queryFn: () => api.gameState(gameId!),
-    enabled: !isDemo && !!gameId,
+    enabled: !!gameId,
     refetchInterval: 3000,
   });
   const taken = useMemo(
@@ -67,12 +65,6 @@ export function CardSelect() {
     if (selected === null) return;
     haptic.impact("heavy");
 
-    if (isDemo) {
-      // Practice: no backend, no wallet. Go straight to a local game.
-      nav(`/game/demo-${type}`, { state: { cardId: selected } });
-      return;
-    }
-
     if (balance() < bet) {
       push(t("card.insufficient"), "error");
       return;
@@ -92,7 +84,7 @@ export function CardSelect() {
     }
   };
 
-  if (!isDemo && gameQ.isLoading) {
+  if (gameQ.isLoading) {
     return (
       <ScreenShell tabs={false}>
         <Header back title={`${type} · ${money(bet)}`} />
@@ -108,9 +100,7 @@ export function CardSelect() {
         title={
           <span>
             {money(bet)}{" "}
-            <span className="text-sm text-ink-faint">
-              {isDemo ? `· ${t("common.demo")}` : `· ${type}`}
-            </span>
+            <span className="text-sm text-ink-faint">{`· ${type}`}</span>
           </span>
         }
       />
@@ -160,7 +150,7 @@ export function CardSelect() {
           onClick={confirm}
           className="mt-4"
         >
-          {isDemo ? t("common.practice") : t("card.join", { bet: money(bet) })}
+          {t("card.join", { bet: money(bet) })}
         </Button>
       </Sheet>
     </ScreenShell>

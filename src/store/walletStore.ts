@@ -3,29 +3,18 @@ import type { Wallet } from "@/types/api";
 import { api } from "@/lib/api";
 import { DEV_MOCK, mockWallet } from "@/lib/devMock";
 
-export type PlayMode = "real" | "demo";
-
 interface WalletState {
   wallet: Wallet | null;
-  mode: PlayMode;
   loading: boolean;
-  setMode: (m: PlayMode) => void;
-  balance: () => number; // active balance for current mode
+  balance: () => number;
   refresh: () => Promise<void>;
 }
 
 export const useWallet = create<WalletState>((set, get) => ({
   wallet: null,
-  mode: "real",
   loading: false,
 
-  setMode: (mode) => set({ mode }),
-
-  balance: () => {
-    const w = get().wallet;
-    if (!w) return 0;
-    return get().mode === "demo" ? w.demo_balance : w.balance;
-  },
+  balance: () => get().wallet?.balance ?? 0,
 
   refresh: async () => {
     if (DEV_MOCK) {

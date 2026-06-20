@@ -11,7 +11,6 @@ import { STAKES } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { api } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
-import { useWallet } from "@/store/walletStore";
 import type { Game, GameType } from "@/types/api";
 import { PromoTicker } from "@/components/lobby/PromoTicker";
 import { DailyStreak } from "@/components/lobby/DailyStreak";
@@ -19,7 +18,6 @@ import { DailyStreak } from "@/components/lobby/DailyStreak";
 export function Lobby() {
   const { t } = useTranslation();
   const nav = useNavigate();
-  const mode = useWallet((s) => s.mode);
 
   // Fetch all available games (no `type` → no game is auto-created).
   const { data } = useQuery({
@@ -45,12 +43,6 @@ export function Lobby() {
       <div className="mb-3">
         <BalancePill />
       </div>
-
-      {mode === "demo" && (
-        <div className="mb-3 rounded-2xl border border-neon-cyan/30 bg-neon-cyan/10 px-4 py-2 text-sm text-neon-cyan">
-          {t("lobby.demoNotice")}
-        </div>
-      )}
 
       <PromoTicker />
       <DailyStreak />
@@ -102,7 +94,7 @@ export function Lobby() {
                   </span>
                 </div>
                 <div className="mt-3 rounded-xl bg-grad-purple py-2 text-center font-display text-sm font-bold text-white">
-                  {mode === "demo" ? t("common.practice") : t("common.play")}
+                  {t("common.play")}
                 </div>
               </Card>
             </motion.button>
