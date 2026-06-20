@@ -89,7 +89,7 @@ export const api = {
     request<User>("PUT", "/api/v1/me/name", { first_name, last_name }),
 
   // ---- Wallet ----
-  myWallet: () => request<Wallet>("GET", "/api/v1/me/wallet"),
+  myWallet: () => request<{ wallet: Wallet }>("GET", "/api/v1/me/wallet").then((r) => r.wallet),
   deposits: () =>
     request<{ transactions?: Transaction[] }>(
       "GET",
