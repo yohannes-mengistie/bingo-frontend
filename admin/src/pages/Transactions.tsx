@@ -89,6 +89,7 @@ export function Transactions() {
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Reference</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3 text-right">Actions</th>
@@ -107,6 +108,9 @@ export function Transactions() {
                     </td>
                     <td className="px-4 py-3 font-semibold">{birr(t.amount)}</td>
                     <td className="px-4 py-3 text-slate-400">{t.transaction_type ?? "—"}</td>
+                    <td className="px-4 py-3 max-w-[160px] truncate font-mono text-xs text-slate-400" title={t.transaction_id ?? ""}>
+                      {t.transaction_id ?? "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge tone={statusTone(t.status)}>{t.status}</Badge>
                     </td>
