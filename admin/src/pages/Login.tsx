@@ -43,7 +43,7 @@ export function Login() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               inputMode="tel"
-              placeholder="e.g. 0911223344"
+              placeholder="e.g. 09XXXXXXXX"
               className="w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </div>
