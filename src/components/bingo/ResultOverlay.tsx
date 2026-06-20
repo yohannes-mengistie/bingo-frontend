@@ -37,7 +37,7 @@ export function ResultOverlay({
     }
   }, [isWin, result]);
 
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HabeshaBingoBot";
+  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HubBingoBot";
   const prize = result?.type === "win" ? result.prize : 0;
 
   return (

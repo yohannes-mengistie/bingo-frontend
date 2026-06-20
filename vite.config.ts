@@ -3,10 +3,10 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
-// Telegram Mini App: build to a static bundle that can be served from any
-// HTTPS origin (Railway/Vercel). `base` is "./" so it works under sub-paths.
+// Telegram Mini App: build to a static bundle served from an HTTPS root domain
+// (Vercel). `base` is "/" so nested-route deep links resolve assets correctly.
 export default defineConfig({
-  base: "./",
+  base: "/",
   plugins: [react()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "src") },

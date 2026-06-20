@@ -5,7 +5,7 @@ import { openTelegramLink } from "@/lib/telegram";
 
 export function NotRegistered() {
   const { t } = useTranslation();
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HabeshaBingoBot";
+  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HubBingoBot";
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-8 text-center">
