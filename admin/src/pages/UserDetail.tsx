@@ -113,7 +113,7 @@ export function UserDetail() {
                   {u.role === "admin" ? "Update admin password" : "Make admin & set password"}
                 </Button>
                 <p className="mt-1 text-xs text-slate-500">
-                  They sign in with their Telegram ID ({u.telegram_id}) and this password.
+                  They sign in with their phone ({u.phone_number}) and this password.
                 </p>
               </div>
 

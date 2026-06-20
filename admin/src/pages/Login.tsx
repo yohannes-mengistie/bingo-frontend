@@ -6,7 +6,7 @@ import { Button, Card } from "@/components/ui";
 export function Login() {
   const login = useAuth((s) => s.login);
   const navigate = useNavigate();
-  const [telegramId, setTelegramId] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -14,14 +14,13 @@ export function Login() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const id = Number(telegramId.trim());
-    if (!id || Number.isNaN(id)) {
-      setError("Enter a valid numeric Telegram ID.");
+    if (!phone.trim()) {
+      setError("Enter your phone number.");
       return;
     }
     setBusy(true);
     try {
-      await login(id, password);
+      await login(phone.trim(), password);
       navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -39,12 +38,12 @@ export function Login() {
         </div>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">Telegram ID</label>
+            <label className="mb-1 block text-xs font-medium text-slate-400">Phone number</label>
             <input
-              value={telegramId}
-              onChange={(e) => setTelegramId(e.target.value)}
-              inputMode="numeric"
-              placeholder="e.g. 123456789"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="tel"
+              placeholder="e.g. 0911223344"
               className="w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </div>

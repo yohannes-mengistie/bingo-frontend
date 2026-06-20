@@ -15,7 +15,7 @@ function loadUser(): User | null {
 interface AuthState {
   user: User | null;
   ready: boolean; // token + user restored from storage
-  login: (telegramId: number, password: string) => Promise<void>;
+  login: (phone: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -23,8 +23,8 @@ export const useAuth = create<AuthState>((set) => ({
   user: loadUser(),
   ready: !!getToken(),
 
-  login: async (telegramId, password) => {
-    const { token, user } = await api.login(telegramId, password);
+  login: async (phone, password) => {
+    const { token, user } = await api.login(phone, password);
     if (user.role !== "admin") {
       throw new Error("This account is not an admin.");
     }

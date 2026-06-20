@@ -107,10 +107,10 @@ export interface LoginResponse {
 // ---- Endpoints ----
 
 export const api = {
-  login: (telegram_id: number, password: string) =>
+  login: (phone: string, password: string) =>
     request<LoginResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ telegram_id, password }),
+      body: JSON.stringify({ phone, password }),
     }),
 
   dashboard: () => request<DashboardStats>("/admin/stats/dashboard"),
