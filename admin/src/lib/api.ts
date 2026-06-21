@@ -89,6 +89,48 @@ export interface Transaction {
   created_at: string;
 }
 
+export type GameState = "WAITING" | "COUNTDOWN" | "DRAWING" | "FINISHED" | "CLOSED" | "CANCELLED";
+
+export interface Game {
+  id: string;
+  game_type: string;
+  state: GameState;
+  bet_amount: number;
+  min_players: number;
+  player_count: number;
+  prize_pool: number;
+  house_cut: number;
+  winner_id?: string | null;
+  countdown_ends?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminGamePlayer {
+  user_id: string;
+  first_name: string;
+  last_name?: string | null;
+  phone_number: string;
+  telegram_id: number;
+  card_id: number;
+  is_eliminated: boolean;
+  joined_at: string;
+}
+
+export interface GameDetail {
+  game: Game;
+  players: AdminGamePlayer[];
+}
+
+export interface CancelGameResponse {
+  message: string;
+  game: Game;
+  refunded_count: number;
+  refunded_amount: number;
+}
+
 export interface DashboardStats {
   pending_deposits: number;
   pending_withdrawals: number;
@@ -161,4 +203,19 @@ export const api = {
     request<{ message: string }>(`/admin/transactions/${id}/reject-withdrawal`, { method: "POST" }),
   cancelTransaction: (id: string) =>
     request<{ message: string }>(`/admin/transactions/${id}/cancel`, { method: "POST" }),
+
+  // Games
+  games: (opts: { state?: GameState; type?: string; limit?: number; offset?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.state) q.set("state", opts.state);
+    if (opts.type) q.set("type", opts.type);
+    q.set("limit", String(opts.limit ?? 100));
+    q.set("offset", String(opts.offset ?? 0));
+    return request<{ games: Game[]; total: number; count: number; limit: number; offset: number }>(
+      `/admin/games?${q.toString()}`,
+    );
+  },
+  gameDetail: (id: string) => request<GameDetail>(`/admin/games/${id}`),
+  cancelGame: (id: string) =>
+    request<CancelGameResponse>(`/admin/games/${id}/cancel`, { method: "POST" }),
 };
