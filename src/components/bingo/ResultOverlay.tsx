@@ -13,15 +13,25 @@ export type GameResult =
   | { type: "cancelled" }
   | null;
 
+export interface WinnerInfo {
+  name: string;
+  prize: number;
+}
+
 export function ResultOverlay({
   result,
+  winner,
   onPlayAgain,
 }: {
   result: GameResult;
+  /** Who won this game — shown to everyone (losers/eliminated) for transparency. */
+  winner?: WinnerInfo | null;
   onPlayAgain: () => void;
 }) {
   const { t } = useTranslation();
   const isWin = result?.type === "win";
+  const showWinnerBanner =
+    !!winner && (result?.type === "lose" || result?.type === "eliminated");
 
   useEffect(() => {
     if (isWin) {
@@ -68,6 +78,19 @@ export function ResultOverlay({
       )}
       {result?.type === "cancelled" && (
         <p className="mt-1 text-sm text-ink-faint">{t("result.cancelledBody")}</p>
+      )}
+      {showWinnerBanner && winner && (
+        <div className="mt-4 w-full rounded-xl border border-neon-gold/30 bg-neon-gold/10 px-4 py-3">
+          <div className="text-[11px] uppercase tracking-wide text-ink-faint">
+            {t("result.winnerLabel")}
+          </div>
+          <div className="mt-0.5 font-display text-base font-bold text-neon-gold">
+            🏆 {winner.name}
+          </div>
+          <div className="text-sm font-semibold text-neon-gold">
+            {t("result.prizeWon", { amount: money(winner.prize) })}
+          </div>
+        </div>
       )}
       <div className="mt-5 flex flex-col gap-2">
         {isWin && (
