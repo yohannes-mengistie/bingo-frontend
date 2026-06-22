@@ -115,8 +115,8 @@ export function GameDetail() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="text-right font-medium text-slate-200">{value}</dd>
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="break-all text-right font-medium text-slate-200">{value}</dd>
     </div>
   );
 }
