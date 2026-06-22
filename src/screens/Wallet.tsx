@@ -9,6 +9,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { money, shortDate } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
+import { PAYMENT_ACCOUNTS } from "@/lib/constants";
 import { useWallet } from "@/store/walletStore";
 import type { PaymentMethod, Transaction } from "@/types/api";
 
@@ -203,6 +204,13 @@ function ActionSheet({
         )}
 
         {action === "deposit" && (
+          <DepositTarget
+            method={method}
+            onCopy={() => push(t("wallet.copied"), "success")}
+          />
+        )}
+
+        {action === "deposit" && (
           <Field label={t("wallet.txId")} hint={t("wallet.txIdHint")}>
             <input value={txId} onChange={(e) => setTxId(e.target.value)} className={inputCls} />
           </Field>
@@ -225,6 +233,49 @@ function ActionSheet({
         </Button>
       </div>
     </Sheet>
+  );
+}
+
+// Shows the house account the player must send their deposit to, based on the
+// chosen method (Telebirr phone number / CBE account number), with a copy button.
+function DepositTarget({
+  method,
+  onCopy,
+}: {
+  method: PaymentMethod;
+  onCopy: () => void;
+}) {
+  const { t } = useTranslation();
+  const acct = PAYMENT_ACCOUNTS[method];
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(acct.number);
+    } catch {
+      /* clipboard may be unavailable; ignore */
+    }
+    onCopy();
+  };
+
+  return (
+    <div className="rounded-xl border border-neon-gold/30 bg-neon-gold/10 p-3">
+      <div className="text-xs text-ink-faint">{t("wallet.depositTo", { method })}</div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="break-all font-display text-lg font-bold text-neon-gold">
+            {acct.number}
+          </div>
+          <div className="text-xs text-ink-muted">{acct.name}</div>
+        </div>
+        <button
+          onClick={copy}
+          className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-ink hover:bg-white/20"
+        >
+          {t("wallet.copy")}
+        </button>
+      </div>
+      <div className="mt-2 text-[11px] text-ink-faint">{t("wallet.depositHint")}</div>
+    </div>
   );
 }
 
