@@ -73,9 +73,12 @@ export function CardSelect() {
 
     setJoining(true);
     try {
-      await api.join(gameId, selected);
+      // Join is idempotent: if we're already in this game (e.g. reconnecting),
+      // the backend returns our existing player. Trust the card it gives back
+      // rather than the tapped id, since our card can't change mid-game.
+      const { player } = await api.join(gameId, selected);
       haptic.notify("success");
-      nav(`/game/${gameId}`, { state: { cardId: selected } });
+      nav(`/game/${gameId}`, { state: { cardId: player.card_id } });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "error";
       push(msg === "insufficient balance" ? t("card.insufficient") : msg, "error");
