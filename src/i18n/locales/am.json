@@ -43,6 +43,7 @@
     "dailyBonus": "የቀኑ ጉርሻ ዝግጁ ነው!",
     "claim": "ውሰድ",
     "bigWin": "{{name}} አሁን {{amount}} አሸነፈ!",
+    "recentWinners": "የቅርብ ጊዜ አሸናፊዎች",
     "demoNotice": "የሙከራ ሁነታ — በነፃ የሙከራ ቺፖች ተጫወት።"
   },
   "card": {
@@ -79,6 +80,8 @@
     "cancelledTitle": "ጨዋታው ተሰርዟል",
     "cancelledBody": "ይህ ጨዋታ ተሰርዟል፤ ውርርድህ ተመላሽ ሆኗል።",
     "wonAmount": "{{amount}} አሸነፍክ",
+    "winnerLabel": "አሸናፊ",
+    "prizeWon": "{{amount}} አሸንፏል",
     "playAgain": "እንደገና ተጫወት",
     "share": "አጋራ",
     "shareText": "በሀበሻ ቢንጎ ላይ {{amount}} አሸነፍኩ! 🎉 መጥተህ ተጫወት፦"

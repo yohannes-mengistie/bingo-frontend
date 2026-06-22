@@ -43,6 +43,7 @@
     "dailyBonus": "Daily bonus ready!",
     "claim": "Claim",
     "bigWin": "{{name}} just won {{amount}}!",
+    "recentWinners": "Recent winners",
     "demoNotice": "Practice mode — play with free demo chips."
   },
   "card": {
@@ -79,6 +80,8 @@
     "cancelledTitle": "Game cancelled",
     "cancelledBody": "This game was cancelled and your stake was refunded.",
     "wonAmount": "You won {{amount}}",
+    "winnerLabel": "Winner",
+    "prizeWon": "Won {{amount}}",
     "playAgain": "Play again",
     "share": "Share",
     "shareText": "I just won {{amount}} on Habesha Bingo! 🎉 Come play with me:"

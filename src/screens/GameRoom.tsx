@@ -53,6 +53,7 @@ export function GameRoom() {
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
   const [claiming, setClaiming] = useState(false);
   const [result, setResult] = useState<GameResult>(null);
+  const [winnerInfo, setWinnerInfo] = useState<{ name: string; prize: number } | null>(null);
 
   sound.enabled = soundEnabled;
 
@@ -147,7 +148,17 @@ export function GameRoom() {
         case "WINNER": {
           setPhase("FINISHED");
           const won = !!myId && msg.data.user_id === myId;
-          setResult(won ? { type: "win", prize: msg.data.prize ?? prize } : { type: "lose" });
+          const prizeAmt = msg.data.prize ?? prize;
+          // Reveal the winner to EVERYONE (winner, losers, eliminated) so the
+          // payout is transparent.
+          setWinnerInfo({ name: msg.data.winner_name || "Winner", prize: prizeAmt });
+          setResult((prev) =>
+            won
+              ? { type: "win", prize: prizeAmt }
+              : prev?.type === "eliminated"
+                ? prev
+                : { type: "lose" },
+          );
           if (won && soundEnabled) sound.win();
           refreshWallet().catch(() => {});
           break;
@@ -322,7 +333,7 @@ export function GameRoom() {
         </Button>
       </motion.div>
 
-      <ResultOverlay result={result} onPlayAgain={() => nav("/")} />
+      <ResultOverlay result={result} winner={winnerInfo} onPlayAgain={() => nav("/")} />
     </div>
   );
 }
