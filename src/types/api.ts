@@ -51,6 +51,14 @@ export interface Game {
   updated_at: string;
 }
 
+export interface RecentWinner {
+  game_id: string;
+  game_type: GameType;
+  winner_name: string;
+  prize: number;
+  finished_at: string;
+}
+
 export interface GamePlayer {
   id: string;
   game_id: string;

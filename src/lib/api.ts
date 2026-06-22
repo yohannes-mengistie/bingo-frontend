@@ -9,6 +9,7 @@ import type {
   GameType,
   LoginResponse,
   PaymentMethod,
+  RecentWinner,
   Transaction,
   User,
   Wallet,
@@ -120,6 +121,11 @@ export const api = {
     request<{ games: Game[] }>(
       "GET",
       `/api/v1/games${type ? `?type=${type}` : ""}`,
+    ),
+  recentWinners: (limit = 8) =>
+    request<{ winners: RecentWinner[] }>(
+      "GET",
+      `/api/v1/games/recent-winners?limit=${limit}`,
     ),
   gameState: (gameId: string) =>
     request<GameStateResponse>("GET", `/api/v1/games/${gameId}/state`),

@@ -14,6 +14,7 @@ import { haptic } from "@/lib/telegram";
 import type { Game, GameState, GameType } from "@/types/api";
 import { PromoTicker } from "@/components/lobby/PromoTicker";
 import { DailyStreak } from "@/components/lobby/DailyStreak";
+import { RecentWinners } from "@/components/lobby/RecentWinners";
 
 export function Lobby() {
   const { t } = useTranslation();
@@ -133,6 +134,8 @@ export function Lobby() {
           );
         })}
       </div>
+
+      <RecentWinners />
     </ScreenShell>
   );
 }
