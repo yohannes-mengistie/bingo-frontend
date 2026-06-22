@@ -59,6 +59,7 @@
     "waiting": "Waiting for players…",
     "countdown": "Starts in {{n}}s",
     "drawing": "Numbers are being called",
+    "called": "Called",
     "finished": "Game over",
     "lastCall": "Last number",
     "bingo": "BINGO!",

@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { FullSpinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { BingoCardView } from "@/components/bingo/BingoCard";
-import { DrawnBoard } from "@/components/bingo/DrawnBoard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
 import { ResultOverlay, GameResult } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
-import { claimPositions, findWinningPositions } from "@/lib/bingo";
+import { claimPositions, findWinningPositions, letterForNumber } from "@/lib/bingo";
 import { api, ApiError } from "@/lib/api";
 import { sound } from "@/lib/audio";
 import { haptic } from "@/lib/telegram";
@@ -37,13 +36,14 @@ export function GameRoom() {
   const location = useLocation();
   const myId = useAuth((s) => s.user?.id);
   const refreshWallet = useWallet((s) => s.refresh);
-  const { soundEnabled, hapticsEnabled, autoDaub } = useSettings();
+  const { soundEnabled, hapticsEnabled } = useSettings();
   const push = useToast((s) => s.push);
 
   const stateCardId = (location.state as { cardId?: number } | null)?.cardId;
 
   const [card, setCard] = useState<BingoCard | null>(null);
   const [drawn, setDrawn] = useState<Set<number>>(new Set());
+  const [order, setOrder] = useState<number[]>([]); // draw order, for the recent-calls strip
   const [last, setLast] = useState<number | null>(null);
   const [daubed, setDaubed] = useState<Set<number>>(new Set());
   const [phase, setPhase] = useState<GameState>("WAITING");
@@ -55,15 +55,6 @@ export function GameRoom() {
   const [result, setResult] = useState<GameResult>(null);
 
   sound.enabled = soundEnabled;
-
-  // number -> board position, for auto-daub.
-  const numToPos = useMemo(() => {
-    const m = new Map<number, number>();
-    card?.numbers.flat().forEach((n, pos) => {
-      if (n !== 0) m.set(n, pos);
-    });
-    return m;
-  }, [card]);
 
   const winLine = useMemo(() => findWinningPositions(daubed), [daubed]);
   const canClaim = !!winLine && phase === "DRAWING" && !result;
@@ -105,7 +96,10 @@ export function GameRoom() {
           else if (typeof d.game?.player_count === "number") setPlayers(d.game.player_count);
           if (typeof d.secondsLeft === "number") setSeconds(d.secondsLeft);
           if (Array.isArray(d.drawnNumbers)) {
-            setDrawn(new Set(d.drawnNumbers.map((n: any) => n.number)));
+            const nums = d.drawnNumbers.map((n: any) => n.number);
+            setDrawn(new Set(nums));
+            setOrder(nums);
+            if (nums.length) setLast(nums[nums.length - 1]);
           }
           break;
         }
@@ -143,12 +137,11 @@ export function GameRoom() {
           setPhase("DRAWING");
           setLast(n);
           setDrawn((prev) => new Set(prev).add(n));
+          setOrder((prev) => (prev.includes(n) ? prev : [...prev, n]));
           if (soundEnabled) sound.callNumber(n);
           if (hapticsEnabled) haptic.impact("light");
-          if (autoDaub) {
-            const pos = numToPos.get(n);
-            if (pos !== undefined) setDaubed((prev) => new Set(prev).add(pos));
-          }
+          // Marking is manual: the player must tap each called number on their
+          // own card. (No auto-daub.)
           break;
         }
         case "WINNER": {
@@ -169,7 +162,7 @@ export function GameRoom() {
           break;
       }
     },
-    [autoDaub, hapticsEnabled, myId, numToPos, prize, refreshWallet, soundEnabled],
+    [hapticsEnabled, myId, prize, refreshWallet, soundEnabled],
   );
 
   // Set up the live game socket.
@@ -242,9 +235,12 @@ export function GameRoom() {
   }
 
   const canRefund = phase === "WAITING" || phase === "COUNTDOWN";
+  const recent = order.slice(-7).reverse(); // most-recent first
 
   return (
-    <div className="flex min-h-screen flex-col px-4 pb-4 pt-3">
+    // Fixed to the viewport height and non-scrolling: the whole game lives on
+    // one page. The card flexes to fill the space left by the header/called row.
+    <div className="flex h-[100dvh] flex-col overflow-hidden px-4 pb-3 pt-2">
       <Header
         title={
           <span className="text-lg">
@@ -259,7 +255,7 @@ export function GameRoom() {
       />
 
       {/* Status row */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <div className="text-sm">
           <div className="font-display font-bold">
             {phase === "COUNTDOWN"
@@ -280,34 +276,47 @@ export function GameRoom() {
         )}
       </div>
 
-      {/* Drawn board + ball */}
-      <div className="glass mb-3 rounded-2xl p-3">
+      {/* Called numbers: the current ball + the last few calls (with letters).
+          Replaces the tall, scrolling 75-cell master board. */}
+      <div className="glass mb-2 flex items-center gap-3 rounded-2xl p-2">
         <BallCallout number={last} />
-        <div className="mt-2">
-          <DrawnBoard drawn={drawn} last={last} />
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center justify-between text-[11px] text-ink-faint">
+            <span>{t("game.called")}</span>
+            <span>{order.length}/75</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {recent.length === 0 ? (
+              <span className="text-xs text-ink-faint">—</span>
+            ) : (
+              recent.map((n, i) => <CallChip key={n} n={n} highlight={i === 0} />)
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Player card */}
-      <div className="flex-1">
-        <BingoCardView
-          card={card}
-          daubed={daubed}
-          drawn={drawn}
-          winLine={winLine}
-          onDaub={onDaub}
-        />
+      {/* Player card — fills the remaining height, sized so it never scrolls. */}
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="mx-auto" style={{ width: "min(100%, calc(100dvh - 330px))" }}>
+          <BingoCardView
+            card={card}
+            daubed={daubed}
+            drawn={drawn}
+            winLine={winLine}
+            onDaub={onDaub}
+          />
+        </div>
       </div>
 
       {/* BINGO button */}
-      <motion.div className="sticky bottom-3 mt-3" animate={canClaim ? { scale: [1, 1.03, 1] } : {}} transition={{ repeat: Infinity, duration: 0.9 }}>
+      <motion.div className="mt-2" animate={canClaim ? { scale: [1, 1.03, 1] } : {}} transition={{ repeat: Infinity, duration: 0.9 }}>
         <Button
           variant="gold"
           fullWidth
           disabled={!canClaim}
           loading={claiming}
           onClick={onClaim}
-          className="!py-4 text-xl"
+          className="!py-3.5 text-xl"
         >
           {claiming ? t("game.claiming") : `🎉 ${t("game.bingo")}`}
         </Button>
@@ -315,5 +324,29 @@ export function GameRoom() {
 
       <ResultOverlay result={result} onPlayAgain={() => nav("/")} />
     </div>
+  );
+}
+
+// Letter tints for the called-number chips (B/I/N/G/O).
+const CHIP_COLOR: Record<string, string> = {
+  B: "bg-neon-cyan/20 text-neon-cyan",
+  I: "bg-neon-purple/20 text-neon-purple",
+  N: "bg-neon-pink/20 text-neon-pink",
+  G: "bg-neon-green/20 text-neon-green",
+  O: "bg-neon-gold/20 text-neon-gold",
+};
+
+/** A recently-called number shown as letter+number, e.g. "N42". */
+function CallChip({ n, highlight }: { n: number; highlight?: boolean }) {
+  const l = letterForNumber(n);
+  return (
+    <span
+      className={`rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+        CHIP_COLOR[l] ?? "bg-white/10 text-white"
+      } ${highlight ? "ring-1 ring-white/70" : ""}`}
+    >
+      {l}
+      {n}
+    </span>
   );
 }
