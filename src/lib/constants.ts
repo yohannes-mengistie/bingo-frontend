@@ -23,6 +23,23 @@ export const MAX_CARD_ID = 200;
 export const GRID = 5;
 export const CENTER_INDEX = 12; // numbers[2][2] = FREE
 
+// House payment accounts shown on the deposit screen so players know where to
+// send money. Configure the real values via Vercel/.env (VITE_* are inlined
+// into the public bundle — these are destination accounts, not secrets).
+export const PAYMENT_ACCOUNTS: Record<
+  "Telebirr" | "CBE",
+  { number: string; name: string }
+> = {
+  Telebirr: {
+    number: import.meta.env.VITE_TELEBIRR_NUMBER ?? "09XXXXXXXX",
+    name: import.meta.env.VITE_PAYMENT_NAME ?? "Habesha Bingo",
+  },
+  CBE: {
+    number: import.meta.env.VITE_CBE_ACCOUNT ?? "1000XXXXXXXXX",
+    name: import.meta.env.VITE_PAYMENT_NAME ?? "Habesha Bingo",
+  },
+};
+
 export const LETTERS = ["B", "I", "N", "G", "O"] as const;
 
 // Column number ranges, mirroring constants.go
