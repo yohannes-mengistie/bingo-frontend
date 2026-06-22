@@ -239,7 +239,7 @@ export function GameRoom() {
   if (!card) {
     return (
       <div className="flex min-h-screen flex-col px-4 pt-3">
-        <Header back title={t("game.yourCard")} />
+        <Header back onBack={() => nav("/")} title={t("game.yourCard")} />
         <FullSpinner label={t("common.loading")} />
       </div>
     );
@@ -253,6 +253,8 @@ export function GameRoom() {
     // one page. The card flexes to fill the space left by the header/called row.
     <div className="flex h-[100dvh] flex-col overflow-hidden px-4 pb-3 pt-2">
       <Header
+        back
+        onBack={() => nav("/")}
         title={
           <span className="text-lg">
             {money(prize)} <span className="text-xs text-ink-faint">🏆</span>

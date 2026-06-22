@@ -12,6 +12,7 @@ import { WalletScreen } from "@/screens/Wallet";
 import { Profile } from "@/screens/Profile";
 import { Referral } from "@/screens/Referral";
 import { Leaderboard } from "@/screens/Leaderboard";
+import { TelegramBackButton } from "@/components/layout/TelegramBackButton";
 
 export default function App() {
   const { status, authenticate, user } = useAuth();
@@ -41,16 +42,19 @@ function renderByStatus(
 ) {
   if (status === "authed" && hasUser) {
     return (
-      <Routes>
-        <Route path="/" element={<Lobby />} />
+      <>
+        <TelegramBackButton />
+        <Routes>
+          <Route path="/" element={<Lobby />} />
         <Route path="/play/:gameType" element={<CardSelect />} />
         <Route path="/game/:gameId" element={<GameRoom />} />
         <Route path="/wallet" element={<WalletScreen />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/referral" element={<Referral />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="*" element={<Lobby />} />
-      </Routes>
+          <Route path="*" element={<Lobby />} />
+        </Routes>
+      </>
     );
   }
   if (status === "not_registered") return <NotRegistered />;

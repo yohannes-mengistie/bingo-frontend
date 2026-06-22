@@ -101,10 +101,10 @@ export function Lobby() {
               }}
               className="text-left"
             >
-              <Card className="relative overflow-hidden !p-4 active:scale-[0.97] transition-transform">
+              <Card className="relative overflow-hidden !p-3.5 active:scale-[0.97] transition-transform">
                 <div className="absolute -right-6 -top-6 size-20 rounded-full bg-grad-purple opacity-20 blur-xl" />
                 <div className="flex items-center justify-between">
-                  <span className="font-display text-3xl font-extrabold text-neon-gold">
+                  <span className="font-display text-2xl font-extrabold text-neon-gold">
                     {money(s.bet)}
                   </span>
                   {live ? (
@@ -118,7 +118,7 @@ export function Lobby() {
                     </span>
                   )}
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-ink-muted">
+                <div className="mt-2.5 flex items-center justify-between text-xs text-ink-muted">
                   <span>
                     👥 {agg?.players ?? 0} {t("common.players")}
                   </span>
@@ -126,7 +126,7 @@ export function Lobby() {
                     🏆 {money(agg?.prize ?? 0)}
                   </span>
                 </div>
-                <div className="mt-3 rounded-xl bg-grad-purple py-2 text-center font-display text-sm font-bold text-white">
+                <div className="mt-2.5 rounded-lg bg-grad-purple py-2 text-center font-display text-sm font-bold text-white">
                   {t("common.play")}
                 </div>
               </Card>
