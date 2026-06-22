@@ -6,9 +6,11 @@ interface Props {
   title?: ReactNode;
   back?: boolean;
   right?: ReactNode;
+  /** Override the default back behavior (nav(-1)) — e.g. return to the lobby. */
+  onBack?: () => void;
 }
 
-export function Header({ title, back, right }: Props) {
+export function Header({ title, back, right, onBack }: Props) {
   const nav = useNavigate();
   return (
     <header className="mb-3 flex items-center gap-3">
@@ -16,9 +18,10 @@ export function Header({ title, back, right }: Props) {
         <button
           onClick={() => {
             haptic.impact("light");
-            nav(-1);
+            if (onBack) onBack();
+            else nav(-1);
           }}
-          className="glass flex size-10 items-center justify-center rounded-2xl text-lg"
+          className="glass flex size-9 items-center justify-center rounded-xl text-lg"
         >
           ‹
         </button>
