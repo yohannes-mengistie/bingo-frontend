@@ -30,9 +30,9 @@ export function Staff() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold">Staff (Admins)</h1>
-        <Button variant="ghost" onClick={() => navigate("/users")}>
+        <Button variant="ghost" onClick={() => navigate("/users")} className="self-start sm:self-auto">
           Promote from Users →
         </Button>
       </div>

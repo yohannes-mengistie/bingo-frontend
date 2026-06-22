@@ -32,13 +32,13 @@ export function Users() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold">Users {total > 0 && <span className="text-slate-500">({total})</span>}</h1>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, phone, Telegram ID…"
-          className="w-72 rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
+          className="w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand sm:w-72"
         />
       </div>
 
