@@ -21,14 +21,14 @@ export function Sheet({ open, onClose, title, children }: Props) {
         >
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
           <motion.div
-            className="relative w-full max-w-md rounded-t-3xl glass border-b-0 p-5 pb-8"
+            className="relative w-full max-w-md rounded-t-2xl glass border-b-0 p-4 pb-6"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 320 }}
           >
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
-            {title && <h2 className="mb-4 font-display text-xl font-bold">{title}</h2>}
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+            {title && <h2 className="mb-3 font-display text-lg font-bold">{title}</h2>}
             {children}
           </motion.div>
         </motion.div>

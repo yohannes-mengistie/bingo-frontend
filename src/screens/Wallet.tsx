@@ -36,7 +36,7 @@ export function WalletScreen() {
       <Header title={t("wallet.title")} />
 
       <div className="grid grid-cols-1 gap-3">
-        <Card className="!p-4">
+        <Card className="!p-3.5">
           <div className="text-xs text-ink-faint">{t("wallet.realBalance")}</div>
           <div className="font-display text-2xl font-extrabold text-neon-gold">
             {money(wallet?.balance)}
@@ -280,7 +280,7 @@ function DepositTarget({
 }
 
 const inputCls =
-  "w-full rounded-xl bg-bg-soft px-4 py-3 text-ink outline-none ring-1 ring-white/10 focus:ring-neon-purple";
+  "w-full rounded-lg bg-bg-soft px-3.5 py-2.5 text-sm text-ink outline-none ring-1 ring-white/10 focus:ring-neon-purple";
 
 function Field({
   label,
