@@ -13,7 +13,7 @@ const LETTER_COLOR: Record<string, string> = {
 export function BallCallout({ number }: { number: number | null }) {
   const letter = number ? letterForNumber(number) : "";
   return (
-    <div className="flex h-28 items-center justify-center">
+    <div className="flex size-20 shrink-0 items-center justify-center">
       <AnimatePresence mode="popLayout">
         {number ? (
           <motion.div
@@ -22,18 +22,18 @@ export function BallCallout({ number }: { number: number | null }) {
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             exit={{ scale: 0.6, opacity: 0 }}
             transition={{ type: "spring", damping: 12, stiffness: 280 }}
-            className={`relative flex size-24 flex-col items-center justify-center rounded-full bg-gradient-to-br ${LETTER_COLOR[letter] ?? "from-neon-purple to-neon-pink"} shadow-glow`}
+            className={`relative flex size-20 flex-col items-center justify-center rounded-full bg-gradient-to-br ${LETTER_COLOR[letter] ?? "from-neon-purple to-neon-pink"} shadow-glow`}
           >
             <span className="absolute inset-1 rounded-full ring-2 ring-white/30" />
-            <span className="font-display text-sm font-bold text-white/90">{letter}</span>
-            <span className="font-display text-4xl font-extrabold leading-none text-white">
+            <span className="font-display text-sm font-bold leading-none text-white/90">{letter}</span>
+            <span className="font-display text-3xl font-extrabold leading-none text-white">
               {number}
             </span>
           </motion.div>
         ) : (
           <motion.div
             key="idle"
-            className="flex size-24 items-center justify-center rounded-full bg-white/5 text-3xl"
+            className="flex size-20 items-center justify-center rounded-full bg-white/5 text-3xl"
           >
             🎱
           </motion.div>

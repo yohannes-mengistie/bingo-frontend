@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { useTranslation } from "react-i18next";
 import { LETTERS } from "@/lib/constants";
 import { CENTER } from "@/lib/bingo";
 import type { BingoCard as Card } from "@/types/api";
@@ -18,7 +17,6 @@ interface Props {
 }
 
 export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg" }: Props) {
-  const { t } = useTranslation();
   const winSet = new Set(winLine ?? []);
   const flat = card.numbers.flat();
 
@@ -75,11 +73,6 @@ export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg
           );
         })}
       </div>
-      {size === "lg" && (
-        <p className="mt-2 text-center text-[11px] text-ink-faint">
-          ★ = {t("card.free")}
-        </p>
-      )}
     </div>
   );
 }

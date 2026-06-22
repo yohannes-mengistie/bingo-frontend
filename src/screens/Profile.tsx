@@ -80,7 +80,6 @@ export function Profile() {
         </Row>
         <Toggle label={t("profile.sound")} on={settings.soundEnabled} onClick={settings.toggleSound} />
         <Toggle label={t("profile.haptics")} on={settings.hapticsEnabled} onClick={settings.toggleHaptics} />
-        <Toggle label={t("profile.autoDaub")} on={settings.autoDaub} onClick={settings.toggleAutoDaub} />
       </Card>
 
       {/* History */}
