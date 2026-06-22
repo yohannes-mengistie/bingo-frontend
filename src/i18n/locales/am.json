@@ -74,6 +74,8 @@
     "winTitle": "አሸነፍክ!",
     "loseTitle": "በሚቀጥለው ጊዜ ይሳካልሃል",
     "eliminatedTitle": "ተሰናብተሃል",
+    "cancelledTitle": "ጨዋታው ተሰርዟል",
+    "cancelledBody": "ይህ ጨዋታ ተሰርዟል፤ ውርርድህ ተመላሽ ሆኗል።",
     "wonAmount": "{{amount}} አሸነፍክ",
     "playAgain": "እንደገና ተጫወት",
     "share": "አጋራ",

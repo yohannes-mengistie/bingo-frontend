@@ -109,13 +109,30 @@ export function GameRoom() {
           }
           break;
         }
-        case "GAME_STATUS":
-          if (msg.data.state) setPhase(msg.data.state);
+        case "GAME_STATUS": {
+          // Backend sends the new state under `status`; tolerate `state` too.
+          const status: GameState | undefined = msg.data.status ?? msg.data.state;
+          if (status === "CANCELLED") {
+            // The game was force-cancelled or auto-refunded (e.g. all numbers
+            // drawn with no winner). The stake is already back in the wallet.
+            setPhase("CANCELLED");
+            setResult({ type: "cancelled" });
+            refreshWallet().catch(() => {});
+          } else if (status) {
+            setPhase(status);
+          }
           if (typeof msg.data.player_count === "number") setPlayers(msg.data.player_count);
           if (typeof msg.data.prize_pool === "number") setPrize(msg.data.prize_pool);
           break;
+        }
         case "PLAYER_COUNT":
           setPlayers(msg.data.count);
+          break;
+        case "PLAYER_JOINED":
+          setPlayers((p) => p + 1);
+          break;
+        case "PLAYER_LEFT":
+          setPlayers((p) => Math.max(0, p - 1));
           break;
         case "COUNTDOWN":
           setPhase("COUNTDOWN");
@@ -142,9 +159,12 @@ export function GameRoom() {
           refreshWallet().catch(() => {});
           break;
         }
-        case "PLAYER_ELIMINATED":
-          if (myId && msg.data.user_id === myId) setResult({ type: "eliminated" });
+        case "PLAYER_ELIMINATED": {
+          // Backend sends the id under `userId`; tolerate `user_id` too.
+          const elimId = msg.data.userId ?? msg.data.user_id;
+          if (myId && elimId === myId) setResult({ type: "eliminated" });
           break;
+        }
         default:
           break;
       }

@@ -10,6 +10,7 @@ export type GameResult =
   | { type: "win"; prize: number }
   | { type: "lose" }
   | { type: "eliminated" }
+  | { type: "cancelled" }
   | null;
 
 export function ResultOverlay({
@@ -43,19 +44,30 @@ export function ResultOverlay({
   return (
     <Modal open={!!result}>
       <div className="text-6xl">
-        {isWin ? "🏆" : result?.type === "eliminated" ? "❌" : "🎲"}
+        {isWin
+          ? "🏆"
+          : result?.type === "eliminated"
+            ? "❌"
+            : result?.type === "cancelled"
+              ? "↩️"
+              : "🎲"}
       </div>
       <h2 className="mt-3 font-display text-2xl font-extrabold">
         {isWin
           ? t("result.winTitle")
           : result?.type === "eliminated"
             ? t("result.eliminatedTitle")
-            : t("result.loseTitle")}
+            : result?.type === "cancelled"
+              ? t("result.cancelledTitle")
+              : t("result.loseTitle")}
       </h2>
       {isWin && (
         <p className="mt-1 text-lg font-bold text-neon-gold">
           {t("result.wonAmount", { amount: money(prize) })}
         </p>
+      )}
+      {result?.type === "cancelled" && (
+        <p className="mt-1 text-sm text-ink-faint">{t("result.cancelledBody")}</p>
       )}
       <div className="mt-5 flex flex-col gap-2">
         {isWin && (

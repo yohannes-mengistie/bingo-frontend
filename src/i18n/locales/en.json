@@ -74,6 +74,8 @@
     "winTitle": "You WON!",
     "loseTitle": "Better luck next time",
     "eliminatedTitle": "Eliminated",
+    "cancelledTitle": "Game cancelled",
+    "cancelledBody": "This game was cancelled and your stake was refunded.",
     "wonAmount": "You won {{amount}}",
     "playAgain": "Play again",
     "share": "Share",
