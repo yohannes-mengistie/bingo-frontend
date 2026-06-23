@@ -10,7 +10,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { LangToggle } from "@/components/ui/LangToggle";
 import { useToast } from "@/components/ui/Toast";
 import { api } from "@/lib/api";
-import { fullName, shortDate } from "@/lib/format";
+import { fullName, money, shortDate } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
 import { useAuth } from "@/store/authStore";
 import { useSettings } from "@/store/settingsStore";
@@ -86,17 +86,28 @@ export function Profile() {
       <h2 className="mb-2 mt-5 font-display text-lg font-bold">{t("profile.history")}</h2>
       <div className="flex flex-col gap-2">
         {history.data?.length ? (
-          history.data.map((g: any, i: number) => (
-            <Card key={g.id ?? g.game_id ?? i} className="flex items-center justify-between !py-3">
-              <div>
-                <div className="font-bold">{g.game_type ?? g.type ?? "—"}</div>
-                <div className="text-xs text-ink-faint">
-                  {g.created_at || g.finished_at ? shortDate(g.finished_at ?? g.created_at) : ""}
+          history.data.map((entry: any, i: number) => {
+            // Backend returns { game, is_winner, card_id, ... }; tolerate a flat
+            // shape too just in case.
+            const g = entry.game ?? entry;
+            const when = g.finished_at ?? g.created_at;
+            const won =
+              entry.is_winner === true || (!!user?.id && g.winner_id === user.id);
+            return (
+              <Card key={g.id ?? i} className="flex items-center justify-between !py-3">
+                <div>
+                  <div className="font-bold">
+                    {g.game_type ?? "—"}
+                    {g.bet_amount ? ` · ${money(g.bet_amount)}` : ""}
+                  </div>
+                  <div className="text-xs text-ink-faint">
+                    {when ? shortDate(when) : ""}
+                  </div>
                 </div>
-              </div>
-              <Outcome game={g} myId={user?.id} />
-            </Card>
-          ))
+                <Outcome won={won} />
+              </Card>
+            );
+          })
         ) : (
           <p className="py-6 text-center text-sm text-ink-faint">{t("wallet.empty")}</p>
         )}
@@ -152,9 +163,8 @@ function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: (
   );
 }
 
-function Outcome({ game, myId }: { game: any; myId?: string }) {
+function Outcome({ won }: { won: boolean }) {
   const { t } = useTranslation();
-  const won = myId && (game.winner_id === myId || game.is_winner === true);
   return (
     <span
       className={`rounded-full px-3 py-1 text-[11px] font-bold ${
