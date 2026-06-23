@@ -84,7 +84,13 @@
     "prizeWon": "Won {{amount}}",
     "playAgain": "Play again",
     "share": "Share",
-    "shareText": "I just won {{amount}} on Habesha Bingo! 🎉 Come play with me:"
+    "shareText": "I just won {{amount}} on Habesha Bingo! 🎉 Come play with me:",
+    "viewWinnerCard": "View winner's card",
+    "winnerCardTitle": "Winner's card",
+    "winnerCardSub": "The cells {{name}} marked",
+    "validLine": "Valid bingo — the marks form a winning line",
+    "noLine": "No complete line in these marks",
+    "cardLoadError": "Couldn't load the card"
   },
   "wallet": {
     "title": "Wallet",

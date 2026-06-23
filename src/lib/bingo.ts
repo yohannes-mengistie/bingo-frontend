@@ -80,3 +80,22 @@ export function claimPositions(marked: Set<number>): number[] {
   set.add(CENTER);
   return [...set].sort((a, b) => a - b);
 }
+
+/**
+ * Map a winner's marked card NUMBERS (the WINNER event payload) back to board
+ * positions (0-24), and the winning line through them. Numbers are unique on a
+ * card and the FREE center is 0 → position 12, so the mapping is unambiguous.
+ * Used to render the winner's card so other players can verify the win.
+ */
+export function winnerMarks(card: BingoCard, markedNumbers: number[]): {
+  positions: Set<number>;
+  winLine: number[] | null;
+} {
+  const flat = flattenCard(card);
+  const positions = new Set<number>();
+  for (const num of markedNumbers) {
+    const pos = flat.indexOf(num);
+    if (pos >= 0) positions.add(pos);
+  }
+  return { positions, winLine: findWinningPositions(positions) };
+}

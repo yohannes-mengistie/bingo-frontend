@@ -6,6 +6,7 @@ import {
   flattenCard,
   hasBingo,
   letterForNumber,
+  winnerMarks,
 } from "./bingo";
 import type { BingoCard } from "@/types/api";
 
@@ -77,5 +78,35 @@ describe("findWinningPositions", () => {
 describe("claimPositions", () => {
   it("always includes the free center and is sorted", () => {
     expect(claimPositions(new Set([4, 0]))).toEqual([0, 4, CENTER].sort((a, b) => a - b));
+  });
+});
+
+describe("winnerMarks", () => {
+  it("maps the winner's marked NUMBERS back to board positions", () => {
+    // Top row of CARD1 is [15, 28, 31, 58, 61] at positions 0-4.
+    const { positions } = winnerMarks(CARD1, [15, 28, 31, 58, 61]);
+    expect([...positions].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("recomputes the winning line so the win can be verified", () => {
+    const { winLine } = winnerMarks(CARD1, [15, 28, 31, 58, 61]);
+    expect(winLine).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("maps the FREE center value 0 to position 12 (diagonal win)", () => {
+    // Main diagonal positions 0,6,12,18,24 → numbers 15,30,0,50,63.
+    const { positions, winLine } = winnerMarks(CARD1, [15, 30, 0, 50, 63]);
+    expect(positions.has(CENTER)).toBe(true);
+    expect(winLine).toEqual([0, 6, 12, 18, 24]);
+  });
+
+  it("ignores numbers that are not on the card", () => {
+    const { positions, winLine } = winnerMarks(CARD1, [15, 28, 999]);
+    expect([...positions].sort((a, b) => a - b)).toEqual([0, 1]);
+    expect(winLine).toBeNull();
+  });
+
+  it("reports no line for an incomplete set of marks", () => {
+    expect(winnerMarks(CARD1, [15, 28, 31, 58]).winLine).toBeNull();
   });
 });

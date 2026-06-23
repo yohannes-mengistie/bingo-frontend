@@ -84,7 +84,13 @@
     "prizeWon": "{{amount}} አሸንፏል",
     "playAgain": "እንደገና ተጫወት",
     "share": "አጋራ",
-    "shareText": "በሀበሻ ቢንጎ ላይ {{amount}} አሸነፍኩ! 🎉 መጥተህ ተጫወት፦"
+    "shareText": "በሀበሻ ቢንጎ ላይ {{amount}} አሸነፍኩ! 🎉 መጥተህ ተጫወት፦",
+    "viewWinnerCard": "የአሸናፊውን ካርድ ይመልከቱ",
+    "winnerCardTitle": "የአሸናፊው ካርድ",
+    "winnerCardSub": "{{name}} ምልክት ያደረገባቸው ሳጥኖች",
+    "validLine": "ትክክለኛ ቢንጎ — ምልክቶቹ አሸናፊ መስመር ይሠራሉ",
+    "noLine": "በእነዚህ ምልክቶች የተሟላ መስመር የለም",
+    "cardLoadError": "ካርዱን መጫን አልተቻለም"
   },
   "wallet": {
     "title": "ቦርሳ",

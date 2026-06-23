@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import confetti from "canvas-confetti";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { WinnerCardModal } from "@/components/bingo/WinnerCardModal";
 import { money } from "@/lib/format";
 import { shareToTelegram, haptic } from "@/lib/telegram";
 
@@ -16,19 +17,26 @@ export type GameResult =
 export interface WinnerInfo {
   name: string;
   prize: number;
+  /** Winner's card id + the numbers they marked — lets anyone verify the win. */
+  cardId?: number;
+  marked?: number[];
 }
 
 export function ResultOverlay({
   result,
   winner,
+  drawn,
   onPlayAgain,
 }: {
   result: GameResult;
   /** Who won this game — shown to everyone (losers/eliminated) for transparency. */
   winner?: WinnerInfo | null;
+  /** All numbers called this game — passed through for winner-card context. */
+  drawn?: Set<number>;
   onPlayAgain: () => void;
 }) {
   const { t } = useTranslation();
+  const [showWinnerCard, setShowWinnerCard] = useState(false);
   const isWin = result?.type === "win";
   const showWinnerBanner =
     !!winner && (result?.type === "lose" || result?.type === "eliminated");
@@ -51,7 +59,23 @@ export function ResultOverlay({
   const bot = import.meta.env.VITE_BOT_USERNAME ?? "HubBingoBot";
   const prize = result?.type === "win" ? result.prize : 0;
 
+  // Anyone in a finished game can inspect the winner's card to confirm the
+  // marks form a real bingo. Available once we know the winner's card.
+  const canVerify =
+    !!winner &&
+    typeof winner.cardId === "number" &&
+    !!winner.marked &&
+    result?.type !== "cancelled";
+
+  // Reveal the winner's card to EVERYONE automatically the moment the win lands
+  // (no tap). Fires once when the card data first arrives; if the player closes
+  // it, it stays closed — they can reopen via the button below.
+  useEffect(() => {
+    if (canVerify) setShowWinnerCard(true);
+  }, [canVerify]);
+
   return (
+    <>
     <Modal open={!!result}>
       <div className="text-6xl">
         {isWin
@@ -106,10 +130,27 @@ export function ResultOverlay({
             🔗 {t("result.share")}
           </Button>
         )}
+        {canVerify && (
+          <Button variant="ghost" onClick={() => setShowWinnerCard(true)}>
+            🔍 {t("result.viewWinnerCard")}
+          </Button>
+        )}
         <Button variant="gold" onClick={onPlayAgain}>
           {t("result.playAgain")}
         </Button>
       </div>
     </Modal>
+
+    {canVerify && winner && (
+      <WinnerCardModal
+        open={showWinnerCard}
+        onClose={() => setShowWinnerCard(false)}
+        cardId={winner.cardId!}
+        marked={winner.marked!}
+        drawn={drawn}
+        winnerName={winner.name}
+      />
+    )}
+    </>
   );
 }
