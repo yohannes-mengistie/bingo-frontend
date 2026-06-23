@@ -73,11 +73,6 @@ export function BingoCardView({ card, daubed, drawn, showCalled = false, winLine
               ].join(" ")}
             >
               {isCenter ? (size === "lg" ? "★" : "★") : num}
-              {isDaubed && !isCenter && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-white/70">
-                  <span className="size-2 rounded-full bg-white/90" />
-                </span>
-              )}
             </motion.button>
           );
         })}
