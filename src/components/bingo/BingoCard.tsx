@@ -26,7 +26,7 @@ export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg
         {LETTERS.map((l, i) => (
           <div
             key={l}
-            className="rounded-xl bg-grad-purple py-1 text-center font-display text-lg font-extrabold text-white"
+            className="rounded-xl bg-bg-elevated py-1 text-center font-display text-lg font-extrabold text-white"
             style={{ opacity: 0.9 + i * 0.02 }}
           >
             {l}
@@ -59,7 +59,7 @@ export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg
                     : isDaubed
                       ? "bg-grad-cyan text-white"
                       : isDrawn
-                        ? "bg-neon-purple/25 text-ink ring-1 ring-neon-purple/60"
+                        ? "bg-neon-blue/25 text-ink ring-1 ring-neon-blue/60"
                         : "bg-white/5 text-ink-muted",
               ].join(" ")}
             >

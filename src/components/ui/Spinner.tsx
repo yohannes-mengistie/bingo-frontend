@@ -1,7 +1,7 @@
 export function Spinner({ size = 28 }: { size?: number }) {
   return (
     <span
-      className="inline-block animate-spin rounded-full border-2 border-neon-purple/30 border-t-neon-purple"
+      className="inline-block animate-spin rounded-full border-2 border-accent/30 border-t-accent"
       style={{ width: size, height: size }}
     />
   );

@@ -13,7 +13,7 @@ export function LangToggle() {
             setLang(l);
           }}
           className={`rounded-full px-3 py-1.5 transition-colors ${
-            lang === l ? "bg-grad-purple text-white" : "text-ink-muted"
+            lang === l ? "bg-accent text-white" : "text-ink-muted"
           }`}
         >
           {l === "am" ? "አማ" : "EN"}

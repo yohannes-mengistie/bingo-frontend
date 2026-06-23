@@ -50,7 +50,7 @@ export function Profile() {
       <Header title={t("profile.title")} />
 
       <Card className="flex items-center gap-4">
-        <div className="flex size-14 items-center justify-center rounded-full bg-grad-purple text-2xl font-extrabold">
+        <div className="flex size-14 items-center justify-center rounded-full bg-bg-elevated text-2xl font-extrabold">
           {(user?.first_name ?? "?").charAt(0).toUpperCase()}
         </div>
         <div className="flex-1">
@@ -108,13 +108,13 @@ export function Profile() {
             value={first}
             onChange={(e) => setFirst(e.target.value)}
             placeholder={t("profile.firstName")}
-            className="w-full rounded-xl bg-bg-soft px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-neon-purple"
+            className="w-full rounded-xl bg-bg-soft px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-accent"
           />
           <input
             value={last ?? ""}
             onChange={(e) => setLast(e.target.value)}
             placeholder={t("profile.lastName")}
-            className="w-full rounded-xl bg-bg-soft px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-neon-purple"
+            className="w-full rounded-xl bg-bg-soft px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-accent"
           />
           <Button variant="gold" fullWidth loading={saving} onClick={save}>
             {t("common.save")}

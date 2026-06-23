@@ -26,10 +26,10 @@ export function TabBar() {
                 nav(tab.to);
               }}
               className={`flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors ${
-                active ? "text-neon-purple" : "text-ink-faint"
+                active ? "text-accent" : "text-ink-faint"
               }`}
             >
-              <span className={`text-xl ${active ? "drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" : ""}`}>
+              <span className={`text-xl ${active ? "drop-shadow-[0_0_8px_rgba(204,120,92,0.8)]" : ""}`}>
                 {tab.icon}
               </span>
               <span className="text-[11px] font-semibold">{t(`nav.${tab.key}`)}</span>

@@ -3,7 +3,7 @@ import { letterForNumber } from "@/lib/bingo";
 
 const LETTER_COLOR: Record<string, string> = {
   B: "from-neon-cyan to-blue-500",
-  I: "from-neon-purple to-indigo-500",
+  I: "from-neon-blue to-blue-600",
   N: "from-neon-pink to-rose-500",
   G: "from-neon-green to-emerald-500",
   O: "from-neon-gold to-amber-500",
@@ -22,7 +22,7 @@ export function BallCallout({ number }: { number: number | null }) {
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             exit={{ scale: 0.6, opacity: 0 }}
             transition={{ type: "spring", damping: 12, stiffness: 280 }}
-            className={`relative flex size-20 flex-col items-center justify-center rounded-full bg-gradient-to-br ${LETTER_COLOR[letter] ?? "from-neon-purple to-neon-pink"} shadow-glow`}
+            className={`relative flex size-20 flex-col items-center justify-center rounded-full bg-gradient-to-br ${LETTER_COLOR[letter] ?? "from-neon-cyan to-neon-blue"}`}
           >
             <span className="absolute inset-1 rounded-full ring-2 ring-white/30" />
             <span className="font-display text-sm font-bold leading-none text-white/90">{letter}</span>

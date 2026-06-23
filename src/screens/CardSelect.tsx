@@ -127,7 +127,7 @@ export function CardSelect() {
                   ? "bg-grad-gold text-bg ring-2 ring-white"
                   : isTaken
                     ? "cursor-not-allowed bg-white/5 text-ink-faint/40 line-through"
-                    : "bg-bg-card text-ink hover:bg-neon-purple/30",
+                    : "bg-bg-card text-ink hover:bg-white/10",
               ].join(" ")}
             >
               {id}

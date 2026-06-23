@@ -36,7 +36,7 @@ export function Leaderboard() {
       ) : (
         <Card className="flex items-center gap-4">
           <div className="font-display text-2xl font-extrabold text-neon-gold">#1</div>
-          <div className="flex size-12 items-center justify-center rounded-full bg-grad-purple text-xl font-bold">
+          <div className="flex size-12 items-center justify-center rounded-full bg-bg-elevated text-xl font-bold">
             {(user?.first_name ?? "?").charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
