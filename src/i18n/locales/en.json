@@ -43,7 +43,6 @@
     "dailyBonus": "Daily bonus ready!",
     "claim": "Claim",
     "bigWin": "{{name}} just won {{amount}}!",
-    "recentWinners": "Recent winners",
     "demoNotice": "Practice mode — play with free demo chips."
   },
   "card": {
