@@ -320,7 +320,6 @@ export function GameRoom() {
           <BingoCardView
             card={card}
             daubed={daubed}
-            drawn={drawn}
             winLine={winLine}
             onDaub={onDaub}
           />

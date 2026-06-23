@@ -76,7 +76,7 @@ export function WinnerCardModal({
           </div>
         ) : (
           <>
-            <BingoCardView card={card} daubed={daubed} drawn={drawn} winLine={winLine} />
+            <BingoCardView card={card} daubed={daubed} drawn={drawn} showCalled winLine={winLine} />
             <div
               className={[
                 "mt-3 rounded-xl px-3 py-2 text-sm font-semibold",

@@ -7,8 +7,15 @@ interface Props {
   card: Card;
   /** Positions (0-24) the player has daubed. */
   daubed?: Set<number>;
-  /** Numbers that have been drawn (for highlighting daubable cells). */
+  /** Numbers that have been drawn. */
   drawn?: Set<number>;
+  /**
+   * Tint called-but-unmarked cells as a hint. OFF by default: during live play
+   * the player must spot and mark called numbers themselves — auto-highlighting
+   * them feels like the app marks for you. Used (true) only for the read-only
+   * winner-card review, where showing which numbers were called aids verifying.
+   */
+  showCalled?: boolean;
   /** Winning line positions to spotlight. */
   winLine?: number[] | null;
   /** Tap handler for daubing. Omit for read-only preview. */
@@ -16,7 +23,7 @@ interface Props {
   size?: "sm" | "lg";
 }
 
-export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg" }: Props) {
+export function BingoCardView({ card, daubed, drawn, showCalled = false, winLine, onDaub, size = "lg" }: Props) {
   const winSet = new Set(winLine ?? []);
   const flat = card.numbers.flat();
 
@@ -37,8 +44,10 @@ export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg
         {flat.map((num, pos) => {
           const isCenter = pos === CENTER;
           const isDaubed = isCenter || daubed?.has(pos);
-          const isDrawn = isCenter || (drawn?.has(num) ?? false);
           const inWin = winSet.has(pos);
+          // Only hint called-but-unmarked cells when explicitly enabled.
+          const calledHint =
+            showCalled && !isCenter && !isDaubed && !inWin && (drawn?.has(num) ?? false);
           const tappable = !!onDaub && !isCenter;
 
           return (
@@ -58,7 +67,7 @@ export function BingoCardView({ card, daubed, drawn, winLine, onDaub, size = "lg
                     ? "bg-neon-green text-bg shadow-glow-cyan"
                     : isDaubed
                       ? "bg-grad-cyan text-white"
-                      : isDrawn
+                      : calledHint
                         ? "bg-neon-blue/25 text-ink ring-1 ring-neon-blue/60"
                         : "bg-white/5 text-ink-muted",
               ].join(" ")}
