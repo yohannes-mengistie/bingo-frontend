@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { BingoCardView } from "@/components/bingo/BingoCard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
-import { ResultOverlay, GameResult } from "@/components/bingo/ResultOverlay";
+import { ResultOverlay, GameResult, WinnerInfo } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
 import { claimPositions, findWinningPositions, letterForNumber } from "@/lib/bingo";
 import { api, ApiError } from "@/lib/api";
@@ -53,7 +53,7 @@ export function GameRoom() {
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
   const [claiming, setClaiming] = useState(false);
   const [result, setResult] = useState<GameResult>(null);
-  const [winnerInfo, setWinnerInfo] = useState<{ name: string; prize: number } | null>(null);
+  const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
 
   sound.enabled = soundEnabled;
 
@@ -150,8 +150,14 @@ export function GameRoom() {
           const won = !!myId && msg.data.user_id === myId;
           const prizeAmt = msg.data.prize ?? prize;
           // Reveal the winner to EVERYONE (winner, losers, eliminated) so the
-          // payout is transparent.
-          setWinnerInfo({ name: msg.data.winner_name || "Winner", prize: prizeAmt });
+          // payout is transparent — including their card + marks so anyone can
+          // verify the win is legitimate.
+          setWinnerInfo({
+            name: msg.data.winner_name || "Winner",
+            prize: prizeAmt,
+            cardId: typeof msg.data.card_id === "number" ? msg.data.card_id : undefined,
+            marked: Array.isArray(msg.data.marked_numbers) ? msg.data.marked_numbers : undefined,
+          });
           setResult((prev) =>
             won
               ? { type: "win", prize: prizeAmt }
@@ -335,7 +341,7 @@ export function GameRoom() {
         </Button>
       </motion.div>
 
-      <ResultOverlay result={result} winner={winnerInfo} onPlayAgain={() => nav("/")} />
+      <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={() => nav("/")} />
     </div>
   );
 }
