@@ -13,6 +13,10 @@ interface TGWebApp {
   ready(): void;
   expand(): void;
   close(): void;
+  // 7.7+: stop Telegram from hijacking vertical drags to minimize the app,
+  // which otherwise steals scroll from inner overflow regions.
+  disableVerticalSwipes?(): void;
+  enableVerticalSwipes?(): void;
   openTelegramLink(url: string): void;
   openLink(url: string): void;
   HapticFeedback?: {
@@ -89,6 +93,9 @@ export function initTelegram(): void {
   try {
     tg.ready();
     tg.expand();
+    // Let inner scroll regions (e.g. the card picker) handle vertical drags
+    // instead of Telegram closing/minimizing the app.
+    tg.disableVerticalSwipes?.();
     tg.setHeaderColor?.("#0a0a14");
     tg.setBackgroundColor?.("#0a0a14");
   } catch {
