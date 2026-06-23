@@ -109,35 +109,33 @@ export function CardSelect() {
       />
       <p className="mb-3 text-sm text-ink-muted">{t("card.title")}</p>
 
-      {/* Relative wrapper hosts a bottom fade that hints the grid scrolls. */}
-      <div className="relative">
-        <div className="grid max-h-[58vh] grid-cols-6 gap-1.5 overflow-y-auto overscroll-contain pb-2 [touch-action:pan-y] sm:grid-cols-8">
-          {ALL_CARDS.map((id) => {
-            const isTaken = taken.has(id);
-            const isSel = selected === id;
-            return (
-              <button
-                key={id}
-                disabled={isTaken}
-                onClick={() => {
-                  haptic.select();
-                  setSelected(id);
-                }}
-                className={[
-                  "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-colors",
-                  isSel
-                    ? "bg-grad-gold text-bg ring-2 ring-white"
-                    : isTaken
-                      ? "cursor-not-allowed bg-white/5 text-ink-faint/40 line-through"
-                      : "bg-bg-card text-ink hover:bg-white/10",
-                ].join(" ")}
-              >
-                {id}
-              </button>
-            );
-          })}
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-bg to-transparent" />
+      {/* Cards flow with the page (the whole screen scrolls, like Lobby/Wallet)
+          rather than a fragile nested scroll box. */}
+      <div className="grid grid-cols-6 gap-1.5 pb-6 sm:grid-cols-8">
+        {ALL_CARDS.map((id) => {
+          const isTaken = taken.has(id);
+          const isSel = selected === id;
+          return (
+            <button
+              key={id}
+              disabled={isTaken}
+              onClick={() => {
+                haptic.select();
+                setSelected(id);
+              }}
+              className={[
+                "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-colors",
+                isSel
+                  ? "bg-grad-gold text-bg ring-2 ring-white"
+                  : isTaken
+                    ? "cursor-not-allowed bg-white/5 text-ink-faint/40 line-through"
+                    : "bg-bg-card text-ink hover:bg-white/10",
+              ].join(" ")}
+            >
+              {id}
+            </button>
+          );
+        })}
       </div>
 
       <Sheet
