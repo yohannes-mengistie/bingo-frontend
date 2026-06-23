@@ -349,7 +349,7 @@ export function GameRoom() {
 // Letter tints for the called-number chips (B/I/N/G/O).
 const CHIP_COLOR: Record<string, string> = {
   B: "bg-neon-cyan/20 text-neon-cyan",
-  I: "bg-neon-purple/20 text-neon-purple",
+  I: "bg-neon-blue/20 text-neon-blue",
   N: "bg-neon-pink/20 text-neon-pink",
   G: "bg-neon-green/20 text-neon-green",
   O: "bg-neon-gold/20 text-neon-gold",

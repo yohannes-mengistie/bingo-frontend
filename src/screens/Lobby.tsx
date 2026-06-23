@@ -64,7 +64,7 @@ export function Lobby() {
             haptic.impact("medium");
             nav(`/game/${activeGame.id}`);
           }}
-          className="mb-3 w-full rounded-xl bg-grad-purple px-4 py-3 text-left active:scale-[0.98] transition-transform"
+          className="mb-3 w-full rounded-lg bg-accent px-4 py-3 text-left transition-colors duration-150 hover:bg-accent-active"
         >
           <div className="flex items-center justify-between">
             <span className="font-display text-sm font-bold text-white">
@@ -102,7 +102,7 @@ export function Lobby() {
               className="text-left"
             >
               <Card className="relative overflow-hidden !p-3.5 active:scale-[0.97] transition-transform">
-                <div className="absolute -right-6 -top-6 size-20 rounded-full bg-grad-purple opacity-20 blur-xl" />
+                <div className="absolute -right-6 -top-6 size-20 rounded-full bg-accent opacity-20 blur-xl" />
                 <div className="flex items-center justify-between">
                   <span className="font-display text-2xl font-extrabold text-neon-gold">
                     {money(s.bet)}
@@ -126,7 +126,7 @@ export function Lobby() {
                     🏆 {money(agg?.prize ?? 0)}
                   </span>
                 </div>
-                <div className="mt-2.5 rounded-lg bg-grad-purple py-2 text-center font-display text-sm font-bold text-white">
+                <div className="mt-2.5 rounded-lg bg-accent py-2 text-center font-sans text-sm font-medium text-white">
                   {t("common.play")}
                 </div>
               </Card>

@@ -63,7 +63,7 @@ export function WalletScreen() {
             key={tb}
             onClick={() => setTab(tb)}
             className={`rounded-full px-3 py-1.5 ${
-              tab === tb ? "bg-grad-purple text-white" : "text-ink-muted"
+              tab === tb ? "bg-accent text-white" : "text-ink-muted"
             }`}
           >
             {t(`wallet.${tb}`)}
@@ -193,7 +193,7 @@ function ActionSheet({
                   key={m}
                   onClick={() => setMethod(m)}
                   className={`flex-1 rounded-lg py-2 text-sm font-bold ${
-                    method === m ? "bg-grad-purple text-white" : "text-ink-muted"
+                    method === m ? "bg-accent text-white" : "text-ink-muted"
                   }`}
                 >
                   {m}
@@ -280,7 +280,7 @@ function DepositTarget({
 }
 
 const inputCls =
-  "w-full rounded-lg bg-bg-soft px-3.5 py-2.5 text-sm text-ink outline-none ring-1 ring-white/10 focus:ring-neon-purple";
+  "w-full rounded-lg bg-bg-soft px-3.5 py-2.5 text-sm text-ink outline-none ring-1 ring-white/10 focus:ring-accent";
 
 function Field({
   label,

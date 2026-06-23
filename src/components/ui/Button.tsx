@@ -10,12 +10,17 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
+// Button language per DESIGN.md (Claude): flat fills, no glow, 8px radius,
+// modest 500-weight label, state changes carried by color (press = darker,
+// disabled = faded). `accent` (coral) is the single accent, used sparingly —
+// gold is kept only for the celebratory jackpot/BINGO win moment.
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-grad-purple text-white shadow-glow",
-  gold: "bg-grad-gold text-bg shadow-glow-gold font-extrabold",
-  cyan: "bg-grad-cyan text-white shadow-glow-cyan",
-  ghost: "bg-white/5 text-ink border border-white/10",
-  danger: "bg-neon-red/90 text-white",
+  primary:
+    "bg-accent text-white hover:bg-accent-active active:bg-accent-active disabled:bg-accent-disabled",
+  gold: "bg-grad-gold text-bg font-semibold hover:brightness-95 active:brightness-90",
+  cyan: "bg-transparent text-ink border border-white/20 hover:bg-white/5 active:bg-white/10",
+  ghost: "bg-transparent text-ink border border-white/15 hover:bg-white/5 active:bg-white/10",
+  danger: "bg-transparent text-neon-red border border-neon-red/40 hover:bg-neon-red/10",
 };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
@@ -32,9 +37,12 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
         onClick?.(e);
       }}
       className={[
-        "relative inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5",
-        "font-display font-bold text-sm active:scale-[0.97] transition-transform",
-        "disabled:opacity-40 disabled:active:scale-100 disabled:cursor-not-allowed",
+        "relative inline-flex select-none items-center justify-center gap-2 rounded-lg px-5 py-3",
+        "font-sans text-[15px] font-medium leading-none",
+        "transition-colors duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+        "focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        "disabled:opacity-60 disabled:cursor-not-allowed",
         VARIANTS[variant],
         fullWidth ? "w-full" : "",
         className,
