@@ -141,10 +141,11 @@ export function GameRoom() {
           setPlayers(msg.data.count);
           break;
         case "PLAYER_JOINED":
-          if (typeof msg.data.prize_pool === "number") setPrize(msg.data.prize_pool);
-          break;
         case "PLAYER_LEFT":
-          // player_count is distinct people; counts are pushed via GAME_STATUS.
+          // Both carry the live prize_pool / player_count so every client stays
+          // in sync as others join or leave (not just the freshly-connected one).
+          if (typeof msg.data.prize_pool === "number") setPrize(msg.data.prize_pool);
+          if (typeof msg.data.player_count === "number") setPlayers(msg.data.player_count);
           break;
         case "COUNTDOWN":
           setPhase("COUNTDOWN");
