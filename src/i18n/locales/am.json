@@ -49,9 +49,16 @@
   },
   "card": {
     "title": "ካርድህን ምረጥ",
+    "titleMulti": "እስከ {{max}} ካርዶች ምረጥ",
+    "capHint": "{{count}}/{{max}} ካርዶች",
+    "maxCards": "በአንድ ጨዋታ እስከ {{max}} ካርዶች",
+    "selectedCount": "{{count}} ተመርጠዋል",
+    "total": "ጠቅላላ",
     "selectId": "ካርድ #{{id}}",
     "taken": "ተይዟል",
+    "yours": "ያንተ",
     "join": "ግባ ({{bet}})",
+    "joinN": "{{n}} ግባ ({{bet}})",
     "joining": "በመግባት ላይ…",
     "preview": "ቅድመ እይታ",
     "free": "ነፃ",
@@ -70,9 +77,13 @@
     "leave": "ውጣ",
     "leaveRefund": "ውጣ (ተመላሽ)",
     "yourCard": "ካርድህ",
+    "yourCards": "ካርዶችህ ({{n}})",
+    "cardLabel": "ካርድ {{id}}",
+    "cardOut": "ወጥቷል",
     "autoDaub": "በራስ-ምልክት",
     "reconnecting": "እንደገና በመገናኘት ላይ…",
-    "eliminated": "ተሰናብተሃል"
+    "eliminated": "ተሰናብተሃል",
+    "cardEliminated": "ያ ካርድ ወጥቷል — ሌሎች ካርዶችህ ግን አሁንም አሉ!"
   },
   "result": {
     "winTitle": "አሸነፍክ!",
