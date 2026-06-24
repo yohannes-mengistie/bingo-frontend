@@ -1,5 +1,5 @@
 // Reconnecting WebSocket client for the read-only game stream.
-// Endpoint: ws(s)://host/api/v1/ws/game?type=G5  or  /ws/game/:gameId
+// Endpoint: ws(s)://host/api/v1/ws/game?type=VIP  or  /ws/game/:gameId
 import type { WsMessage } from "@/types/api";
 
 function wsBase(): string {
@@ -23,7 +23,7 @@ export class GameSocket {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly url: string;
 
-  /** `target` is a game type (G1..G7) or a game UUID. */
+  /** `target` is a game type (REGULAR / VIP) or a game UUID. */
   constructor(target: string) {
     const base = wsBase();
     this.url = /^G[1-7]$/.test(target)

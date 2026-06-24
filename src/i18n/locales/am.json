@@ -32,8 +32,10 @@
   },
   "nav": { "play": "ጨዋታ", "wallet": "ቦርሳ", "profile": "መገለጫ" },
   "lobby": {
-    "chooseStake": "የውርርድ መጠን ምረጥ",
+    "chooseStake": "ጠረጴዛህን ምረጥ",
     "higherBigger": "ከፍ ያለ ውርርድ፣ ትልቅ ሽልማት!",
+    "tier": { "REGULAR": "መደበኛ", "VIP": "ቪአይፒ" },
+    "vipTag": "ፕሪሚየም",
     "resume": "🎮 ወደ ቀጥታ ጨዋታህ ተመለስ",
     "balance": "ቀሪ ሂሳብ",
     "liveNow": "በቀጥታ",

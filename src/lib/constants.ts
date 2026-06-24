@@ -1,14 +1,13 @@
 // Game constants — mirror of internal/domain/constants.go & game.go.
 import type { GameType } from "@/types/api";
 
-export const STAKES: { type: GameType; bet: number }[] = [
-  { type: "G1", bet: 5 },
-  { type: "G2", bet: 7 },
-  { type: "G3", bet: 10 },
-  { type: "G4", bet: 20 },
-  { type: "G5", bet: 50 },
-  { type: "G6", bet: 100 },
-  { type: "G7", bet: 200 },
+export type Stake = { type: GameType; bet: number; vip: boolean };
+
+// Two tiers only: a standard 10-birr game and a premium 50-birr VIP game.
+// Mirrors the backend GameType enum (REGULAR / VIP).
+export const STAKES: Stake[] = [
+  { type: "REGULAR", bet: 10, vip: false },
+  { type: "VIP", bet: 50, vip: true },
 ];
 
 export const BET_BY_TYPE: Record<GameType, number> = Object.fromEntries(

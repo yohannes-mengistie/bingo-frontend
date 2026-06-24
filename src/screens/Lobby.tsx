@@ -84,49 +84,97 @@ export function Lobby() {
         <span className="text-xs text-ink-faint">{t("lobby.higherBigger")}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         {STAKES.map((s, i) => {
           const agg = byType[s.type];
           const live = (agg?.players ?? 0) > 0;
+          const vip = s.vip;
           return (
             <motion.button
               key={s.type}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
+              transition={{ delay: i * 0.05 }}
               onClick={() => {
-                haptic.impact("medium");
+                haptic.impact(vip ? "heavy" : "medium");
                 nav(`/play/${s.type}`);
               }}
               className="text-left"
             >
-              <Card className="relative overflow-hidden !p-3.5 active:scale-[0.97] transition-transform">
-                <div className="absolute -right-6 -top-6 size-20 rounded-full bg-accent opacity-20 blur-xl" />
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-2xl font-extrabold text-neon-gold">
-                    {money(s.bet)}
-                  </span>
-                  {live ? (
-                    <span className="flex items-center gap-1 rounded-full bg-neon-green/20 px-2 py-0.5 text-[10px] font-bold text-neon-green">
-                      <span className="size-1.5 animate-pulse rounded-full bg-neon-green" />
-                      {t("lobby.liveNow")}
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-ink-faint">
-                      {t("lobby.waiting")}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2.5 flex items-center justify-between text-xs text-ink-muted">
-                  <span>
-                    👥 {agg?.players ?? 0} {t("common.players")}
-                  </span>
-                  <span className="text-neon-cyan">
-                    🏆 {money(agg?.prize ?? 0)}
-                  </span>
-                </div>
-                <div className="mt-2.5 rounded-lg bg-accent py-2 text-center font-sans text-sm font-medium text-white">
-                  {t("common.play")}
+              <Card
+                className={[
+                  "relative overflow-hidden !p-4 transition-transform active:scale-[0.98]",
+                  vip
+                    ? "border-neon-gold/50 bg-gradient-to-br from-neon-gold/20 via-bg-card to-bg-card shadow-glow-gold ring-1 ring-neon-gold/30"
+                    : "",
+                ].join(" ")}
+              >
+                {/* corner glow */}
+                <div
+                  className={[
+                    "pointer-events-none absolute -right-8 -top-8 size-24 rounded-full blur-2xl",
+                    vip ? "bg-neon-gold opacity-30" : "bg-accent opacity-20",
+                  ].join(" ")}
+                />
+                {/* VIP shine sweep */}
+                {vip && (
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+                )}
+
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {vip && <span className="text-lg leading-none">👑</span>}
+                      <span
+                        className={[
+                          "font-display text-sm font-bold uppercase tracking-wide",
+                          vip ? "text-neon-gold" : "text-ink-muted",
+                        ].join(" ")}
+                      >
+                        {t(`lobby.tier.${s.type}`)}
+                      </span>
+                      {vip && (
+                        <span className="rounded-full bg-neon-gold px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-bg">
+                          {t("lobby.vipTag")}
+                        </span>
+                      )}
+                      {live && (
+                        <span className="flex items-center gap-1 rounded-full bg-neon-green/20 px-2 py-0.5 text-[9px] font-bold text-neon-green">
+                          <span className="size-1.5 animate-pulse rounded-full bg-neon-green" />
+                          {t("lobby.liveNow")}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={[
+                        "mt-1 font-display text-3xl font-extrabold",
+                        vip
+                          ? "text-neon-gold drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]"
+                          : "text-ink",
+                      ].join(" ")}
+                    >
+                      {money(s.bet)}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3 text-xs text-ink-muted">
+                      <span>
+                        👥 {agg?.players ?? 0} {t("common.players")}
+                      </span>
+                      <span className="text-neon-cyan">
+                        🏆 {money(agg?.prize ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={[
+                      "shrink-0 rounded-xl px-5 py-2.5 text-center font-display text-sm font-bold",
+                      vip
+                        ? "bg-grad-gold text-bg shadow-glow-gold"
+                        : "bg-accent text-white",
+                    ].join(" ")}
+                  >
+                    {t("common.play")} →
+                  </div>
                 </div>
               </Card>
             </motion.button>

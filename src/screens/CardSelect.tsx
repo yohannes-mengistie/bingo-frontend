@@ -22,7 +22,7 @@ export function CardSelect() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const { gameType } = useParams<{ gameType: GameType }>();
-  const type = (gameType ?? "G1") as GameType;
+  const type = (gameType ?? "REGULAR") as GameType;
   const bet = BET_BY_TYPE[type] ?? 0;
   const balance = useWallet((s) => s.balance);
   const push = useToast((s) => s.push);
