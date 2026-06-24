@@ -32,8 +32,10 @@
   },
   "nav": { "play": "Play", "wallet": "Wallet", "profile": "Profile" },
   "lobby": {
-    "chooseStake": "Choose your stake",
+    "chooseStake": "Choose your table",
     "higherBigger": "Higher bet, bigger prize!",
+    "tier": { "REGULAR": "Regular", "VIP": "VIP" },
+    "vipTag": "Premium",
     "resume": "🎮 Return to your live game",
     "balance": "Balance",
     "liveNow": "LIVE NOW",

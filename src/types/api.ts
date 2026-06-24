@@ -1,7 +1,7 @@
 // Mirrors the Go backend domain types (internal/domain/*.go). Field names match
 // the JSON tags exactly — do not rename without checking the backend.
 
-export type GameType = "G1" | "G2" | "G3" | "G4" | "G5" | "G6" | "G7";
+export type GameType = "REGULAR" | "VIP";
 
 export type GameState =
   | "WAITING"
