@@ -137,16 +137,25 @@ export const api = {
       "GET",
       `/api/v1/me/games/${gameId}`,
     ),
+  // All of the user's active cards in a game (a player may hold up to 4).
+  myCardsInGame: (gameId: string) =>
+    request<{ cards: GamePlayer[] }>(
+      "GET",
+      `/api/v1/me/games/${gameId}/cards`,
+    ),
   join: (gameId: string, card_id: number) =>
     request<{ player: GamePlayer }>("POST", `/api/v1/games/${gameId}/join`, {
       card_id,
     }),
-  leave: (gameId: string) =>
-    request<{ message: string }>("POST", `/api/v1/games/${gameId}/leave`, {}),
-  claimBingo: (gameId: string, marked_numbers: number[]) =>
+  // Leave one card (card_id) or the whole game (omit card_id).
+  leave: (gameId: string, card_id?: number) =>
+    request<{ message: string }>("POST", `/api/v1/games/${gameId}/leave`, {
+      card_id: card_id ?? 0,
+    }),
+  claimBingo: (gameId: string, card_id: number, marked_numbers: number[]) =>
     request<{ winner: boolean; message: string }>(
       "POST",
       `/api/v1/games/${gameId}/bingo`,
-      { marked_numbers },
+      { card_id, marked_numbers },
     ),
 };

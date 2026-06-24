@@ -29,6 +29,14 @@ interface Feed {
   close(): void;
 }
 
+// One of the player's cards in this game (they may hold up to 4).
+interface MyCard {
+  cardId: number;
+  card: BingoCard;
+  daubed: Set<number>;
+  eliminated: boolean;
+}
+
 export function GameRoom() {
   const { t } = useTranslation();
   const nav = useNavigate();
@@ -41,44 +49,53 @@ export function GameRoom() {
 
   const stateCardId = (location.state as { cardId?: number } | null)?.cardId;
 
-  const [card, setCard] = useState<BingoCard | null>(null);
+  const [cards, setCards] = useState<MyCard[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [drawn, setDrawn] = useState<Set<number>>(new Set());
   const [order, setOrder] = useState<number[]>([]); // draw order, for the recent-calls strip
   const [last, setLast] = useState<number | null>(null);
-  const [daubed, setDaubed] = useState<Set<number>>(new Set());
   const [phase, setPhase] = useState<GameState>("WAITING");
   const [seconds, setSeconds] = useState(0);
   const [players, setPlayers] = useState(0);
   const [prize, setPrize] = useState(0);
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
-  const [claiming, setClaiming] = useState(false);
+  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [result, setResult] = useState<GameResult>(null);
   const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
 
   sound.enabled = soundEnabled;
 
-  const winLine = useMemo(() => findWinningPositions(daubed), [daubed]);
-  const canClaim = !!winLine && phase === "DRAWING" && !result;
-
-  // Resolve which card is ours (from nav state, else from the server).
+  // Load all of the player's cards (fall back to the single card from nav state).
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let cardId = stateCardId;
-      if (!cardId) {
-        try {
-          const { player } = await api.myPlayerInGame(gameId);
-          cardId = player?.card_id;
-        } catch {
-          /* ignore */
-        }
-      }
-      if (!cardId) return;
+      let ids: number[] = [];
+      const elim = new Map<number, boolean>();
       try {
-        const { card } = await api.card(cardId);
-        if (!cancelled) setCard(card);
+        const { cards } = await api.myCardsInGame(gameId);
+        ids = cards.map((c) => c.card_id);
+        cards.forEach((c) => elim.set(c.card_id, c.is_eliminated));
       } catch {
         /* ignore */
+      }
+      if (ids.length === 0 && stateCardId) ids = [stateCardId];
+      if (ids.length === 0) {
+        if (!cancelled) setLoaded(true);
+        return;
+      }
+      const out = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const { card } = await api.card(id);
+            return { cardId: id, card, daubed: new Set<number>(), eliminated: elim.get(id) ?? false } as MyCard;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (!cancelled) {
+        setCards(out.filter(Boolean) as MyCard[]);
+        setLoaded(true);
       }
     })();
     return () => {
@@ -124,10 +141,10 @@ export function GameRoom() {
           setPlayers(msg.data.count);
           break;
         case "PLAYER_JOINED":
-          setPlayers((p) => p + 1);
+          if (typeof msg.data.prize_pool === "number") setPrize(msg.data.prize_pool);
           break;
         case "PLAYER_LEFT":
-          setPlayers((p) => Math.max(0, p - 1));
+          // player_count is distinct people; counts are pushed via GAME_STATUS.
           break;
         case "COUNTDOWN":
           setPhase("COUNTDOWN");
@@ -141,8 +158,7 @@ export function GameRoom() {
           setOrder((prev) => (prev.includes(n) ? prev : [...prev, n]));
           if (soundEnabled) sound.callNumber(n);
           if (hapticsEnabled) haptic.impact("light");
-          // Marking is manual: the player must tap each called number on their
-          // own card. (No auto-daub.)
+          // Marking is manual: the player taps each called number on their cards.
           break;
         }
         case "WINNER": {
@@ -169,12 +185,10 @@ export function GameRoom() {
           refreshWallet().catch(() => {});
           break;
         }
-        case "PLAYER_ELIMINATED": {
-          // Backend sends the id under `userId`; tolerate `user_id` too.
-          const elimId = msg.data.userId ?? msg.data.user_id;
-          if (myId && elimId === myId) setResult({ type: "eliminated" });
+        case "PLAYER_ELIMINATED":
+          // Elimination is per-card and handled locally from the claim response
+          // (a player may still have other live cards), so this is informational.
           break;
-        }
         default:
           break;
       }
@@ -200,40 +214,70 @@ export function GameRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  const onDaub = (pos: number) => {
+  const onDaub = (cardId: number, pos: number) => {
     if (result) return;
-    const num = card?.numbers.flat()[pos];
-    if (num === undefined || num === 0) return;
-    if (!drawn.has(num)) return; // can only mark called numbers
-    setDaubed((prev) => {
-      const next = new Set(prev);
-      if (next.has(pos)) next.delete(pos);
-      else next.add(pos);
-      return next;
-    });
+    setCards((prev) =>
+      prev.map((c) => {
+        if (c.cardId !== cardId || c.eliminated) return c;
+        const num = c.card.numbers.flat()[pos];
+        if (num === undefined || num === 0) return c;
+        if (!drawn.has(num)) return c; // can only mark called numbers
+        const nd = new Set(c.daubed);
+        if (nd.has(pos)) nd.delete(pos);
+        else nd.add(pos);
+        return { ...c, daubed: nd };
+      }),
+    );
     if (soundEnabled) sound.daub();
     if (hapticsEnabled) haptic.select();
   };
 
-  const onClaim = async () => {
-    if (!canClaim) return;
+  const onClaim = async (cardId: number) => {
+    const c = cards.find((x) => x.cardId === cardId);
+    if (!c || c.eliminated || phase !== "DRAWING" || result) return;
+    if (!findWinningPositions(c.daubed)) return;
+
     haptic.impact("heavy");
-    setClaiming(true);
+    setClaimingId(cardId);
     try {
-      const r = await api.claimBingo(gameId, claimPositions(daubed));
-      setResult(r.winner ? { type: "win", prize } : { type: "eliminated" });
+      const r = await api.claimBingo(gameId, cardId, claimPositions(c.daubed));
+      if (r.winner) {
+        setResult({ type: "win", prize });
+      } else {
+        // Only this card is out — the player's other cards keep playing.
+        push(t("game.cardEliminated"), "error");
+        const stillAlive = cards.some((x) => x.cardId !== cardId && !x.eliminated);
+        setCards((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, eliminated: true } : x)));
+        if (!stillAlive) setResult({ type: "eliminated" });
+      }
       await refreshWallet().catch(() => {});
     } catch (e) {
       push(e instanceof ApiError ? e.message : "error", "error");
     } finally {
-      setClaiming(false);
+      setClaimingId(null);
     }
   };
 
+  const canRefund = phase === "WAITING" || phase === "COUNTDOWN";
+
+  // Remove a single card before the game starts (refunded).
+  const onRemoveCard = async (cardId: number) => {
+    if (!canRefund) return;
+    try {
+      await api.leave(gameId, cardId);
+      await refreshWallet().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+    const remaining = cards.filter((x) => x.cardId !== cardId);
+    setCards(remaining);
+    if (remaining.length === 0) nav("/");
+  };
+
   const onLeave = async () => {
-    if (phase === "WAITING" || phase === "COUNTDOWN") {
+    if (canRefund) {
       try {
-        await api.leave(gameId);
+        await api.leave(gameId); // no card_id → leave entirely (refund all)
         await refreshWallet().catch(() => {});
       } catch {
         /* ignore */
@@ -242,21 +286,20 @@ export function GameRoom() {
     nav("/");
   };
 
-  if (!card) {
+  if (!loaded) {
     return (
       <div className="flex min-h-screen flex-col px-4 pt-3">
-        <Header back onBack={() => nav("/")} title={t("game.yourCard")} />
+        <Header back onBack={() => nav("/")} title={t("game.yourCards", { n: 0 })} />
         <FullSpinner label={t("common.loading")} />
       </div>
     );
   }
 
-  const canRefund = phase === "WAITING" || phase === "COUNTDOWN";
   const recent = order.slice(-7).reverse(); // most-recent first
 
   return (
-    // Fixed to the viewport height and non-scrolling: the whole game lives on
-    // one page. The card flexes to fill the space left by the header/called row.
+    // Header + called-numbers strip stay fixed; the cards area scrolls (a player
+    // may hold up to 4 cards, which won't all fit one screen).
     <div className="flex h-[100dvh] flex-col overflow-hidden px-4 pb-3 pt-2">
       <Header
         back
@@ -295,8 +338,7 @@ export function GameRoom() {
         )}
       </div>
 
-      {/* Called numbers: the current ball + the last few calls (with letters).
-          Replaces the tall, scrolling 75-cell master board. */}
+      {/* Called numbers: the current ball + the last few calls (with letters). */}
       <div className="glass mb-2 flex items-center gap-3 rounded-2xl p-2">
         <BallCallout number={last} />
         <div className="min-w-0 flex-1">
@@ -314,33 +356,96 @@ export function GameRoom() {
         </div>
       </div>
 
-      {/* Player card — fills the remaining height, sized so it never scrolls. */}
-      <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="mx-auto" style={{ width: "min(100%, calc(100dvh - 330px))" }}>
-          <BingoCardView
-            card={card}
-            daubed={daubed}
-            winLine={winLine}
-            onDaub={onDaub}
-          />
+      {cards.length > 1 && (
+        <div className="mb-1 text-xs font-bold text-ink-muted">
+          {t("game.yourCards", { n: cards.length })}
         </div>
+      )}
+
+      {/* Scrollable stack of the player's cards, each individually claimable. */}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
+        {cards.map((c) => (
+          <CardPanel
+            key={c.cardId}
+            entry={c}
+            phase={phase}
+            blocked={!!result}
+            claiming={claimingId === c.cardId}
+            showRemove={canRefund && cards.length > 0}
+            onDaub={(pos) => onDaub(c.cardId, pos)}
+            onClaim={() => onClaim(c.cardId)}
+            onRemove={() => onRemoveCard(c.cardId)}
+          />
+        ))}
       </div>
 
-      {/* BINGO button */}
-      <motion.div className="mt-2" animate={canClaim ? { scale: [1, 1.03, 1] } : {}} transition={{ repeat: Infinity, duration: 0.9 }}>
-        <Button
-          variant="gold"
-          fullWidth
-          disabled={!canClaim}
-          loading={claiming}
-          onClick={onClaim}
-          className="!py-3.5 text-xl"
-        >
-          {claiming ? t("game.claiming") : `🎉 ${t("game.bingo")}`}
-        </Button>
-      </motion.div>
-
       <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={() => nav("/")} />
+    </div>
+  );
+}
+
+// A single card with its own daub state and BINGO button.
+function CardPanel({
+  entry,
+  phase,
+  blocked,
+  claiming,
+  showRemove,
+  onDaub,
+  onClaim,
+  onRemove,
+}: {
+  entry: MyCard;
+  phase: GameState;
+  blocked: boolean;
+  claiming: boolean;
+  showRemove: boolean;
+  onDaub: (pos: number) => void;
+  onClaim: () => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const winLine = useMemo(() => findWinningPositions(entry.daubed), [entry.daubed]);
+  const canClaim = !!winLine && phase === "DRAWING" && !blocked && !entry.eliminated;
+
+  return (
+    <div className={`glass rounded-2xl p-2.5 ${entry.eliminated ? "opacity-50" : ""}`}>
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-xs font-bold text-ink-muted">
+          {t("game.cardLabel", { id: entry.cardId })}
+        </span>
+        <div className="flex items-center gap-2">
+          {entry.eliminated ? (
+            <span className="rounded-full bg-neon-red/20 px-2 py-0.5 text-[10px] font-bold text-neon-red">
+              {t("game.cardOut")}
+            </span>
+          ) : showRemove ? (
+            <button
+              onClick={onRemove}
+              className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-ink-muted hover:text-neon-red"
+            >
+              ✕
+            </button>
+          ) : null}
+          <motion.div animate={canClaim ? { scale: [1, 1.04, 1] } : {}} transition={{ repeat: Infinity, duration: 0.9 }}>
+            <Button
+              variant="gold"
+              disabled={!canClaim}
+              loading={claiming}
+              onClick={onClaim}
+              className="!px-4 !py-1.5 text-sm"
+            >
+              {claiming ? t("game.claiming") : `🎉 ${t("game.bingo")}`}
+            </Button>
+          </motion.div>
+        </div>
+      </div>
+      <BingoCardView
+        card={entry.card}
+        daubed={entry.daubed}
+        winLine={winLine}
+        onDaub={entry.eliminated ? undefined : onDaub}
+      />
     </div>
   );
 }

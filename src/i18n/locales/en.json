@@ -49,9 +49,16 @@
   },
   "card": {
     "title": "Pick your card",
+    "titleMulti": "Pick up to {{max}} cards",
+    "capHint": "{{count}}/{{max}} cards",
+    "maxCards": "Up to {{max}} cards per game",
+    "selectedCount": "{{count}} selected",
+    "total": "Total",
     "selectId": "Card #{{id}}",
     "taken": "Taken",
+    "yours": "Yours",
     "join": "Join ({{bet}})",
+    "joinN": "Join {{n}} ({{bet}})",
     "joining": "Joining…",
     "preview": "Preview",
     "free": "FREE",
@@ -70,9 +77,13 @@
     "leave": "Leave",
     "leaveRefund": "Leave (refund)",
     "yourCard": "Your card",
+    "yourCards": "Your cards ({{n}})",
+    "cardLabel": "Card {{id}}",
+    "cardOut": "Out",
     "autoDaub": "Auto-daub",
     "reconnecting": "Reconnecting…",
-    "eliminated": "You were eliminated"
+    "eliminated": "You were eliminated",
+    "cardEliminated": "That card is out — your other cards are still in!"
   },
   "result": {
     "winTitle": "You WON!",
