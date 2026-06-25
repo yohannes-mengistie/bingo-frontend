@@ -11,7 +11,7 @@ import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
 import { ResultOverlay, GameResult, WinnerInfo } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
-import { claimPositions, findWinningPositions, letterForNumber } from "@/lib/bingo";
+import { autoMarked, claimPositions, findWinningPositions, letterForNumber } from "@/lib/bingo";
 import { api, ApiError } from "@/lib/api";
 import { sound } from "@/lib/audio";
 import { haptic } from "@/lib/telegram";
@@ -33,7 +33,6 @@ interface Feed {
 interface MyCard {
   cardId: number;
   card: BingoCard;
-  daubed: Set<number>;
   eliminated: boolean;
 }
 
@@ -87,7 +86,7 @@ export function GameRoom() {
         ids.map(async (id) => {
           try {
             const { card } = await api.card(id);
-            return { cardId: id, card, daubed: new Set<number>(), eliminated: elim.get(id) ?? false } as MyCard;
+            return { cardId: id, card, eliminated: elim.get(id) ?? false } as MyCard;
           } catch {
             return null;
           }
@@ -159,7 +158,8 @@ export function GameRoom() {
           setOrder((prev) => (prev.includes(n) ? prev : [...prev, n]));
           if (soundEnabled) sound.callNumber(n);
           if (hapticsEnabled) haptic.impact("light");
-          // Marking is manual: the player taps each called number on their cards.
+          // Marking is automatic: the app daubs the called number on every card
+          // that holds it (marks are derived from `drawn` at render/claim time).
           break;
         }
         case "WINNER": {
@@ -215,33 +215,16 @@ export function GameRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  const onDaub = (cardId: number, pos: number) => {
-    if (result) return;
-    setCards((prev) =>
-      prev.map((c) => {
-        if (c.cardId !== cardId || c.eliminated) return c;
-        const num = c.card.numbers.flat()[pos];
-        if (num === undefined || num === 0) return c;
-        if (!drawn.has(num)) return c; // can only mark called numbers
-        const nd = new Set(c.daubed);
-        if (nd.has(pos)) nd.delete(pos);
-        else nd.add(pos);
-        return { ...c, daubed: nd };
-      }),
-    );
-    if (soundEnabled) sound.daub();
-    if (hapticsEnabled) haptic.select();
-  };
-
   const onClaim = async (cardId: number) => {
     const c = cards.find((x) => x.cardId === cardId);
     if (!c || c.eliminated || phase !== "DRAWING" || result) return;
-    if (!findWinningPositions(c.daubed)) return;
+    const marked = autoMarked(c.card, drawn);
+    if (!findWinningPositions(marked)) return;
 
     haptic.impact("heavy");
     setClaimingId(cardId);
     try {
-      const r = await api.claimBingo(gameId, cardId, claimPositions(c.daubed));
+      const r = await api.claimBingo(gameId, cardId, claimPositions(marked));
       if (r.winner) {
         setResult({ type: "win", prize });
       } else {
@@ -369,11 +352,11 @@ export function GameRoom() {
           <CardPanel
             key={c.cardId}
             entry={c}
+            marked={autoMarked(c.card, drawn)}
             phase={phase}
             blocked={!!result}
             claiming={claimingId === c.cardId}
             showRemove={canRefund && cards.length > 0}
-            onDaub={(pos) => onDaub(c.cardId, pos)}
             onClaim={() => onClaim(c.cardId)}
             onRemove={() => onRemoveCard(c.cardId)}
           />
@@ -388,25 +371,25 @@ export function GameRoom() {
 // A single card with its own daub state and BINGO button.
 function CardPanel({
   entry,
+  marked,
   phase,
   blocked,
   claiming,
   showRemove,
-  onDaub,
   onClaim,
   onRemove,
 }: {
   entry: MyCard;
+  marked: Set<number>;
   phase: GameState;
   blocked: boolean;
   claiming: boolean;
   showRemove: boolean;
-  onDaub: (pos: number) => void;
   onClaim: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const winLine = useMemo(() => findWinningPositions(entry.daubed), [entry.daubed]);
+  const winLine = useMemo(() => findWinningPositions(marked), [marked]);
   const canClaim = !!winLine && phase === "DRAWING" && !blocked && !entry.eliminated;
 
   return (
@@ -443,9 +426,8 @@ function CardPanel({
       </div>
       <BingoCardView
         card={entry.card}
-        daubed={entry.daubed}
+        daubed={marked}
         winLine={winLine}
-        onDaub={entry.eliminated ? undefined : onDaub}
       />
     </div>
   );

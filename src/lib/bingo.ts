@@ -74,6 +74,21 @@ export function hasBingo(marked: Set<number>): boolean {
   return findWinningPositions(marked) !== null;
 }
 
+/**
+ * Auto-mark: every board position whose number has been drawn. The app marks
+ * called numbers for the player automatically — there is no manual daubing.
+ * The center (FREE, number 0) is implicitly marked everywhere and excluded here.
+ */
+export function autoMarked(card: BingoCard, drawn: Set<number>): Set<number> {
+  const flat = flattenCard(card);
+  const marked = new Set<number>();
+  for (let pos = 0; pos < flat.length; pos++) {
+    const num = flat[pos];
+    if (num !== 0 && drawn.has(num)) marked.add(pos);
+  }
+  return marked;
+}
+
 /** Positions to submit in a claim: all marked cells plus the free center. */
 export function claimPositions(marked: Set<number>): number[] {
   const set = new Set(marked);
