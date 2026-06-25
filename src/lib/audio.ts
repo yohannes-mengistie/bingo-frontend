@@ -58,12 +58,14 @@ export const sound = {
     // Map column letter to a rising tone for the beep fallback.
     const tones: Record<string, number> = { B: 392, I: 440, N: 494, G: 523, O: 587 };
     const base = tones[letter] ?? 440;
-    tryPlay(`audio/am/${n}.mp3`, () => beep(base + (n % 15) * 6));
+    // Absolute path: a relative one would resolve against the current route
+    // (e.g. /game/:id/audio/...) and 404, silently falling back to the beep.
+    tryPlay(`/audio/am/${n}.mp3`, () => beep(base + (n % 15) * 6));
   },
 
   win() {
     if (!this.enabled) return;
-    tryPlay("sounds/win.mp3", () => {
+    tryPlay("/sounds/win.mp3", () => {
       beep(660, 120);
       setTimeout(() => beep(880, 200), 130);
     });
@@ -71,11 +73,11 @@ export const sound = {
 
   daub() {
     if (!this.enabled) return;
-    tryPlay("sounds/daub.mp3", () => beep(720, 70));
+    tryPlay("/sounds/daub.mp3", () => beep(720, 70));
   },
 
   join() {
     if (!this.enabled) return;
-    tryPlay("sounds/join.mp3", () => beep(540, 90));
+    tryPlay("/sounds/join.mp3", () => beep(540, 90));
   },
 };
