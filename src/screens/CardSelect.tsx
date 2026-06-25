@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -28,7 +28,15 @@ export function CardSelect() {
   const type = (gameType ?? "REGULAR") as GameType;
   const bet = BET_BY_TYPE[type] ?? 0;
   const balance = useWallet((s) => s.balance);
+  const refreshWallet = useWallet((s) => s.refresh);
   const push = useToast((s) => s.push);
+
+  // Pull a fresh balance whenever the picker opens, so the affordability gating
+  // (which cards are selectable, the cost preview) reflects real money — not a
+  // stale cached value from before a prior purchase / game / deposit.
+  useEffect(() => {
+    refreshWallet().catch(() => {});
+  }, [refreshWallet]);
 
   // Up to MAX_CARDS_PER_PLAYER cards can be picked at once.
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -117,6 +125,7 @@ export function CardSelect() {
         }
       }
       if (joinedAny) {
+        await refreshWallet().catch(() => {});
         haptic.notify("success");
         nav(`/game/${gameId}`, { state: { cardId: firstCard ?? undefined } });
       }
