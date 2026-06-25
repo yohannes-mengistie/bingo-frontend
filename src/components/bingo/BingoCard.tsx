@@ -10,15 +10,15 @@ interface Props {
   /** Numbers that have been drawn. */
   drawn?: Set<number>;
   /**
-   * Tint called-but-unmarked cells as a hint. OFF by default: during live play
-   * the player must spot and mark called numbers themselves — auto-highlighting
-   * them feels like the app marks for you. Used (true) only for the read-only
-   * winner-card review, where showing which numbers were called aids verifying.
+   * Tint called-but-unmarked cells as a hint. OFF by default. In live play the
+   * app auto-marks every called number, so a card never has called-but-unmarked
+   * cells; this is used (true) only for the read-only winner-card review, where
+   * showing which numbers were called aids verifying the win.
    */
   showCalled?: boolean;
   /** Winning line positions to spotlight. */
   winLine?: number[] | null;
-  /** Tap handler for daubing. Omit for read-only preview. */
+  /** Tap handler for daubing. Omit for read-only / auto-marked cards. */
   onDaub?: (pos: number) => void;
   size?: "sm" | "lg";
 }
