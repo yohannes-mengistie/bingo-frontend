@@ -28,6 +28,22 @@ export default function App() {
     if (status === "authed") refreshWallet().catch(() => {});
   }, [status, refreshWallet]);
 
+  // Re-pull the balance whenever the app is brought back to the foreground
+  // (e.g. the player tabbed out to their bank app to deposit, then returned),
+  // so the lobby balance pill and affordability checks aren't left stale.
+  useEffect(() => {
+    if (status !== "authed") return;
+    const onActive = () => {
+      if (document.visibilityState === "visible") refreshWallet().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onActive);
+    window.addEventListener("focus", onActive);
+    return () => {
+      document.removeEventListener("visibilitychange", onActive);
+      window.removeEventListener("focus", onActive);
+    };
+  }, [status, refreshWallet]);
+
   return (
     <>
       <ToastHost />
