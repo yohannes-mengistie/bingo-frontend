@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Transaction, type TxStatus, type TxType } from "@/lib/api";
+import { api, type Transaction, type TxStatus, type TxType, type UserWithWallet } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Badge, Button, Card, Spinner, ErrorNote, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { birr, date, shortId } from "@/lib/format";
+import { birr, date, fullName, shortId } from "@/lib/format";
 
 type TabKey =
   | "pendingDeposits"
@@ -38,6 +38,15 @@ export function Transactions() {
   const { data, loading, error, reload } = useApi(() => active.fetch(), [tab]);
   const push = useToast((s) => s.push);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Fetch users once to resolve user_id → name/phone for the User column.
+  // Loaded separately so a slow/failed user fetch never blocks the tx table.
+  const { data: usersData } = useApi(() => api.users(1000, 0), []);
+  const userMap = useMemo(() => {
+    const m = new Map<string, UserWithWallet>();
+    for (const u of usersData?.users ?? []) m.set(u.id, u);
+    return m;
+  }, [usersData]);
 
   const act = async (id: string, fn: (id: string) => Promise<unknown>, label: string) => {
     setBusyId(id);
@@ -96,12 +105,17 @@ export function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((t) => (
+                {rows.map((t) => {
+                  const u = userMap.get(t.user_id);
+                  return (
                   <tr key={t.id} className="border-b border-edge/50 hover:bg-panel2/40">
                     <td className="px-4 py-3">
                       <Link to={`/users/${t.user_id}`} className="text-sky-300 hover:underline">
-                        {shortId(t.user_id)}
+                        {u ? fullName(u.first_name, u.last_name) || shortId(t.user_id) : shortId(t.user_id)}
                       </Link>
+                      {u?.phone_number && (
+                        <div className="text-xs text-slate-500">{u.phone_number}</div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={typeTone(t.type)}>{t.type}</Badge>
@@ -168,7 +182,8 @@ export function Transactions() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

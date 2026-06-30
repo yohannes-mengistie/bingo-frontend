@@ -27,3 +27,7 @@ export function shortId(id: string | undefined): string {
   if (!id) return "—";
   return id.length > 10 ? `${id.slice(0, 8)}…` : id;
 }
+
+export function fullName(first?: string, last?: string | null): string {
+  return `${first ?? ""} ${last ?? ""}`.trim();
+}
