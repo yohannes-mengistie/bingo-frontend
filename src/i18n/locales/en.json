@@ -149,6 +149,7 @@
     "autoDaub": "Auto-daub numbers",
     "referral": "Invite friends",
     "history": "Game history",
+    "cards": "{{count}} cards",
     "leaderboard": "Leaderboard",
     "nameSaved": "Name updated"
   },

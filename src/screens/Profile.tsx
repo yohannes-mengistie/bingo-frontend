@@ -93,14 +93,19 @@ export function Profile() {
             const when = g.finished_at ?? g.created_at;
             const won =
               entry.is_winner === true || (!!user?.id && g.winner_id === user.id);
+            const cards = entry.cards_held ?? 1;
+            // What the player actually spent (all cards). Fall back to the
+            // single bet for older entries without total_stake.
+            const spent = entry.total_stake ?? g.bet_amount;
             return (
               <Card key={g.id ?? i} className="flex items-center justify-between !py-3">
                 <div>
                   <div className="font-bold">
                     {g.game_type ?? "—"}
-                    {g.bet_amount ? ` · ${money(g.bet_amount)}` : ""}
+                    {spent ? ` · ${money(spent)}` : ""}
                   </div>
                   <div className="text-xs text-ink-faint">
+                    {cards > 1 ? `${t("profile.cards", { count: cards })} · ` : ""}
                     {when ? shortDate(when) : ""}
                   </div>
                 </div>
