@@ -137,19 +137,22 @@ function ActionSheet({
   const [receiver, setReceiver] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Withdrawals always pay out to the user's verified registration phone — the
-  // backend ignores any client-supplied account — so we just display it.
+  // Withdrawals default to the user's verified registration phone, but the
+  // player may edit it if their Telebirr is on a different number. `account` is
+  // null until the player types, so the field shows the registered phone.
   const meQ = useQuery({
     queryKey: ["me"],
     queryFn: api.me,
     enabled: action === "withdraw",
   });
-  const payoutPhone = meQ.data?.phone_number ?? "";
+  const [account, setAccount] = useState<string | null>(null);
+  const withdrawTo = account ?? meQ.data?.phone_number ?? "";
 
   const reset = () => {
     setAmount("");
     setTxId("");
     setReceiver("");
+    setAccount(null);
   };
 
   const submit = async () => {
@@ -161,7 +164,7 @@ function ActionSheet({
         await api.deposit(amt, method, txId.trim());
         push(t("wallet.depositOk"), "success");
       } else if (action === "withdraw") {
-        await api.withdraw(amt, payoutPhone, method);
+        await api.withdraw(amt, withdrawTo.trim(), method);
         push(t("wallet.withdrawOk"), "success");
       } else if (action === "transfer") {
         await api.transfer(receiver.trim(), amt);
@@ -208,9 +211,13 @@ function ActionSheet({
 
         {action === "withdraw" && (
           <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
-            <div className={`${inputCls} flex items-center font-bold`}>
-              {payoutPhone || "…"}
-            </div>
+            <input
+              inputMode="tel"
+              value={withdrawTo}
+              onChange={(e) => setAccount(e.target.value)}
+              placeholder="09…"
+              className={inputCls}
+            />
           </Field>
         )}
 
@@ -224,7 +231,7 @@ function ActionSheet({
           variant="gold"
           fullWidth
           loading={busy}
-          disabled={action === "withdraw" && !payoutPhone}
+          disabled={action === "withdraw" && !withdrawTo.trim()}
           onClick={submit}
           className="mt-2"
         >
