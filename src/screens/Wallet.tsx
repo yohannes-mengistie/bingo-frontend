@@ -131,7 +131,8 @@ function ActionSheet({
   const { t } = useTranslation();
   const push = useToast((s) => s.push);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("Telebirr");
+  // Telebirr is the only supported payment method.
+  const method: PaymentMethod = "Telebirr";
   const [txId, setTxId] = useState("");
   const [account, setAccount] = useState("");
   const [receiver, setReceiver] = useState("");
@@ -185,24 +186,6 @@ function ActionSheet({
           />
         </Field>
 
-        {(action === "deposit" || action === "withdraw") && (
-          <Field label={action === "deposit" ? t("wallet.method") : t("wallet.accountType")}>
-            <div className="inline-flex w-full rounded-xl bg-white/5 p-1">
-              {(["Telebirr", "CBE"] as PaymentMethod[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMethod(m)}
-                  className={`flex-1 rounded-lg py-2 text-sm font-bold ${
-                    method === m ? "bg-accent text-white" : "text-ink-muted"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </Field>
-        )}
-
         {action === "deposit" && (
           <DepositTarget
             method={method}
@@ -236,8 +219,8 @@ function ActionSheet({
   );
 }
 
-// Shows the house account the player must send their deposit to, based on the
-// chosen method (Telebirr phone number / CBE account number), with a copy button.
+// Shows the house Telebirr account the player must send their deposit to,
+// with a copy button.
 function DepositTarget({
   method,
   onCopy,

@@ -13,7 +13,7 @@ export type GameState =
 
 export type BingoLetter = "B" | "I" | "N" | "G" | "O";
 
-export type PaymentMethod = "CBE" | "Telebirr";
+export type PaymentMethod = "Telebirr";
 
 export interface User {
   id: string;

@@ -27,15 +27,11 @@ export const CENTER_INDEX = 12; // numbers[2][2] = FREE
 // send money. Configure the real values via Vercel/.env (VITE_* are inlined
 // into the public bundle — these are destination accounts, not secrets).
 export const PAYMENT_ACCOUNTS: Record<
-  "Telebirr" | "CBE",
+  "Telebirr",
   { number: string; name: string }
 > = {
   Telebirr: {
     number: import.meta.env.VITE_TELEBIRR_NUMBER ?? "0962860754",
-    name: import.meta.env.VITE_PAYMENT_NAME ?? "Habesha Bingo",
-  },
-  CBE: {
-    number: import.meta.env.VITE_CBE_ACCOUNT ?? "1000470126934",
     name: import.meta.env.VITE_PAYMENT_NAME ?? "Habesha Bingo",
   },
 };

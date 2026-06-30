@@ -115,7 +115,7 @@
     "amount": "Amount",
     "method": "Method",
     "txId": "Transaction ID",
-    "txIdHint": "The reference from your CBE/Telebirr transfer",
+    "txIdHint": "The reference from your Telebirr transfer",
     "depositTo": "Send your deposit to this {{method}} account:",
     "depositHint": "After sending, enter the transaction number below.",
     "copy": "Copy",

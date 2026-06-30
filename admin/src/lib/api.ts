@@ -83,7 +83,7 @@ export interface Transaction {
   type: TxType;
   amount: number;
   status: TxStatus;
-  transaction_type?: string | null; // payment method (CBE / Telebirr)
+  transaction_type?: string | null; // payment method (Telebirr; legacy rows may be CBE)
   transaction_id?: string | null;
   reference?: string | null;
   created_at: string;
