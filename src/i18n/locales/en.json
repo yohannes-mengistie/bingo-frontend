@@ -121,6 +121,8 @@
     "copy": "Copy",
     "copied": "Copied",
     "accountNumber": "Account number",
+    "withdrawTo": "Withdraw to",
+    "withdrawToHint": "Paid to your registered Telebirr number",
     "accountType": "Account type",
     "receiverId": "Receiver user ID",
     "submit": "Submit",

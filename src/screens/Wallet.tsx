@@ -134,14 +134,21 @@ function ActionSheet({
   // Telebirr is the only supported payment method.
   const method: PaymentMethod = "Telebirr";
   const [txId, setTxId] = useState("");
-  const [account, setAccount] = useState("");
   const [receiver, setReceiver] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Withdrawals always pay out to the user's verified registration phone — the
+  // backend ignores any client-supplied account — so we just display it.
+  const meQ = useQuery({
+    queryKey: ["me"],
+    queryFn: api.me,
+    enabled: action === "withdraw",
+  });
+  const payoutPhone = meQ.data?.phone_number ?? "";
 
   const reset = () => {
     setAmount("");
     setTxId("");
-    setAccount("");
     setReceiver("");
   };
 
@@ -154,7 +161,7 @@ function ActionSheet({
         await api.deposit(amt, method, txId.trim());
         push(t("wallet.depositOk"), "success");
       } else if (action === "withdraw") {
-        await api.withdraw(amt, account.trim(), method);
+        await api.withdraw(amt, payoutPhone, method);
         push(t("wallet.withdrawOk"), "success");
       } else if (action === "transfer") {
         await api.transfer(receiver.trim(), amt);
@@ -200,8 +207,10 @@ function ActionSheet({
         )}
 
         {action === "withdraw" && (
-          <Field label={t("wallet.accountNumber")}>
-            <input value={account} onChange={(e) => setAccount(e.target.value)} className={inputCls} />
+          <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
+            <div className={`${inputCls} flex items-center font-bold`}>
+              {payoutPhone || "…"}
+            </div>
           </Field>
         )}
 
@@ -211,7 +220,14 @@ function ActionSheet({
           </Field>
         )}
 
-        <Button variant="gold" fullWidth loading={busy} onClick={submit} className="mt-2">
+        <Button
+          variant="gold"
+          fullWidth
+          loading={busy}
+          disabled={action === "withdraw" && !payoutPhone}
+          onClick={submit}
+          className="mt-2"
+        >
           {busy ? t("wallet.submitting") : t("wallet.submit")}
         </Button>
       </div>

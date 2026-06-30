@@ -121,6 +121,8 @@
     "copy": "ቅዳ",
     "copied": "ተቀድቷል",
     "accountNumber": "የሂሳብ ቁጥር",
+    "withdrawTo": "ወደ",
+    "withdrawToHint": "ወደ የተመዘገበው ቴሌብር ቁጥርህ ይከፈላል",
     "accountType": "የሂሳብ አይነት",
     "receiverId": "የተቀባይ መለያ",
     "submit": "አስገባ",
