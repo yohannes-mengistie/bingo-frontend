@@ -123,6 +123,15 @@ export interface WsMessage<T = any> {
   data: T;
 }
 
+/** One winning card of a finished game (its owner, split share, and marks). */
+export interface GameWinner {
+  user_id: string;
+  winner_name: string;
+  card_id: number;
+  prize: number;
+  marked_numbers: number[];
+}
+
 export interface WinnerData {
   user_id: string;
   prize: number;
@@ -130,4 +139,11 @@ export interface WinnerData {
   winner_name?: string;
   card_id?: number;
   marked_numbers?: number[];
+  // When multiple cards complete on the same draw they split the pot. `winners`
+  // lists every co-winner and their share; the top-level fields above mirror the
+  // primary (first) winner for backward compatibility. `prize_pool` is the full
+  // pot, `split` is true when there is more than one winner.
+  winners?: GameWinner[];
+  prize_pool?: number;
+  split?: boolean;
 }

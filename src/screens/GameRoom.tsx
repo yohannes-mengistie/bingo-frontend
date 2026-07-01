@@ -3,16 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
-import { Button } from "@/components/ui/Button";
 import { FullSpinner } from "@/components/ui/Spinner";
-import { useToast } from "@/components/ui/Toast";
 import { BingoCardView } from "@/components/bingo/BingoCard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
-import { ResultOverlay, GameResult, WinnerInfo } from "@/components/bingo/ResultOverlay";
+import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
-import { autoMarked, claimPositions, findWinningPositions, letterForNumber } from "@/lib/bingo";
-import { api, ApiError } from "@/lib/api";
+import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
+import { api } from "@/lib/api";
 import { sound } from "@/lib/audio";
 import { haptic } from "@/lib/telegram";
 import { money } from "@/lib/format";
@@ -36,6 +34,22 @@ interface MyCard {
   eliminated: boolean;
 }
 
+// Build the ResultOverlay winner list from a WINNER event or a finished
+// INITIAL_STATE payload. Prefers the `winners[]` array (pot split across several
+// cards) and falls back to the older single-winner top-level fields.
+function parseWinners(data: any): WinnerEntry[] {
+  const map = (w: any): WinnerEntry => ({
+    userId: w.user_id,
+    name: w.winner_name || "Winner",
+    prize: typeof w.prize === "number" ? w.prize : 0,
+    cardId: typeof w.card_id === "number" ? w.card_id : undefined,
+    marked: Array.isArray(w.marked_numbers) ? w.marked_numbers : undefined,
+  });
+  if (Array.isArray(data?.winners) && data.winners.length) return data.winners.map(map);
+  if (data?.user_id) return [map(data)];
+  return [];
+}
+
 export function GameRoom() {
   const { t } = useTranslation();
   const nav = useNavigate();
@@ -44,7 +58,6 @@ export function GameRoom() {
   const myId = useAuth((s) => s.user?.id);
   const refreshWallet = useWallet((s) => s.refresh);
   const { soundEnabled, hapticsEnabled } = useSettings();
-  const push = useToast((s) => s.push);
 
   const stateCardId = (location.state as { cardId?: number } | null)?.cardId;
 
@@ -58,7 +71,6 @@ export function GameRoom() {
   const [players, setPlayers] = useState(0);
   const [prize, setPrize] = useState(0);
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
-  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [result, setResult] = useState<GameResult>(null);
   const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
 
@@ -118,6 +130,21 @@ export function GameRoom() {
             setOrder(nums);
             if (nums.length) setLast(nums[nums.length - 1]);
           }
+          // Reconnecting to (or opening) a finished game: the backend includes the
+          // winning card(s) so we can show the result screen even though the live
+          // WINNER event is long gone.
+          if (Array.isArray(d.winners) && d.winners.length) {
+            const list = parseWinners(d);
+            const mine = list.find((w) => !!myId && w.userId === myId);
+            setWinnerInfo({
+              winners: list,
+              split: list.length > 1,
+              prizePool:
+                typeof d.game?.prize_pool === "number" ? d.game.prize_pool : undefined,
+            });
+            setPhase("FINISHED");
+            setResult(mine ? { type: "win", prize: mine.prize } : { type: "lose" });
+          }
           break;
         }
         case "GAME_STATUS": {
@@ -164,25 +191,26 @@ export function GameRoom() {
         }
         case "WINNER": {
           setPhase("FINISHED");
-          const won = !!myId && msg.data.user_id === myId;
-          const prizeAmt = msg.data.prize ?? prize;
-          // Reveal the winner to EVERYONE (winner, losers, eliminated) so the
-          // payout is transparent — including their card + marks so anyone can
-          // verify the win is legitimate.
+          // Reveal every winner to EVERYONE (winner, losers, eliminated) so the
+          // payout is transparent — including each card + marks so anyone can
+          // verify the wins. Several cards may split the pot.
+          const list = parseWinners(msg.data);
+          const mine = list.find((w) => !!myId && w.userId === myId);
           setWinnerInfo({
-            name: msg.data.winner_name || "Winner",
-            prize: prizeAmt,
-            cardId: typeof msg.data.card_id === "number" ? msg.data.card_id : undefined,
-            marked: Array.isArray(msg.data.marked_numbers) ? msg.data.marked_numbers : undefined,
+            winners: list,
+            split: !!msg.data.split || list.length > 1,
+            prizePool:
+              typeof msg.data.prize_pool === "number" ? msg.data.prize_pool : undefined,
           });
+          const prizeAmt = mine ? mine.prize : (msg.data.prize ?? prize);
           setResult((prev) =>
-            won
+            mine
               ? { type: "win", prize: prizeAmt }
               : prev?.type === "eliminated"
                 ? prev
                 : { type: "lose" },
           );
-          if (won && soundEnabled) sound.win();
+          if (mine && soundEnabled) sound.win();
           refreshWallet().catch(() => {});
           break;
         }
@@ -215,32 +243,9 @@ export function GameRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  const onClaim = async (cardId: number) => {
-    const c = cards.find((x) => x.cardId === cardId);
-    if (!c || c.eliminated || phase !== "DRAWING" || result) return;
-    const marked = autoMarked(c.card, drawn);
-    if (!findWinningPositions(marked)) return;
-
-    haptic.impact("heavy");
-    setClaimingId(cardId);
-    try {
-      const r = await api.claimBingo(gameId, cardId, claimPositions(marked));
-      if (r.winner) {
-        setResult({ type: "win", prize });
-      } else {
-        // Only this card is out — the player's other cards keep playing.
-        push(t("game.cardEliminated"), "error");
-        const stillAlive = cards.some((x) => x.cardId !== cardId && !x.eliminated);
-        setCards((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, eliminated: true } : x)));
-        if (!stillAlive) setResult({ type: "eliminated" });
-      }
-      await refreshWallet().catch(() => {});
-    } catch (e) {
-      push(e instanceof ApiError ? e.message : "error", "error");
-    } finally {
-      setClaimingId(null);
-    }
-  };
+  // Winning is automatic: the server auto-detects a completed card and declares
+  // the winner(s) via the WINNER event — no manual claim/tap needed. Each card
+  // simply lights up with a BINGO badge (see CardPanel) when it completes.
 
   const canRefund = phase === "WAITING" || phase === "COUNTDOWN";
 
@@ -346,18 +351,14 @@ export function GameRoom() {
         </div>
       )}
 
-      {/* Scrollable stack of the player's cards, each individually claimable. */}
+      {/* Scrollable stack of the player's cards; each lights up automatically. */}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
         {cards.map((c) => (
           <CardPanel
             key={c.cardId}
             entry={c}
             marked={autoMarked(c.card, drawn)}
-            phase={phase}
-            blocked={!!result}
-            claiming={claimingId === c.cardId}
             showRemove={canRefund && cards.length > 0}
-            onClaim={() => onClaim(c.cardId)}
             onRemove={() => onRemoveCard(c.cardId)}
           />
         ))}
@@ -368,29 +369,23 @@ export function GameRoom() {
   );
 }
 
-// A single card with its own daub state and BINGO button.
+// A single card with its own auto-daub state. When it completes a line it lights
+// up with a passive BINGO badge — the server auto-declares the win, so there is
+// no button to tap.
 function CardPanel({
   entry,
   marked,
-  phase,
-  blocked,
-  claiming,
   showRemove,
-  onClaim,
   onRemove,
 }: {
   entry: MyCard;
   marked: Set<number>;
-  phase: GameState;
-  blocked: boolean;
-  claiming: boolean;
   showRemove: boolean;
-  onClaim: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const winLine = useMemo(() => findWinningPositions(marked), [marked]);
-  const canClaim = !!winLine && phase === "DRAWING" && !blocked && !entry.eliminated;
+  const hasBingo = !!winLine && !entry.eliminated;
 
   return (
     <div className={`glass rounded-2xl p-2.5 ${entry.eliminated ? "opacity-50" : ""}`}>
@@ -411,17 +406,15 @@ function CardPanel({
               ✕
             </button>
           ) : null}
-          <motion.div animate={canClaim ? { scale: [1, 1.04, 1] } : {}} transition={{ repeat: Infinity, duration: 0.9 }}>
-            <Button
-              variant="gold"
-              disabled={!canClaim}
-              loading={claiming}
-              onClick={onClaim}
-              className="!px-4 !py-1.5 text-sm"
+          {hasBingo && (
+            <motion.span
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ repeat: Infinity, duration: 0.9 }}
+              className="rounded-full bg-neon-gold/20 px-3 py-1 text-sm font-extrabold text-neon-gold"
             >
-              {claiming ? t("game.claiming") : `🎉 ${t("game.bingo")}`}
-            </Button>
-          </motion.div>
+              🎉 {t("game.bingo")}
+            </motion.span>
+          )}
         </div>
       </div>
       <BingoCardView
