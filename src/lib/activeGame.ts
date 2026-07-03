@@ -7,13 +7,19 @@ const LIVE_STATES: GameState[] = ["WAITING", "COUNTDOWN", "DRAWING"];
 
 // The most recent game the user is still an active part of and that hasn't
 // resolved yet — i.e. one they can rejoin. `myGames` is ordered newest-first.
-export function findActiveGame(
-  entries: Array<{ game: Game; left_at?: string | null }>,
-): Game | null {
-  const entry = entries.find(
-    (e) => !e.left_at && LIVE_STATES.includes(e.game.state),
-  );
-  return entry?.game ?? null;
+//
+// Defensive on shape: each entry is normally nested `{ game: {...}, left_at }`,
+// but we also tolerate a flat game object (some callers/older payloads), so a
+// shape quirk can never silently hide the return-to-game pill.
+export function findActiveGame(entries: any[]): Game | null {
+  for (const e of entries ?? []) {
+    const g: Game | undefined = e?.game ?? e;
+    if (!g || !g.state) continue;
+    const left = e?.left_at ?? e?.leftAt;
+    if (left) continue;
+    if (LIVE_STATES.includes(g.state)) return g;
+  }
+  return null;
 }
 
 // Polls the user's games and surfaces the one live game they can return to.
