@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Badge, Button, Card, Spinner, ErrorNote } from "@/components/ui";
@@ -8,6 +8,7 @@ import { birr, date } from "@/lib/format";
 
 export function UserDetail() {
   const { id = "" } = useParams();
+  const nav = useNavigate();
   const { data, loading, error, reload } = useApi(() => api.userDetail(id), [id]);
   const push = useToast((s) => s.push);
   const [busy, setBusy] = useState(false);
@@ -48,6 +49,22 @@ export function UserDetail() {
     }
     await run(() => api.makeAdmin(id, adminPw), "User is now an admin with a password");
     setAdminPw("");
+  };
+
+  const removeUser = async () => {
+    const name = `${u?.first_name ?? ""} ${u?.last_name ?? ""}`.trim() || u?.phone_number || "this user";
+    if (!window.confirm(`Permanently delete ${name}? This also removes their wallet, transactions, and game history. This cannot be undone.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.deleteUser(id);
+      push("User deleted", "success");
+      nav("/users");
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Delete failed", "error");
+      setBusy(false);
+    }
   };
 
   return (
@@ -153,6 +170,24 @@ export function UserDetail() {
                     − Debit
                   </Button>
                 </div>
+              </div>
+
+              <div className="border-t border-edge pt-4">
+                <div className="mb-2 text-sm text-rose-400">Danger zone</div>
+                {u.role === "admin" ? (
+                  <p className="text-xs text-slate-500">
+                    Admin accounts can't be deleted. Demote to a regular user first.
+                  </p>
+                ) : (
+                  <>
+                    <Button variant="danger" disabled={busy} onClick={removeUser} className="w-full">
+                      Delete user
+                    </Button>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Permanently removes the user and their wallet, transactions, and game history.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </Card>

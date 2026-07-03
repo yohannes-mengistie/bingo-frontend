@@ -176,6 +176,7 @@ export const api = {
 
   banUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/ban`, { method: "POST" }),
   unbanUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/unban`, { method: "POST" }),
+  deleteUser: (id: string) => request<{ message: string }>(`/admin/users/${id}`, { method: "DELETE" }),
 
   adjustBalance: (id: string, amount: number, reason: string) =>
     request<{ message: string }>(`/admin/users/${id}/adjust-balance`, {
