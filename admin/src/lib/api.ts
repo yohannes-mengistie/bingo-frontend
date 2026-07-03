@@ -46,8 +46,18 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    const msg = (body && (body.error || body.message)) || res.statusText || "Request failed";
-    throw new ApiError(typeof msg === "string" ? msg : "Request failed", res.status);
+    // body may be a parsed object ({error}/{message}) or a raw string (e.g. gin's
+    // plain-text "404 page not found" when a route isn't deployed yet). Render
+    // serves HTTP/2, where res.statusText is always empty — so fall back to the
+    // status code rather than a bare "Request failed" that hides what happened.
+    const fromBody =
+      body && typeof body === "object"
+        ? body.error || body.message
+        : typeof body === "string"
+          ? body.trim()
+          : "";
+    const msg = fromBody || res.statusText || `Request failed (HTTP ${res.status})`;
+    throw new ApiError(typeof msg === "string" ? msg : `Request failed (HTTP ${res.status})`, res.status);
   }
   return body as T;
 }
