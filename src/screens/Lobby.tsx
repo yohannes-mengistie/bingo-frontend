@@ -12,7 +12,6 @@ import { money } from "@/lib/format";
 import { api } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
 import type { Game, GameType } from "@/types/api";
-import { useActiveGame } from "@/lib/activeGame";
 import { PromoTicker } from "@/components/lobby/PromoTicker";
 import { DailyStreak } from "@/components/lobby/DailyStreak";
 
@@ -29,12 +28,9 @@ export function Lobby() {
 
   const byType = useMemo(() => groupByType(data?.games ?? []), [data]);
 
-  // Detect a game the user is still in (e.g. they closed the app mid-game).
-  // `api.games(type)` only returns WAITING/COUNTDOWN games, so once their game
-  // is DRAWING the card picker can't lead back to it — this banner is the only
-  // path back to the live draw. The same hook drives the persistent pill on the
-  // other tabs.
-  const activeGame = useActiveGame();
+  // Returning to a live game (including one that's already DRAWING, which the
+  // open-game cards below no longer list) is handled by the persistent
+  // LiveGamePill, shown on every screen — so there's no inline banner here.
 
   return (
     <ScreenShell>
@@ -51,27 +47,6 @@ export function Lobby() {
       <div className="mb-3">
         <BalancePill />
       </div>
-
-      {activeGame && (
-        <motion.button
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => {
-            haptic.impact("medium");
-            nav(`/game/${activeGame.id}`);
-          }}
-          className="mb-3 w-full rounded-lg bg-accent px-4 py-3 text-left transition-colors duration-150 hover:bg-accent-active"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-display text-sm font-bold text-white">
-              {t("lobby.resume")}
-            </span>
-            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white">
-              {activeGame.game_type} · {money(activeGame.bet_amount)}
-            </span>
-          </div>
-        </motion.button>
-      )}
 
       <PromoTicker />
       <DailyStreak />

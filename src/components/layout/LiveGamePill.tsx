@@ -5,22 +5,20 @@ import { useActiveGame } from "@/lib/activeGame";
 import { money } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
 
-// A floating "return to your live game" pill shown on the tabbed screens
-// (wallet, profile, referral, leaderboard) so a player who wandered off after
-// joining is never more than one tap from the live draw. The lobby has its own
-// inline resume banner, and the game room / card picker are hidden below.
+// A floating "return to your live game" pill shown on every tabbed screen —
+// including the lobby — so a player who wandered off (or whose game moved into
+// the draw, where the lobby's open-game card no longer reaches it) is always
+// one tap from the live draw. It's the single, consistent way back.
 export function LiveGamePill() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const activeGame = useActiveGame();
 
-  // Hide where a return affordance already exists or would be redundant: the
-  // lobby (inline banner), the game room itself, and the card picker.
+  // Hide only where it would be redundant: inside the game room itself, and on
+  // the card picker (which has its own "Resume" button in the header).
   const hiddenHere =
-    pathname === "/" ||
-    pathname.startsWith("/game") ||
-    pathname.startsWith("/play");
+    pathname.startsWith("/game") || pathname.startsWith("/play");
 
   const show = !!activeGame && !hiddenHere;
 
