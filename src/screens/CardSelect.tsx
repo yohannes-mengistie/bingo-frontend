@@ -162,6 +162,16 @@ export function CardSelect() {
             <span className="text-sm text-ink-faint">{`· ${type}`}</span>
           </span>
         }
+        right={
+          ownedCount > 0 ? (
+            <button
+              onClick={enterGame}
+              className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-active active:bg-accent-active"
+            >
+              {t("card.enterGame")}
+            </button>
+          ) : undefined
+        }
       />
       <p className="mb-1 text-sm text-ink-muted">
         {t("card.titleMulti", { max: MAX_CARDS_PER_PLAYER })}
@@ -213,28 +223,17 @@ export function CardSelect() {
               <span className="font-bold text-neon-gold">{money(totalCost)}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {ownedCount > 0 && (
-              <Button
-                variant="ghost"
-                onClick={enterGame}
-                className="whitespace-nowrap"
-              >
-                {t("card.enterGame")}
-              </Button>
-            )}
-            <Button
-              variant="gold"
-              loading={joining}
-              disabled={selCount === 0}
-              onClick={confirm}
-              className="min-w-[8rem]"
-            >
-              {selCount > 1
-                ? t("card.joinN", { n: selCount, bet: money(totalCost) })
-                : t("card.join", { bet: money(totalCost) })}
-            </Button>
-          </div>
+          <Button
+            variant="gold"
+            loading={joining}
+            disabled={selCount === 0}
+            onClick={confirm}
+            className="min-w-[8rem]"
+          >
+            {selCount > 1
+              ? t("card.joinN", { n: selCount, bet: money(totalCost) })
+              : t("card.join", { bet: money(totalCost) })}
+          </Button>
         </div>
       </div>
     </ScreenShell>
