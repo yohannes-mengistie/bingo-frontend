@@ -104,6 +104,15 @@ export function CardSelect() {
     });
   };
 
+  // Jump straight into the room for a game the player already holds cards in.
+  // The lobby routes the "LIVE NOW" stake into this picker, so without this the
+  // screen is a dead-end once all cards are owned (nothing left to select).
+  const enterGame = () => {
+    if (!gameId) return;
+    haptic.impact("medium");
+    nav(`/game/${gameId}`);
+  };
+
   const confirm = async () => {
     if (selected.size === 0 || !gameId) return;
     haptic.impact("heavy");
@@ -204,17 +213,28 @@ export function CardSelect() {
               <span className="font-bold text-neon-gold">{money(totalCost)}</span>
             </div>
           </div>
-          <Button
-            variant="gold"
-            loading={joining}
-            disabled={selCount === 0}
-            onClick={confirm}
-            className="min-w-[8rem]"
-          >
-            {selCount > 1
-              ? t("card.joinN", { n: selCount, bet: money(totalCost) })
-              : t("card.join", { bet: money(totalCost) })}
-          </Button>
+          <div className="flex items-center gap-2">
+            {ownedCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={enterGame}
+                className="whitespace-nowrap"
+              >
+                {t("card.enterGame")}
+              </Button>
+            )}
+            <Button
+              variant="gold"
+              loading={joining}
+              disabled={selCount === 0}
+              onClick={confirm}
+              className="min-w-[8rem]"
+            >
+              {selCount > 1
+                ? t("card.joinN", { n: selCount, bet: money(totalCost) })
+                : t("card.join", { bet: money(totalCost) })}
+            </Button>
+          </div>
         </div>
       </div>
     </ScreenShell>
