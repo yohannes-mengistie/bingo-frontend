@@ -56,4 +56,4 @@ export const CURRENCY = "Birr";
 
 // Visible build marker — bump on each deploy so we can confirm from inside
 // Telegram which bundle is actually loaded (Telegram caches Mini Apps hard).
-export const BUILD_TAG = "build 2026-07-04·pill-v2";
+export const BUILD_TAG = "build 2026-07-04·pill-v3";

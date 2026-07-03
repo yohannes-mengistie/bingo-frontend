@@ -40,6 +40,7 @@ export function Lobby() {
             {t("app.name")}
           </h1>
           <p className="text-xs text-neon-cyan">{t("app.tagline")}</p>
+          <p className="text-[9px] text-ink-faint/60">{BUILD_TAG}</p>
         </div>
         <LangToggle />
       </header>
@@ -153,10 +154,6 @@ export function Lobby() {
           );
         })}
       </div>
-
-      <p className="mt-6 pb-2 text-center text-[10px] text-ink-faint/60">
-        {BUILD_TAG}
-      </p>
     </ScreenShell>
   );
 }
