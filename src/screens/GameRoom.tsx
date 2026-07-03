@@ -299,9 +299,15 @@ export function GameRoom() {
           </span>
         }
         right={
-          <button onClick={onLeave} className="glass rounded-xl px-3 py-2 text-xs font-bold text-neon-red">
-            {canRefund ? t("game.leaveRefund") : t("game.leave")}
-          </button>
+          // Leaving is only offered before the draw starts (it refunds the
+          // stake). Once the game is DRAWING/FINISHED there's nothing to leave —
+          // cards play automatically — so the button is hidden; the back arrow
+          // still returns to the lobby without forfeiting.
+          canRefund ? (
+            <button onClick={onLeave} className="glass rounded-xl px-3 py-2 text-xs font-bold text-neon-red">
+              {t("game.leaveRefund")}
+            </button>
+          ) : undefined
         }
       />
 
