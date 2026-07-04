@@ -35,8 +35,9 @@ export function LiveGamePill() {
             nav(`/game/${activeGame.id}`);
           }}
           // Sits above the sticky tab bar; centered and width-capped like the
-          // app's other bottom-anchored bars.
-          className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-md items-center justify-between gap-3 rounded-2xl bg-accent px-4 py-2.5 text-left shadow-lg shadow-black/30 transition-colors duration-150 hover:bg-accent-active"
+          // app's other bottom-anchored bars. The offset clears the tab bar
+          // (~5.35rem tall incl. its mb-3) plus a gap so they don't overlap.
+          className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-md items-center justify-between gap-3 rounded-2xl bg-accent px-4 py-2.5 text-left shadow-lg shadow-black/30 transition-colors duration-150 hover:bg-accent-active"
         >
           <span className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
