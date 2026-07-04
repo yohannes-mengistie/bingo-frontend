@@ -30,6 +30,7 @@ export function LiveGamePill() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
+          aria-label={`${t("lobby.resume")} — ${t("lobby.resumeHint")}`}
           onClick={() => {
             haptic.impact("medium");
             nav(`/game/${activeGame.id}`);
@@ -39,10 +40,19 @@ export function LiveGamePill() {
           // (~5.35rem tall incl. its mb-3) plus a gap so they don't overlap.
           className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-md items-center justify-between gap-3 rounded-2xl bg-accent px-4 py-2.5 text-left shadow-lg shadow-black/30 transition-colors duration-150 hover:bg-accent-active"
         >
-          <span className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-neon-red opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-neon-red" />
+          <span className="flex items-center gap-2.5">
+            {/* Play button wrapped in an outward "live" pulse ring — the one
+                clear focal point that reads as "live right now, tap to return". */}
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15">
+              <span className="absolute inset-0 animate-ping rounded-full bg-white/25" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="relative ml-0.5 h-4 w-4 text-white"
+                aria-hidden="true"
+              >
+                <path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.29-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14Z" />
+              </svg>
             </span>
             <span className="font-display text-sm font-bold text-white">
               {t("lobby.resume")}
