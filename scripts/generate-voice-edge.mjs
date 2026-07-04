@@ -5,8 +5,8 @@
 //
 // It uses the SAME neural voice as before (am-ET-MekdesNeural, female) but makes
 // it feel like a real caller:
-//   • caller-style cadence: letter, pause, number, pause, number again
-//     (e.g. "ኤን፣ አርባ አምስት፣ አርባ አምስት") — toggle with --no-repeat
+//   • clear caller cadence: letter, pause, number (e.g. "ኤን፣ አርባ አምስት").
+//     Pass --repeat to say the number twice ("… አርባ አምስት፣ አርባ አምስት").
 //   • slightly slower rate for clarity
 //   • trims the ~0.9s of dead air edge-tts bakes onto each clip (the main cause
 //     of the choppy flow), then loudness-normalizes so every call is even
@@ -16,7 +16,7 @@
 //   ffmpeg on PATH               (apt install ffmpeg, or a static build)
 //
 // Usage:
-//   node scripts/generate-voice-edge.mjs [--only=45,7] [--no-repeat]
+//   node scripts/generate-voice-edge.mjs [--only=45,7] [--repeat]
 //        [--voice=am-ET-MekdesNeural] [--rate=-8%] [--extras] [--out=DIR]
 //
 //   --extras     also (re)generate the "Bingo!" win cue -> public/sounds/win.mp3
@@ -40,7 +40,7 @@ const getArg = (n, d = null) => {
 
 const VOICE = getArg("voice", "am-ET-MekdesNeural");
 const RATE = getArg("rate", "-8%");
-const REPEAT = !has("--no-repeat");
+const REPEAT = has("--repeat"); // default: single call ("letter number")
 const onlyRaw = getArg("only");
 const only = onlyRaw ? onlyRaw.split(",").map((x) => Number(x.trim())).filter(Boolean) : null;
 const outArg = getArg("out");
