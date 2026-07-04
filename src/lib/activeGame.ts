@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useWallet } from "@/store/walletStore";
 import type { Game } from "@/types/api";
 
 // Polls the purpose-built /me/active-game endpoint and surfaces the one live
@@ -24,4 +25,22 @@ export function useActiveGame(): Game | null {
     const g: Game | undefined = entry?.game ?? entry;
     return g && g.state ? g : null;
   }, [data]);
+}
+
+// Refresh the wallet the moment the player's live game ends — i.e. the polled
+// active game goes from present to gone (won, lost, refunded, or cancelled).
+//
+// A player watching in the game room already gets a fresh balance from the
+// WINNER socket event. But one who navigated away (e.g. tapped back to the
+// lobby) isn't on that socket, so no event reaches them and their prize/refund
+// wouldn't show until they reopened the app. This closes that gap wherever they
+// are, within one poll interval.
+export function useRefreshWalletOnGameEnd(activeGame: Game | null) {
+  const refresh = useWallet((s) => s.refresh);
+  const prevId = useRef<string | null>(null);
+  useEffect(() => {
+    const cur = activeGame?.id ?? null;
+    if (prevId.current && !cur) refresh().catch(() => {});
+    prevId.current = cur;
+  }, [activeGame, refresh]);
 }
