@@ -1,7 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useActiveGame, useRefreshWalletOnGameEnd } from "@/lib/activeGame";
+import {
+  useActiveGame,
+  useActiveGameLiveRefresh,
+  useRefreshWalletOnGameEnd,
+} from "@/lib/activeGame";
 import { money } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
 
@@ -14,8 +18,10 @@ export function LiveGamePill() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const activeGame = useActiveGame();
-  // When that live game ends, pull the fresh balance even if the player wandered
-  // off the game socket (so a prize/refund shows up without reopening the app).
+  // Keep the balance current the moment that live game ends, even if the player
+  // wandered off the game socket. Real-time via a spectator socket (0s), with a
+  // poll-based safety net.
+  useActiveGameLiveRefresh(activeGame);
   useRefreshWalletOnGameEnd(activeGame);
 
   // Hide only where it would be redundant: inside the game room itself, and on

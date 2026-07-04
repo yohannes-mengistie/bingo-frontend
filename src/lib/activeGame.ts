@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { GameSocket } from "@/lib/ws";
 import { useWallet } from "@/store/walletStore";
 import type { Game } from "@/types/api";
 
@@ -43,4 +45,38 @@ export function useRefreshWalletOnGameEnd(activeGame: Game | null) {
     if (prevId.current && !cur) refresh().catch(() => {});
     prevId.current = cur;
   }, [activeGame, refresh]);
+}
+
+// Instant (0s) balance refresh: while the player has a live game but ISN'T in
+// its room, keep a lightweight spectator socket to that game so the WINNER /
+// FINISHED / CANCELLED event reaches them the moment it fires — then refresh the
+// wallet. This is the real-time path; useRefreshWalletOnGameEnd (poll) is the
+// safety net if the socket is down or a message is missed.
+//
+// Skipped while the game room itself is open (it already has its own socket and
+// refreshes on WINNER), so we never run two sockets to the same game.
+export function useActiveGameLiveRefresh(activeGame: Game | null) {
+  const refresh = useWallet((s) => s.refresh);
+  const { pathname } = useLocation();
+  const id = activeGame?.id ?? null;
+  const inRoom = !!id && pathname === `/game/${id}`;
+
+  useEffect(() => {
+    if (!id || inRoom) return;
+    const feed = new GameSocket(id);
+    const off = feed.on((msg) => {
+      const terminal =
+        msg.event === "WINNER" ||
+        (msg.event === "GAME_STATUS" &&
+          ["FINISHED", "CANCELLED"].includes(
+            (msg.data as any)?.status ?? (msg.data as any)?.state,
+          ));
+      if (terminal) refresh().catch(() => {});
+    });
+    feed.connect();
+    return () => {
+      off();
+      feed.close();
+    };
+  }, [id, inRoom, refresh]);
 }
