@@ -132,6 +132,15 @@ export const api = {
       "GET",
       `/api/v1/me/games?limit=${limit}&offset=${offset}`,
     ),
+  // The one live game the user still holds cards in (WAITING/COUNTDOWN/DRAWING),
+  // or { game: null }. Purpose-built single-row lookup backing the
+  // return-to-live-game pill — cheaper and less ambiguous than scanning
+  // paginated history. The live Game is nested under `game.game`.
+  activeGame: () =>
+    request<{ game: { game: Game } | null }>(
+      "GET",
+      `/api/v1/me/active-game`,
+    ),
   myPlayerInGame: (gameId: string) =>
     request<{ player: GamePlayer | null }>(
       "GET",
