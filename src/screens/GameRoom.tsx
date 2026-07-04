@@ -76,6 +76,12 @@ export function GameRoom() {
 
   sound.enabled = soundEnabled;
 
+  // Warm the caller audio (fetch + decode all clips) as soon as the room opens,
+  // so the first number call plays instantly and every call is gapless.
+  useEffect(() => {
+    if (soundEnabled) sound.preloadCalls();
+  }, [soundEnabled]);
+
   // Load all of the player's cards (fall back to the single card from nav state).
   useEffect(() => {
     let cancelled = false;
