@@ -97,6 +97,9 @@ export function Profile() {
             // What the player actually spent (all cards). Fall back to the
             // single bet for older entries without total_stake.
             const spent = entry.total_stake ?? g.bet_amount;
+            // The exact amount this player was paid across their winning cards
+            // (backend field win_amount). Shown only when they actually won.
+            const wonAmount = Number(entry.win_amount ?? 0);
             return (
               <Card key={g.id ?? i} className="flex items-center justify-between !py-3">
                 <div>
@@ -109,7 +112,14 @@ export function Profile() {
                     {when ? shortDate(when) : ""}
                   </div>
                 </div>
-                <Outcome won={won} />
+                <div className="flex flex-col items-end gap-1">
+                  <Outcome won={won} />
+                  {won && wonAmount > 0 && (
+                    <span className="text-sm font-bold text-neon-gold">
+                      +{money(wonAmount)}
+                    </span>
+                  )}
+                </div>
               </Card>
             );
           })
