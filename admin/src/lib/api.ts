@@ -156,6 +156,23 @@ export interface LoginResponse {
   user: User;
 }
 
+// Filler bots — house-owned players that auto-fill games short on real players.
+export interface BotConfig {
+  enabled: boolean;
+  min_real_players: number; // only fill games with fewer real players than this
+  target_bots: number; // add bots until the game holds this many
+  tiers: string; // comma-separated game types, e.g. "REGULAR,VIP"
+  updated_at: string;
+}
+
+export interface BotFillResult {
+  game_id: string;
+  requested: number;
+  added: number;
+  real_players: number;
+  bot_players: number;
+}
+
 // ---- Endpoints ----
 
 export const api = {
@@ -229,4 +246,19 @@ export const api = {
   gameDetail: (id: string) => request<GameDetail>(`/admin/games/${id}`),
   cancelGame: (id: string) =>
     request<CancelGameResponse>(`/admin/games/${id}/cancel`, { method: "POST" }),
+
+  // Filler bots
+  botConfig: () => request<BotConfig>("/admin/bots/config"),
+  updateBotConfig: (patch: Partial<Pick<BotConfig, "enabled" | "min_real_players" | "target_bots" | "tiers">>) =>
+    request<BotConfig>("/admin/bots/config", { method: "PUT", body: JSON.stringify(patch) }),
+  seedBots: (count?: number) =>
+    request<{ message: string }>("/admin/bots/seed", {
+      method: "POST",
+      body: JSON.stringify(count ? { count } : {}),
+    }),
+  addBots: (gameId: string, count: number) =>
+    request<BotFillResult>(`/admin/games/${gameId}/add-bots`, {
+      method: "POST",
+      body: JSON.stringify({ count }),
+    }),
 };
