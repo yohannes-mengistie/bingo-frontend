@@ -12,9 +12,39 @@ export function GameDetail() {
   const { data, loading, error, reload } = useApi(() => api.gameDetail(id), [id]);
   const push = useToast((s) => s.push);
   const [busy, setBusy] = useState(false);
+  const [addCount, setAddCount] = useState("5");
+  const [adding, setAdding] = useState(false);
 
   const g = data?.game;
   const players = data?.players ?? [];
+  const canFill = g?.state === "WAITING" || g?.state === "COUNTDOWN";
+
+  const addBots = async () => {
+    const n = Number(addCount);
+    if (!n || n < 1) {
+      push("Enter a bot count of 1 or more", "error");
+      return;
+    }
+    setAdding(true);
+    try {
+      const res = await api.addBots(id, n);
+      if (res.added === 0) {
+        push(
+          res.real_players < 1
+            ? "No bots added — a game needs at least 1 real player."
+            : "No bots added — game full or not joinable.",
+          "info",
+        );
+      } else {
+        push(`Added ${res.added} bot(s) — now ${res.bot_players} bots, ${res.real_players} real`, "success");
+      }
+      reload();
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Add bots failed", "error");
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const cancel = async () => {
     if (!g) return;
@@ -65,6 +95,27 @@ export function GameDetail() {
               {g.started_at && <Row label="Started" value={date(g.started_at)} />}
               {g.finished_at && <Row label="Finished" value={date(g.finished_at)} />}
             </dl>
+
+            {canFill && (
+              <div className="mt-4 border-t border-edge pt-4">
+                <label className="mb-1 block text-sm font-medium text-slate-200">Add filler bots</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={addCount}
+                    onChange={(e) => setAddCount(e.target.value)}
+                    className="w-24 rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand"
+                  />
+                  <Button variant="ghost" disabled={adding} onClick={addBots}>
+                    {adding ? "Adding…" : "Add bots"}
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Joins house-funded bots that stake {birr(g.bet_amount)} each. Requires ≥1 real player.
+                </p>
+              </div>
+            )}
 
             {isCancellable(g.state) && (
               <div className="mt-4 border-t border-edge pt-4">
