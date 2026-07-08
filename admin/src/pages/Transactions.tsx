@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Transaction, type TxStatus, type TxType, type UserWithWallet } from "@/lib/api";
+import { api, type Transaction, type TxCategory, type TxStatus, type TxType, type UserWithWallet } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Badge, Button, Card, Spinner, ErrorNote, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -30,6 +30,27 @@ function statusTone(s: TxStatus): string {
 }
 function typeTone(t: TxType): string {
   return t === "deposit" ? "blue" : t === "withdraw" ? "purple" : "neutral";
+}
+
+// Human-readable SOURCE of the money, from the category. This is what tells a
+// real Telebirr deposit apart from a game prize (both have type "deposit").
+const CATEGORY_META: Record<TxCategory, { label: string; tone: string }> = {
+  deposit: { label: "Deposit", tone: "blue" },
+  withdrawal: { label: "Withdrawal", tone: "purple" },
+  bet: { label: "Game bet", tone: "neutral" },
+  winnings: { label: "Game winnings", tone: "green" },
+  refund: { label: "Refund", tone: "yellow" },
+  transfer_in: { label: "Transfer in", tone: "blue" },
+  transfer_out: { label: "Transfer out", tone: "purple" },
+  admin_credit: { label: "Admin credit", tone: "yellow" },
+  admin_debit: { label: "Admin debit", tone: "yellow" },
+  bot_funding: { label: "Bot funding", tone: "neutral" },
+};
+
+function sourceMeta(t: Transaction): { label: string; tone: string } {
+  if (t.category && CATEGORY_META[t.category]) return CATEGORY_META[t.category];
+  // Legacy rows with no category: fall back to the raw direction.
+  return { label: t.type, tone: typeTone(t.type) };
 }
 
 export function Transactions() {
@@ -95,7 +116,7 @@ export function Transactions() {
               <thead>
                 <tr className="border-b border-edge text-left text-xs uppercase tracking-wide text-slate-400">
                   <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Method</th>
                   <th className="px-4 py-3">Reference</th>
@@ -118,7 +139,15 @@ export function Transactions() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={typeTone(t.type)}>{t.type}</Badge>
+                      {(() => {
+                        const s = sourceMeta(t);
+                        return (
+                          <>
+                            <Badge tone={s.tone}>{s.label}</Badge>
+                            <div className="mt-0.5 text-xs text-slate-500">{t.type}</div>
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 font-semibold">{birr(t.amount)}</td>
                     <td className="px-4 py-3 text-slate-400">{t.transaction_type ?? "—"}</td>
