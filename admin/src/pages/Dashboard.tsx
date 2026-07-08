@@ -29,7 +29,16 @@ export function Dashboard() {
             <Stat label="Total Transactions" value={String(data.total_transactions)} />
             <Stat label="Total Wallet Balance" value={birr(data.total_balance)} accent="text-emerald-300" />
             <Stat label="House Cut (Revenue)" value={birr(data.total_house_cut)} accent="text-brand" />
+            <Stat
+              label="Real-Player Game P&L"
+              value={birr(data.real_player_game_pnl)}
+              accent={data.real_player_game_pnl < 0 ? "text-red-300" : "text-emerald-300"}
+            />
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Real-Player Game P&L = real stakes − real winnings (bots excluded). Positive = house
+            ahead; negative = real cash paid out beyond stakes (exposure from bot-inflated pools).
+          </p>
 
           <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Games by Type

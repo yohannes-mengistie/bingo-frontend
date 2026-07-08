@@ -87,10 +87,26 @@ export type UserWithWallet = User & { wallet?: Wallet };
 export type TxType = "deposit" | "withdraw" | "transfer_in" | "transfer_out";
 export type TxStatus = "pending" | "completed" | "failed" | "cancelled";
 
+// category records what the money movement actually WAS (its source), separate
+// from `type` which only records the balance direction. Lets the UI tell a real
+// deposit apart from a game prize even though both are type "deposit".
+export type TxCategory =
+  | "deposit"
+  | "withdrawal"
+  | "bet"
+  | "winnings"
+  | "refund"
+  | "transfer_in"
+  | "transfer_out"
+  | "admin_credit"
+  | "admin_debit"
+  | "bot_funding";
+
 export interface Transaction {
   id: string;
   user_id: string;
   type: TxType;
+  category?: TxCategory | null;
   amount: number;
   status: TxStatus;
   transaction_type?: string | null; // payment method (Telebirr; legacy rows may be CBE)
@@ -149,6 +165,9 @@ export interface DashboardStats {
   total_balance: number;
   games_by_type: Record<string, number>;
   total_house_cut: number;
+  // real-player stakes − winnings (bots excluded). Negative = the house has paid
+  // real players more than they staked (real cash exposure from bot-inflated pools).
+  real_player_game_pnl: number;
 }
 
 export interface LoginResponse {
