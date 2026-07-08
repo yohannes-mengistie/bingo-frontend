@@ -7,7 +7,7 @@ import { ScreenShell } from "@/components/layout/ScreenShell";
 import { BalancePill } from "@/components/ui/BalancePill";
 import { LangToggle } from "@/components/ui/LangToggle";
 import { Card } from "@/components/ui/Card";
-import { STAKES, BUILD_TAG } from "@/lib/constants";
+import { STAKES } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { api } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
@@ -40,7 +40,6 @@ export function Lobby() {
             {t("app.name")}
           </h1>
           <p className="text-xs text-neon-cyan">{t("app.tagline")}</p>
-          <p className="text-[9px] text-ink-faint/60">{BUILD_TAG}</p>
         </div>
         <LangToggle />
       </header>
