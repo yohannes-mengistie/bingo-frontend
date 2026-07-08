@@ -165,6 +165,9 @@ export interface DashboardStats {
   total_balance: number;
   games_by_type: Record<string, number>;
   total_house_cut: number;
+  // real-player stakes − winnings (bots excluded). Negative = the house has paid
+  // real players more than they staked (real cash exposure from bot-inflated pools).
+  real_player_game_pnl: number;
 }
 
 export interface LoginResponse {
