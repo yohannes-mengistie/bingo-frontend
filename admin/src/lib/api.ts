@@ -115,6 +115,27 @@ export interface Transaction {
   created_at: string;
 }
 
+// Player-submitted problem reports ("Report a problem" in the Mini App).
+export type SupportCategory = "transaction" | "gameplay" | "other";
+export type SupportStatus = "open" | "resolved";
+
+export interface SupportReport {
+  id: string;
+  user_id: string;
+  category: SupportCategory;
+  message: string;
+  game_id?: string | null;
+  status: SupportStatus;
+  created_at: string;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  // Reporter identity, joined server-side for the dashboard.
+  reporter_first_name?: string;
+  reporter_last_name?: string | null;
+  reporter_phone?: string;
+  reporter_telegram_id?: number;
+}
+
 export type GameState = "WAITING" | "COUNTDOWN" | "DRAWING" | "FINISHED" | "CLOSED" | "CANCELLED";
 
 export interface Game {
@@ -280,4 +301,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ count }),
     }),
+
+  // Player problem reports
+  reports: (status?: SupportStatus, limit = 100, offset = 0) => {
+    const q = new URLSearchParams();
+    if (status) q.set("status", status);
+    q.set("limit", String(limit));
+    q.set("offset", String(offset));
+    return request<{ reports: SupportReport[]; count: number }>(`/admin/support?${q.toString()}`);
+  },
+  resolveReport: (id: string) =>
+    request<{ message: string }>(`/admin/support/${id}/resolve`, { method: "POST" }),
 };

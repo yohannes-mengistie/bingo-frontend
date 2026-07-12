@@ -8,6 +8,7 @@ import { BingoCardView } from "@/components/bingo/BingoCard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
 import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components/bingo/ResultOverlay";
+import { ReportProblem } from "@/components/ReportProblem";
 import { GameSocket } from "@/lib/ws";
 import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
 import { api } from "@/lib/api";
@@ -70,6 +71,7 @@ export function GameRoom() {
   const [seconds, setSeconds] = useState(0);
   const [players, setPlayers] = useState(0);
   const [prize, setPrize] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
   const [result, setResult] = useState<GameResult>(null);
   const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
@@ -333,6 +335,12 @@ export function GameRoom() {
             👥 {t("game.players", { n: players })}
             {conn !== "open" && ` · ${t("game.reconnecting")}`}
           </div>
+          <button
+            onClick={() => setReportOpen(true)}
+            className="mt-0.5 text-xs text-ink/40 underline-offset-2 hover:text-ink/70 hover:underline"
+          >
+            {t("report.open")}
+          </button>
         </div>
         {phase === "COUNTDOWN" && (
           <CountdownRing seconds={seconds} total={COUNTDOWN_SECONDS} />
@@ -377,6 +385,13 @@ export function GameRoom() {
       </div>
 
       <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={() => nav("/")} />
+
+      <ReportProblem
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        defaultCategory="gameplay"
+        gameId={gameId}
+      />
     </div>
   );
 }

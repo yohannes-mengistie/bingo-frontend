@@ -167,4 +167,12 @@ export const api = {
       `/api/v1/games/${gameId}/bingo`,
       { card_id, marked_numbers },
     ),
+
+  // Report a problem to the admins (transaction / gameplay / other). The
+  // reporter is taken from the auth token server-side.
+  submitReport: (
+    category: "transaction" | "gameplay" | "other",
+    message: string,
+    game_id?: string,
+  ) => request<unknown>("POST", "/api/v1/support", { category, message, game_id }),
 };
