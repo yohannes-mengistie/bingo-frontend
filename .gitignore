@@ -8,3 +8,6 @@ dist/
 .vite/
 tsconfig.tsbuildinfo
 .vercel
+
+# Local master voice recordings (already shipped, renamed, under public/audio/am/)
+/voice/

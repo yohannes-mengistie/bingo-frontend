@@ -15,11 +15,15 @@
 //   --only=N     Generate just number N (handy for fixing one clip).
 //   --extras     Also generate the spoken cues in EXTRAS -> public/sounds/.
 //   --normalize  Loudness-normalize the batch with ffmpeg (if installed).
+//   --force      Overwrite clips that already exist. WITHOUT this flag, any
+//                existing mp3 is left untouched — this guards the hand-recorded
+//                human voice clips from being clobbered by a stray regen.
 //
 // Env: AZURE_SPEECH_KEY (required), AZURE_SPEECH_REGION (required),
 //      AZURE_VOICE (optional, default am-ET-MekdesNeural; try am-ET-AmehaNeural).
 
 import { writeFile, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -130,6 +134,8 @@ const only = (() => {
 
 async function main() {
   const dryRun = has("--dry-run");
+  const force = has("--force");
+  let skipped = 0;
 
   if (!dryRun && (!KEY || !REGION)) {
     console.error("Set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION (see --help in the header).");
@@ -152,6 +158,11 @@ async function main() {
 
   for (const n of numbers) {
     const file = join(AM_DIR, `${n}.mp3`);
+    if (existsSync(file) && !force) {
+      console.log(`#${String(n).padStart(2)} skip — ${n}.mp3 exists (use --force to overwrite)`);
+      skipped++;
+      continue;
+    }
     process.stdout.write(`#${String(n).padStart(2)} ${phraseFor(n)} … `);
     const buf = await synth(phraseFor(n));
     await writeFile(file, buf);
@@ -164,6 +175,11 @@ async function main() {
     await mkdir(SFX_DIR, { recursive: true });
     for (const [key, text] of Object.entries(EXTRAS)) {
       const file = join(SFX_DIR, `${key}.mp3`);
+      if (existsSync(file) && !force) {
+        console.log(`cue ${key} skip — ${key}.mp3 exists (use --force to overwrite)`);
+        skipped++;
+        continue;
+      }
       process.stdout.write(`cue ${key} "${text}" … `);
       const buf = await synth(text);
       await writeFile(file, buf);
@@ -172,6 +188,9 @@ async function main() {
     }
   }
 
+  if (skipped > 0) {
+    console.log(`\n${skipped} existing clip(s) left untouched. Re-run with --force to overwrite them.`);
+  }
   console.log("\nDone. Review the clips, then commit the mp3s.");
 }
 
