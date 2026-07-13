@@ -7,6 +7,8 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { FullSpinner } from "@/components/ui/Spinner";
+import { BalancePill } from "@/components/ui/BalancePill";
+import { LangToggle } from "@/components/ui/LangToggle";
 import { CardPreview } from "@/components/bingo/CardPreview";
 import {
   MAX_CARD_ID,
@@ -22,7 +24,11 @@ import type { GameType } from "@/types/api";
 
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
 
-export function CardSelect() {
+// `home` = this is the Play tab landing (route "/"): it shows the bottom tab
+// bar, a balance + VIP + language header instead of a back button, and floats
+// the join bar above the tabs. Without it, it's the VIP sub-screen (back button,
+// no tabs) reached from the home VIP button.
+export function CardSelect({ home = false }: { home?: boolean }) {
   const { t } = useTranslation();
   const nav = useNavigate();
   const { gameType } = useParams<{ gameType: GameType }>();
@@ -165,34 +171,53 @@ export function CardSelect() {
 
   if (gameQ.isLoading) {
     return (
-      <ScreenShell tabs={false}>
-        <Header back title={`${type} · ${money(bet)}`} />
+      <ScreenShell tabs={home}>
+        {!home && <Header back title={`${type} · ${money(bet)}`} />}
         <FullSpinner label={t("common.loading")} />
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell tabs={false}>
-      <Header
-        back
-        title={
-          <span>
-            {money(bet)}{" "}
-            <span className="text-sm text-ink-faint">{`· ${type}`}</span>
-          </span>
-        }
-        right={
-          ownedCount > 0 ? (
+    <ScreenShell tabs={home}>
+      {home ? (
+        // Landing header: balance, a VIP-room shortcut, and the language toggle.
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <BalancePill />
+          <div className="flex items-center gap-2">
             <button
-              onClick={enterGame}
-              className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-active active:bg-accent-active"
+              onClick={() => {
+                haptic.impact("medium");
+                nav("/play/VIP");
+              }}
+              className="flex items-center gap-1 rounded-full border border-neon-gold/40 bg-neon-gold/10 px-3 py-1.5 text-xs font-bold text-neon-gold active:scale-95"
             >
-              {t("card.enterGame")}
+              👑 {t("lobby.vipRoom")}
             </button>
-          ) : undefined
-        }
-      />
+            <LangToggle />
+          </div>
+        </div>
+      ) : (
+        <Header
+          back
+          title={
+            <span>
+              {money(bet)}{" "}
+              <span className="text-sm text-ink-faint">{`· ${type}`}</span>
+            </span>
+          }
+          right={
+            ownedCount > 0 ? (
+              <button
+                onClick={enterGame}
+                className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-active active:bg-accent-active"
+              >
+                {t("card.enterGame")}
+              </button>
+            ) : undefined
+          }
+        />
+      )}
       {/* Live game hero: prize · round · countdown/LIVE. Display only. */}
       <div className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-bg-elevated to-bg-card p-4">
         <div className="flex items-start justify-between gap-3">
@@ -294,34 +319,44 @@ export function CardSelect() {
         </div>
       )}
 
-      {/* Spacer so the last content clears the sticky action bar. */}
-      <div aria-hidden className="h-28" />
+      {/* Spacer so the last content clears the bottom bar(s). */}
+      <div aria-hidden className={home ? "h-40" : "h-28"} />
 
-      {/* Sticky action bar: running count + total cost + join. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-          <div className="text-sm">
-            <div className="font-bold text-ink">
-              {t("card.selectedCount", { count: selCount })}
+      {/* Join action. On the landing it floats above the tab bar and only shows
+          once cards are selected; on the VIP sub-screen it's the full-width
+          bottom bar. */}
+      {(!home || selCount > 0) && (
+        <div
+          className={
+            home
+              ? "fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-30 rounded-2xl border border-white/10 bg-bg/95 px-4 py-3 shadow-lg backdrop-blur"
+              : "fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur"
+          }
+        >
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+            <div className="text-sm">
+              <div className="font-bold text-ink">
+                {t("card.selectedCount", { count: selCount })}
+              </div>
+              <div className="text-xs text-ink-muted">
+                {t("card.total")}:{" "}
+                <span className="font-bold text-neon-gold">{money(totalCost)}</span>
+              </div>
             </div>
-            <div className="text-xs text-ink-muted">
-              {t("card.total")}:{" "}
-              <span className="font-bold text-neon-gold">{money(totalCost)}</span>
-            </div>
+            <Button
+              variant="gold"
+              loading={joining}
+              disabled={selCount === 0}
+              onClick={confirm}
+              className="min-w-[8rem]"
+            >
+              {selCount > 1
+                ? t("card.joinN", { n: selCount, bet: money(totalCost) })
+                : t("card.join", { bet: money(totalCost) })}
+            </Button>
           </div>
-          <Button
-            variant="gold"
-            loading={joining}
-            disabled={selCount === 0}
-            onClick={confirm}
-            className="min-w-[8rem]"
-          >
-            {selCount > 1
-              ? t("card.joinN", { n: selCount, bet: money(totalCost) })
-              : t("card.join", { bet: money(totalCost) })}
-          </Button>
         </div>
-      </div>
+      )}
     </ScreenShell>
   );
 }
