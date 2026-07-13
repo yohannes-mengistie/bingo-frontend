@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Habesha Bingo",
+    "name": "Habtam Bingo",
     "tagline": "Play. Win. Shine."
   },
   "common": {
@@ -23,10 +23,10 @@
   "auth": {
     "connecting": "Connecting to Telegram…",
     "notRegisteredTitle": "Almost there!",
-    "notRegisteredBody": "Open the Habesha Bingo bot and tap Start to create your account, then come back here.",
+    "notRegisteredBody": "Open the Habtam Bingo bot and tap Start to create your account, then come back here.",
     "openBot": "Open the Bot",
     "noTelegramTitle": "Open inside Telegram",
-    "noTelegramBody": "This app runs inside the Telegram Mini App. Open it from the Habesha Bingo bot.",
+    "noTelegramBody": "This app runs inside the Telegram Mini App. Open it from the Habtam Bingo bot.",
     "errorTitle": "Something went wrong",
     "errorBody": "We couldn't sign you in. Please try again."
   },
@@ -128,7 +128,7 @@
     "viewCard": "View card",
     "playAgain": "Play again",
     "share": "Share",
-    "shareText": "I just won {{amount}} on Habesha Bingo! 🎉 Come play with me:",
+    "shareText": "I just won {{amount}} on Habtam Bingo! 🎉 Come play with me:",
     "viewWinnerCard": "View winner's card",
     "winnerCardTitle": "Winner's card",
     "winnerCardSub": "The cells {{name}} marked",
@@ -190,7 +190,7 @@
     "body": "Share your code. When friends join and play, you both shine.",
     "yourCode": "Your code",
     "shareBtn": "Share on Telegram",
-    "shareText": "Join me on Habesha Bingo and let's win together! Use my code {{code}}:"
+    "shareText": "Join me on Habtam Bingo and let's win together! Use my code {{code}}:"
   },
   "leaderboard": {
     "title": "Leaderboard",

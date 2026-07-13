@@ -74,7 +74,7 @@ export function ResultOverlay({
     }
   }, [isWin, result]);
 
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HubBingoBot";
+  const bot = import.meta.env.VITE_BOT_USERNAME ?? "Habtam_bingobot";
   const prize = result?.type === "win" ? result.prize : 0;
 
   // Reveal the primary winner's card to EVERYONE automatically the moment

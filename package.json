@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Habesha Bingo — Telegram Mini App frontend",
+  "description": "Habtam Bingo — Telegram Mini App frontend",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
