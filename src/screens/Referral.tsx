@@ -11,7 +11,7 @@ export function Referral() {
   const { t } = useTranslation();
   const code = useAuth((s) => s.user?.referal_code ?? "");
   const push = useToast((s) => s.push);
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "HubBingoBot";
+  const bot = import.meta.env.VITE_BOT_USERNAME ?? "Habtam_bingobot";
   const link = `https://t.me/${bot}?start=ref_${code}`;
 
   const copy = async () => {
