@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { ScreenShell } from "@/components/layout/ScreenShell";
 import { Header } from "@/components/layout/Header";
-import { ReportProblem } from "@/components/ReportProblem";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -20,7 +19,6 @@ export function WalletScreen() {
   const { t } = useTranslation();
   const { wallet, refresh } = useWallet();
   const [action, setAction] = useState<Action>(null);
-  const [reportOpen, setReportOpen] = useState(false);
   const [tab, setTab] = useState<"deposits" | "withdrawals" | "transfers">("deposits");
 
   const history = useQuery({
@@ -92,13 +90,6 @@ export function WalletScreen() {
         )}
       </div>
 
-      <button
-        onClick={() => setReportOpen(true)}
-        className="mt-6 w-full py-2 text-center text-sm text-ink/50 underline-offset-4 hover:text-ink/80 hover:underline"
-      >
-        {t("report.open")}
-      </button>
-
       <ActionSheet
         action={action}
         onClose={() => setAction(null)}
@@ -107,12 +98,6 @@ export function WalletScreen() {
           await refresh();
           history.refetch();
         }}
-      />
-
-      <ReportProblem
-        open={reportOpen}
-        onClose={() => setReportOpen(false)}
-        defaultCategory="transaction"
       />
     </ScreenShell>
   );

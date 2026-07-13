@@ -30,7 +30,7 @@
     "errorTitle": "የሆነ ችግር ተፈጥሯል",
     "errorBody": "ልናስገባህ አልቻልንም። እባክህ እንደገና ሞክር።"
   },
-  "nav": { "play": "ጨዋታ", "wallet": "ቦርሳ", "profile": "መገለጫ" },
+  "nav": { "play": "ጨዋታ", "wallet": "ቦርሳ", "profile": "መገለጫ", "report": "ሪፖርት" },
   "report": {
     "open": "ችግር አሳውቅ",
     "title": "ችግር አሳውቅ",

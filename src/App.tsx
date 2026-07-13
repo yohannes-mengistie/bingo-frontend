@@ -5,8 +5,8 @@ import { useWallet } from "@/store/walletStore";
 import { ToastHost } from "@/components/ui/Toast";
 import { Splash } from "@/screens/Splash";
 import { NotRegistered } from "@/screens/NotRegistered";
-import { Lobby } from "@/screens/Lobby";
 import { CardSelect } from "@/screens/CardSelect";
+import { Report } from "@/screens/Report";
 import { GameRoom } from "@/screens/GameRoom";
 import { WalletScreen } from "@/screens/Wallet";
 import { Profile } from "@/screens/Profile";
@@ -63,14 +63,15 @@ function renderByStatus(
         <TelegramBackButton />
         <LiveGamePill />
         <Routes>
-          <Route path="/" element={<Lobby />} />
-        <Route path="/play/:gameType" element={<CardSelect />} />
-        <Route path="/game/:gameId" element={<GameRoom />} />
-        <Route path="/wallet" element={<WalletScreen />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/referral" element={<Referral />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="*" element={<Lobby />} />
+          <Route path="/" element={<CardSelect home />} />
+          <Route path="/play/:gameType" element={<CardSelect />} />
+          <Route path="/game/:gameId" element={<GameRoom />} />
+          <Route path="/wallet" element={<WalletScreen />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/report" element={<Report />} />
+          <Route path="/referral" element={<Referral />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="*" element={<CardSelect home />} />
         </Routes>
       </>
     );

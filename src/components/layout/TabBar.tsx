@@ -6,6 +6,7 @@ const TABS = [
   { to: "/", key: "play", icon: "🎯" },
   { to: "/wallet", key: "wallet", icon: "💰" },
   { to: "/profile", key: "profile", icon: "👤" },
+  { to: "/report", key: "report", icon: "🛟" },
 ] as const;
 
 export function TabBar() {
