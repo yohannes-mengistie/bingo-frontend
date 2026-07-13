@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { FullSpinner } from "@/components/ui/Spinner";
+import { CardPreview } from "@/components/bingo/CardPreview";
 import {
   MAX_CARD_ID,
   MIN_CARD_ID,
@@ -60,6 +61,25 @@ export function CardSelect() {
     () => new Set(stateQ.data?.takenCards ?? []),
     [stateQ.data],
   );
+
+  // Live snapshot for the hero: prize, player count, state and the pre-game
+  // countdown. Prefer the polled game state; fall back to the game that seeded
+  // this screen. Purely display — none of it changes the join logic.
+  const liveGame = stateQ.data?.game ?? gameQ.data ?? null;
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const countdownEnds = liveGame?.countdown_ends ? Date.parse(liveGame.countdown_ends) : null;
+  const secondsLeft =
+    countdownEnds != null ? Math.max(0, Math.ceil((countdownEnds - nowTs) / 1000)) : null;
+  const isCountdown = liveGame?.state === "COUNTDOWN" && secondsLeft != null;
+  // Short, stable round reference derived from the game id (no backend field).
+  // Doubles as a code players can quote in a support report.
+  const roundCode = gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----";
+  const mmss = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   // Cards the user already holds in this game (e.g. came back to buy more).
   const ownedQ = useQuery({
@@ -173,15 +193,60 @@ export function CardSelect() {
           ) : undefined
         }
       />
-      <p className="mb-1 text-sm text-ink-muted">
-        {t("card.titleMulti", { max: MAX_CARDS_PER_PLAYER })}
-      </p>
-      <p className="mb-3 text-xs text-ink-faint">
+      {/* Live game hero: prize · round · countdown/LIVE. Display only. */}
+      <div className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-bg-elevated to-bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+              {t("card.prize")}
+            </div>
+            <div className="font-display text-3xl font-extrabold text-neon-gold">
+              {money(liveGame?.prize_pool ?? 0)}
+            </div>
+          </div>
+          <div className="text-right">
+            {isCountdown ? (
+              <>
+                <div className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                  {t("card.startingIn")}
+                </div>
+                <div className="font-display text-3xl font-extrabold tabular-nums text-ink">
+                  {mmss(secondsLeft!)}
+                </div>
+              </>
+            ) : liveGame?.state === "DRAWING" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-neon-green/15 px-2.5 py-1 text-[11px] font-bold text-neon-green">
+                <span className="size-1.5 animate-pulse rounded-full bg-neon-green" />
+                {t("card.live")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold text-ink-muted">
+                <span className="size-1.5 animate-pulse rounded-full bg-ink-faint" />
+                {t("card.waitingPlayers")}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2.5 border-t border-white/5 pt-2.5 text-xs text-ink-muted">
+          <span className="rounded-md bg-white/5 px-2 py-0.5 font-mono font-bold text-ink">
+            {t("card.round")} #{roundCode}
+          </span>
+          <span>
+            👥 {liveGame?.player_count ?? 0} {t("common.players")}
+          </span>
+          <span className="ml-auto rounded-md bg-white/5 px-2 py-0.5 font-bold text-ink">
+            {type === "VIP" ? "👑 " : ""}
+            {money(bet)}
+          </span>
+        </div>
+      </div>
+
+      <p className="mb-2 text-xs text-ink-faint">
+        {t("card.tapToPick")} ·{" "}
         {t("card.capHint", { count: totalCards, max: MAX_CARDS_PER_PLAYER })}
       </p>
 
-      {/* Extra bottom padding so the last row clears the sticky action bar. */}
-      <div className="grid grid-cols-6 gap-1.5 pb-28 sm:grid-cols-8">
+      <div className="grid grid-cols-6 gap-1.5 pb-3 sm:grid-cols-8">
         {ALL_CARDS.map((id) => {
           const isOwned = owned.has(id);
           const isTaken = taken.has(id) && !isOwned;
@@ -210,6 +275,27 @@ export function CardSelect() {
           );
         })}
       </div>
+
+      {/* Live previews of the cards the player is about to buy — rendered from
+          the local card table, so exactly the grid they'll play. */}
+      {selCount > 0 && (
+        <div className="mb-2">
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="font-display text-sm font-bold text-ink">{t("card.yourSelection")}</h2>
+            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-ink-muted">
+              {selCount}
+            </span>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {[...selected].map((id) => (
+              <CardPreview key={id} id={id} onRemove={() => toggle(id)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Spacer so the last content clears the sticky action bar. */}
+      <div aria-hidden className="h-28" />
 
       {/* Sticky action bar: running count + total cost + join. */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">

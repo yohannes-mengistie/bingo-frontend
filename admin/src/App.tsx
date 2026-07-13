@@ -10,6 +10,7 @@ import { Games } from "@/pages/Games";
 import { GameDetail } from "@/pages/GameDetail";
 import { Staff } from "@/pages/Staff";
 import { Bots } from "@/pages/Bots";
+import { Reports } from "@/pages/Reports";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   if (!isAuthed()) return <Navigate to="/login" replace />;
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/games" element={<Games />} />
         <Route path="/games/:id" element={<GameDetail />} />
         <Route path="/bots" element={<Bots />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/staff" element={<Staff />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

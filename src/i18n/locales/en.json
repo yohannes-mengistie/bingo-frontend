@@ -31,8 +31,28 @@
     "errorBody": "We couldn't sign you in. Please try again."
   },
   "nav": { "play": "Play", "wallet": "Wallet", "profile": "Profile" },
+  "report": {
+    "open": "Report a problem",
+    "title": "Report a problem",
+    "subtitle": "Tell us what went wrong and we'll look into it.",
+    "category": "What's it about?",
+    "cat": {
+      "transaction": "Deposit / Withdrawal",
+      "gameplay": "Game / Sound",
+      "other": "Other"
+    },
+    "placeholder": "Describe the problem…",
+    "submit": "Send report",
+    "sending": "Sending…",
+    "success": "Thanks! Your report was sent to the team.",
+    "error": "Couldn't send your report. Please try again.",
+    "empty": "Please describe the problem first."
+  },
   "lobby": {
     "chooseStake": "Choose your table",
+    "pickRoom": "Pick a room",
+    "playBingo": "Play Bingo",
+    "vipRoom": "VIP Room",
     "higherBigger": "Higher bet, bigger prize!",
     "tier": { "REGULAR": "Regular", "VIP": "VIP" },
     "vipTag": "Premium",
@@ -50,6 +70,13 @@
   },
   "card": {
     "title": "Pick your card",
+    "round": "Round",
+    "prize": "Prize",
+    "startingIn": "Starting…",
+    "waitingPlayers": "Waiting for players",
+    "live": "LIVE",
+    "yourSelection": "Your cards",
+    "tapToPick": "Tap a number to pick a card",
     "titleMulti": "Pick up to {{max}} cards",
     "capHint": "{{count}}/{{max}} cards",
     "maxCards": "Up to {{max}} cards per game",

@@ -13,7 +13,7 @@ import type {
   User,
   Wallet,
 } from "@/types/api";
-import { DEV_MOCK, generateMockCard } from "@/lib/devMock";
+import { getCard } from "@/lib/cards";
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? "http://localhost:8000").replace(
   /\/$/,
@@ -123,10 +123,16 @@ export const api = {
     ),
   gameState: (gameId: string) =>
     request<GameStateResponse>("GET", `/api/v1/games/${gameId}/state`),
-  card: (cardId: number) =>
-    DEV_MOCK
-      ? Promise.resolve({ card: generateMockCard(cardId) })
-      : request<{ card: BingoCard }>("GET", `/api/v1/cards/${cardId}`),
+  card: (cardId: number) => {
+    // Cards are a fixed table shipped with the app (an exact mirror of the
+    // backend's), so displaying one needs no network round-trip. The server
+    // still derives the same card from the id for win validation. Fall back to
+    // the API only for an unexpected out-of-range id.
+    const local = getCard(cardId);
+    return local
+      ? Promise.resolve({ card: local })
+      : request<{ card: BingoCard }>("GET", `/api/v1/cards/${cardId}`);
+  },
   myGames: (limit = 20, offset = 0) =>
     request<{ games: any[]; count: number }>(
       "GET",
@@ -167,4 +173,12 @@ export const api = {
       `/api/v1/games/${gameId}/bingo`,
       { card_id, marked_numbers },
     ),
+
+  // Report a problem to the admins (transaction / gameplay / other). The
+  // reporter is taken from the auth token server-side.
+  submitReport: (
+    category: "transaction" | "gameplay" | "other",
+    message: string,
+    game_id?: string,
+  ) => request<unknown>("POST", "/api/v1/support", { category, message, game_id }),
 };
