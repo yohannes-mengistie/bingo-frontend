@@ -52,7 +52,7 @@ export function Lobby() {
       <DailyStreak />
 
       <div className="mb-2 mt-4 flex items-baseline justify-between">
-        <h2 className="font-display text-lg font-bold">{t("lobby.chooseStake")}</h2>
+        <h2 className="font-display text-lg font-bold">{t("lobby.pickRoom")}</h2>
         <span className="text-xs text-ink-faint">{t("lobby.higherBigger")}</span>
       </div>
 
@@ -145,7 +145,7 @@ export function Lobby() {
                         : "bg-accent text-white",
                     ].join(" ")}
                   >
-                    {t("common.play")} →
+                    {vip ? t("lobby.vipRoom") : t("lobby.playBingo")} →
                   </div>
                 </div>
               </Card>

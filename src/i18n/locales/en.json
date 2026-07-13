@@ -50,6 +50,9 @@
   },
   "lobby": {
     "chooseStake": "Choose your table",
+    "pickRoom": "Pick a room",
+    "playBingo": "Play Bingo",
+    "vipRoom": "VIP Room",
     "higherBigger": "Higher bet, bigger prize!",
     "tier": { "REGULAR": "Regular", "VIP": "VIP" },
     "vipTag": "Premium",
@@ -67,6 +70,13 @@
   },
   "card": {
     "title": "Pick your card",
+    "round": "Round",
+    "prize": "Prize",
+    "startingIn": "Starting…",
+    "waitingPlayers": "Waiting for players",
+    "live": "LIVE",
+    "yourSelection": "Your cards",
+    "tapToPick": "Tap a number to pick a card",
     "titleMulti": "Pick up to {{max}} cards",
     "capHint": "{{count}}/{{max}} cards",
     "maxCards": "Up to {{max}} cards per game",
