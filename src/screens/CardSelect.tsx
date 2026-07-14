@@ -18,7 +18,9 @@ import {
 import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
+import { sound } from "@/lib/audio";
 import { useWallet } from "@/store/walletStore";
+import { useSettings } from "@/store/settingsStore";
 import type { GameType } from "@/types/api";
 
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
@@ -40,6 +42,8 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const balance = useWallet((s) => s.balance);
   const refreshWallet = useWallet((s) => s.refresh);
   const push = useToast((s) => s.push);
+  const soundEnabled = useSettings((s) => s.soundEnabled);
+  sound.enabled = soundEnabled;
 
   // Pull a fresh balance whenever the picker opens, so the affordability gating
   // reflects real money — not a stale cached value from a prior game / deposit.
@@ -119,6 +123,11 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // happens here — reserved cards are billed together when the game starts.
   const toggle = async (id: number) => {
     if (!gameId || busy.has(id)) return;
+    // Unlock + warm the caller audio on this real user gesture: resume the
+    // AudioContext (it starts suspended) and fetch+decode the call clips now, so
+    // the FIRST number call in the game room plays instantly instead of being
+    // swallowed by a still-suspended context. Idempotent (cached after first).
+    sound.preloadCalls();
     const isMine = owned.has(id);
     if (!isMine && taken.has(id)) return; // reserved by someone else
 
