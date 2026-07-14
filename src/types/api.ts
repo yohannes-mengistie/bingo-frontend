@@ -43,6 +43,7 @@ export interface Game {
   player_count: number;
   prize_pool: number;
   house_cut: number;
+  round_code?: string | null;
   winner_id?: string | null;
   countdown_ends?: string | null;
   started_at?: string | null;

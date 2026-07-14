@@ -81,9 +81,12 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const secondsLeft =
     countdownEnds != null ? Math.max(0, Math.ceil((countdownEnds - nowTs) / 1000)) : null;
   const isCountdown = liveGame?.state === "COUNTDOWN" && secondsLeft != null;
-  // Short, stable round reference derived from the game id (no backend field).
-  // Doubles as a code players can quote in a support report.
-  const roundCode = gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----";
+  // Human-readable daily round code from the backend, e.g. "0714-03" (July 14,
+  // 3rd game of the day). Falls back to a game-id slice for older games that
+  // predate the round_code field. Doubles as a code players can quote in support.
+  const roundCode =
+    liveGame?.round_code ||
+    (gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----");
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
