@@ -19,7 +19,6 @@ import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
 import { useWallet } from "@/store/walletStore";
-import { useSettings } from "@/store/settingsStore";
 import type { GameType } from "@/types/api";
 
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
@@ -41,8 +40,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const balance = useWallet((s) => s.balance);
   const refreshWallet = useWallet((s) => s.refresh);
   const push = useToast((s) => s.push);
-  const soundEnabled = useSettings((s) => s.soundEnabled);
-  const toggleSound = useSettings((s) => s.toggleSound);
 
   // Pull a fresh balance whenever the picker opens, so the affordability gating
   // reflects real money — not a stale cached value from a prior game / deposit.
@@ -189,16 +186,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               className="flex items-center gap-1 rounded-full border border-neon-gold/40 bg-neon-gold/10 px-3 py-1.5 text-xs font-bold text-neon-gold active:scale-95"
             >
               👑 {t("lobby.vipRoom")}
-            </button>
-            <button
-              onClick={() => {
-                haptic.select();
-                toggleSound();
-              }}
-              aria-label={t("profile.sound")}
-              className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base active:scale-95"
-            >
-              {soundEnabled ? "🔊" : "🔇"}
             </button>
             <LangToggle />
           </div>

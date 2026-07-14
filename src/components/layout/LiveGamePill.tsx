@@ -24,10 +24,23 @@ export function LiveGamePill() {
   useActiveGameLiveRefresh(activeGame);
   useRefreshWalletOnGameEnd(activeGame);
 
-  // Hide only where it would be redundant: inside the game room itself, and on
-  // the card picker (which has its own "Resume" button in the header).
-  const hiddenHere =
-    pathname.startsWith("/game") || pathname.startsWith("/play");
+  // Where "resume" goes depends on the phase (reservation model): before the
+  // draw the player belongs on the card picker (to add/remove cards and watch
+  // the countdown); once drawing starts they belong in the game room. Picking
+  // for VIP lives on its own sub-route.
+  const preGame =
+    activeGame?.state === "WAITING" || activeGame?.state === "COUNTDOWN";
+  const target = activeGame
+    ? preGame
+      ? activeGame.game_type === "VIP"
+        ? "/play/VIP"
+        : "/"
+      : `/game/${activeGame.id}`
+    : "";
+
+  // Hide where it would be redundant: inside the game room, or already on the
+  // target pick screen.
+  const hiddenHere = pathname.startsWith("/game") || pathname === target;
 
   const show = !!activeGame && !hiddenHere;
 
@@ -42,7 +55,7 @@ export function LiveGamePill() {
           aria-label={`${t("lobby.resume")} — ${t("lobby.resumeHint")}`}
           onClick={() => {
             haptic.impact("medium");
-            nav(`/game/${activeGame.id}`);
+            nav(target);
           }}
           // Sits above the sticky tab bar; centered and width-capped like the
           // app's other bottom-anchored bars. The offset clears the tab bar

@@ -57,7 +57,7 @@ export function GameRoom() {
   const location = useLocation();
   const myId = useAuth((s) => s.user?.id);
   const refreshWallet = useWallet((s) => s.refresh);
-  const { soundEnabled, hapticsEnabled } = useSettings();
+  const { soundEnabled, hapticsEnabled, toggleSound } = useSettings();
 
   const stateCardId = (location.state as { cardId?: number } | null)?.cardId;
 
@@ -312,15 +312,28 @@ export function GameRoom() {
           </span>
         }
         right={
-          // Leaving is only offered before the draw starts (it refunds the
-          // stake). Once the game is DRAWING/FINISHED there's nothing to leave —
-          // cards play automatically — so the button is hidden; the back arrow
-          // still returns to the lobby without forfeiting.
-          canRefund ? (
-            <button onClick={onLeave} className="glass rounded-xl px-3 py-2 text-xs font-bold text-neon-red">
-              {t("game.leaveRefund")}
+          // Sound toggle lives here (handy mid-game). Leaving is only offered
+          // before the draw starts (it releases the reservation). Once the game
+          // is DRAWING/FINISHED there's nothing to leave — cards play
+          // automatically — so that button is hidden; the back arrow still
+          // returns to the lobby without forfeiting.
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (hapticsEnabled) haptic.select();
+                toggleSound();
+              }}
+              aria-label={t("profile.sound")}
+              className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base active:scale-95"
+            >
+              {soundEnabled ? "🔊" : "🔇"}
             </button>
-          ) : undefined
+            {canRefund && (
+              <button onClick={onLeave} className="glass rounded-xl px-3 py-2 text-xs font-bold text-neon-red">
+                {t("game.leaveRefund")}
+              </button>
+            )}
+          </div>
         }
       />
 
