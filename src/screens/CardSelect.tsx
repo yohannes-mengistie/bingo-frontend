@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ScreenShell } from "@/components/layout/ScreenShell";
 import { Header } from "@/components/layout/Header";
-import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { FullSpinner } from "@/components/ui/Spinner";
 import { BalancePill } from "@/components/ui/BalancePill";
@@ -15,7 +14,6 @@ import {
   MIN_CARD_ID,
   BET_BY_TYPE,
   MAX_CARDS_PER_PLAYER,
-  HOUSE_CUT,
 } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
@@ -27,9 +25,13 @@ import type { GameType } from "@/types/api";
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
 
 // `home` = this is the Play tab landing (route "/"): it shows the bottom tab
-// bar, a balance + VIP + language header instead of a back button, and floats
-// the join bar above the tabs. Without it, it's the VIP sub-screen (back button,
-// no tabs) reached from the home VIP button.
+// bar and a balance + VIP + language header instead of a back button. Without
+// it, it's the VIP sub-screen (back button, no tabs) reached from the home VIP
+// button.
+//
+// Flow: tapping a card RESERVES it immediately (no charge, no Join button). The
+// stake is taken for everyone when the 40s countdown ends, at which point the
+// game starts and reserved players are pulled straight into the board.
 export function CardSelect({ home = false }: { home?: boolean }) {
   const { t } = useTranslation();
   const nav = useNavigate();
@@ -43,15 +45,13 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const toggleSound = useSettings((s) => s.toggleSound);
 
   // Pull a fresh balance whenever the picker opens, so the affordability gating
-  // (which cards are selectable, the cost preview) reflects real money — not a
-  // stale cached value from before a prior purchase / game / deposit.
+  // reflects real money — not a stale cached value from a prior game / deposit.
   useEffect(() => {
     refreshWallet().catch(() => {});
   }, [refreshWallet]);
 
-  // Up to MAX_CARDS_PER_PLAYER cards can be picked at once.
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [joining, setJoining] = useState(false);
+  // Cards whose reserve/release request is currently in flight (tap debounce).
+  const [busy, setBusy] = useState<Set<number>>(new Set());
 
   // Fetch/create the active game for this stake (creates if none).
   const gameQ = useQuery({
@@ -60,7 +60,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   });
   const gameId = gameQ.data?.id ?? null;
 
-  // Poll taken cards from game state.
+  // Poll taken cards + live game state.
   const stateQ = useQuery({
     queryKey: ["game-state", gameId],
     queryFn: () => api.gameState(gameId!),
@@ -72,9 +72,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     [stateQ.data],
   );
 
-  // Live snapshot for the hero: prize, player count, state and the pre-game
-  // countdown. Prefer the polled game state; fall back to the game that seeded
-  // this screen. Purely display — none of it changes the join logic.
+  // Live snapshot for the hero: prize, player count, state and the countdown.
   const liveGame = stateQ.data?.game ?? gameQ.data ?? null;
   const [nowTs, setNowTs] = useState(() => Date.now());
   useEffect(() => {
@@ -85,16 +83,15 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const secondsLeft =
     countdownEnds != null ? Math.max(0, Math.ceil((countdownEnds - nowTs) / 1000)) : null;
   const isCountdown = liveGame?.state === "COUNTDOWN" && secondsLeft != null;
-  // Human-readable daily round code from the backend, e.g. "0714-03" (July 14,
-  // 3rd game of the day). Falls back to a game-id slice for older games that
-  // predate the round_code field. Doubles as a code players can quote in support.
+  // Human-readable daily round code from the backend, e.g. "3" (3rd game of the
+  // day). Falls back to a game-id slice for older games without the field.
   const roundCode =
     liveGame?.round_code ||
     (gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----");
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  // Cards the user already holds in this game (e.g. came back to buy more).
+  // Cards this player has reserved in the current game.
   const ownedQ = useQuery({
     queryKey: ["my-cards", gameId],
     queryFn: () => api.myCardsInGame(gameId!),
@@ -107,78 +104,65 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   );
 
   const ownedCount = owned.size;
-  const selCount = selected.size;
-  const totalCards = ownedCount + selCount;
-  const remainingCap = Math.max(0, MAX_CARDS_PER_PLAYER - ownedCount);
-  const totalCost = selCount * bet;
-  // Projected prize: the backend pool (already net of the house cut) plus what
-  // the cards being selected would add. Updates live as the user picks/removes
-  // cards so the hero number reflects the pot they're about to play for.
-  const houseCut = liveGame?.house_cut ?? HOUSE_CUT;
-  const projectedPrize = (liveGame?.prize_pool ?? 0) + selCount * bet * (1 - houseCut);
-  // Can another card be added? (cap + wallet can cover one more)
-  const canSelectMore = selCount < remainingCap && balance() >= (selCount + 1) * bet;
+  // Can another card be reserved? (cap + wallet can cover one more at commit)
+  const canAddMore = ownedCount < MAX_CARDS_PER_PLAYER && balance() >= (ownedCount + 1) * bet;
 
-  const toggle = (id: number) => {
-    if (taken.has(id) || owned.has(id)) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        haptic.select();
-        return next;
-      }
-      if (next.size >= remainingCap) {
+  // When the countdown ends and drawing begins, pull reserved players straight
+  // into the game board (only once).
+  const enteredRef = useRef(false);
+  useEffect(() => {
+    if (liveGame?.state === "DRAWING" && ownedCount > 0 && gameId && !enteredRef.current) {
+      enteredRef.current = true;
+      haptic.impact("medium");
+      nav(`/game/${gameId}`);
+    }
+  }, [liveGame?.state, ownedCount, gameId, nav]);
+
+  // Tapping a card reserves it (or releases it if already reserved). No charge
+  // happens here — reserved cards are billed together when the game starts.
+  const toggle = async (id: number) => {
+    if (!gameId || busy.has(id)) return;
+    const isMine = owned.has(id);
+    if (!isMine && taken.has(id)) return; // reserved by someone else
+
+    if (!isMine) {
+      if (ownedCount >= MAX_CARDS_PER_PLAYER) {
         push(t("card.maxCards", { max: MAX_CARDS_PER_PLAYER }), "error");
-        return prev;
+        return;
       }
-      if (balance() < (next.size + 1) * bet) {
+      if (balance() < (ownedCount + 1) * bet) {
         push(t("card.insufficient"), "error");
-        return prev;
+        return;
       }
-      next.add(id);
-      haptic.select();
-      return next;
-    });
+    }
+
+    setBusy((prev) => new Set(prev).add(id));
+    haptic.select();
+    try {
+      if (isMine) {
+        await api.leave(gameId, id); // release the reservation (nothing charged)
+      } else {
+        await api.join(gameId, id); // reserve the card (charged at game start)
+      }
+      await Promise.all([ownedQ.refetch(), stateQ.refetch()]);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "error";
+      push(msg === "insufficient balance" ? t("card.insufficient") : msg, "error");
+    } finally {
+      setBusy((prev) => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
+    }
   };
 
-  // Jump straight into the room for a game the player already holds cards in.
-  // The lobby routes the "LIVE NOW" stake into this picker, so without this the
-  // screen is a dead-end once all cards are owned (nothing left to select).
+  // Jump into the room for a game the player already holds cards in (fallback to
+  // the auto-enter above, e.g. reached from the lobby's "LIVE NOW").
   const enterGame = () => {
     if (!gameId) return;
     haptic.impact("medium");
     nav(`/game/${gameId}`);
-  };
-
-  const confirm = async () => {
-    if (selected.size === 0 || !gameId) return;
-    haptic.impact("heavy");
-    setJoining(true);
-    let firstCard: number | null = null;
-    let joinedAny = false;
-    try {
-      // Each card is its own join (one stake each). Stop on the first failure
-      // but keep any cards already joined.
-      for (const id of selected) {
-        try {
-          const { player } = await api.join(gameId, id);
-          joinedAny = true;
-          if (firstCard === null) firstCard = player.card_id;
-        } catch (e) {
-          const msg = e instanceof ApiError ? e.message : "error";
-          push(msg === "insufficient balance" ? t("card.insufficient") : msg, "error");
-          break;
-        }
-      }
-      if (joinedAny) {
-        await refreshWallet().catch(() => {});
-        haptic.notify("success");
-        nav(`/game/${gameId}`, { state: { cardId: firstCard ?? undefined } });
-      }
-    } finally {
-      setJoining(false);
-    }
   };
 
   if (gameQ.isLoading) {
@@ -193,7 +177,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   return (
     <ScreenShell tabs={home}>
       {home ? (
-        // Landing header: balance, a VIP-room shortcut, and the language toggle.
+        // Landing header: balance, a VIP-room shortcut, sound + language toggles.
         <div className="mb-3 flex items-center justify-between gap-2">
           <BalancePill />
           <div className="flex items-center gap-2">
@@ -248,7 +232,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               {t("card.prize")}
             </div>
             <div className="font-display text-3xl font-extrabold text-neon-gold">
-              {money(projectedPrize)}
+              {money(liveGame?.prize_pool ?? 0)}
             </div>
           </div>
           <div className="text-right">
@@ -290,36 +274,34 @@ export function CardSelect({ home = false }: { home?: boolean }) {
 
       <p className="mb-2 text-xs text-ink-faint">
         {t("card.tapToPick")} ·{" "}
-        {t("card.capHint", { count: totalCards, max: MAX_CARDS_PER_PLAYER })}
+        {t("card.capHint", { count: ownedCount, max: MAX_CARDS_PER_PLAYER })}
       </p>
 
       <div className="grid grid-cols-6 gap-1.5 pb-3 sm:grid-cols-8">
         {ALL_CARDS.map((id) => {
-          const isOwned = owned.has(id);
-          const isTaken = taken.has(id) && !isOwned;
-          const isSel = selected.has(id);
-          const disabled = isTaken || isOwned || (!isSel && !canSelectMore);
+          const isMine = owned.has(id);
+          const isTaken = taken.has(id) && !isMine;
+          const isBusy = busy.has(id);
+          const disabled = isBusy || isTaken || (!isMine && !canAddMore);
           return (
             <button
               key={id}
-              disabled={disabled}
+              disabled={disabled && !isMine}
               onClick={() => toggle(id)}
               className={[
                 "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-all",
-                isSel
-                  ? // Picked: solid gold with a glow — impossible to miss.
+                isBusy ? "opacity-60" : "",
+                isMine
+                  ? // Your reserved card: solid gold with a glow — tap to release.
                     "scale-105 bg-neon-gold text-bg ring-2 ring-neon-gold shadow-[0_0_10px_rgba(240,190,60,0.65)]"
-                  : isOwned
-                    ? // Already yours: solid green.
-                      "bg-neon-green/25 text-neon-green ring-2 ring-neon-green"
-                    : isTaken
-                      ? // Taken by someone else: dim + struck, clearly gone.
-                        "cursor-not-allowed bg-white/[0.03] text-ink-faint/30 line-through ring-1 ring-white/5"
-                      : disabled
-                        ? // Can't pick now (cap/balance): muted, no green border.
-                          "cursor-not-allowed bg-bg-card text-ink-faint/40 ring-1 ring-white/5"
-                        : // Available: dark tile with a green outline invites a tap.
-                          "bg-bg-card text-ink ring-1 ring-neon-green/40 hover:bg-neon-green/5 hover:ring-neon-green",
+                  : isTaken
+                    ? // Reserved by someone else: dim + struck, clearly gone.
+                      "cursor-not-allowed bg-white/[0.03] text-ink-faint/30 line-through ring-1 ring-white/5"
+                    : disabled
+                      ? // Can't pick now (cap/balance): muted, no green border.
+                        "cursor-not-allowed bg-bg-card text-ink-faint/40 ring-1 ring-white/5"
+                      : // Available: dark tile with a green outline invites a tap.
+                        "bg-bg-card text-ink ring-1 ring-neon-green/40 hover:bg-neon-green/5 hover:ring-neon-green",
               ].join(" ")}
             >
               {id}
@@ -328,62 +310,25 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         })}
       </div>
 
-      {/* Live previews of the cards the player is about to buy — rendered from
-          the local card table, so exactly the grid they'll play. */}
-      {selCount > 0 && (
+      {/* Previews of the cards the player has reserved (tap ✕ to release). */}
+      {ownedCount > 0 && (
         <div className="mb-2">
           <div className="mb-2 flex items-center gap-2">
             <h2 className="font-display text-sm font-bold text-ink">{t("card.yourSelection")}</h2>
-            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-ink-muted">
-              {selCount}
+            <span className="rounded-full bg-neon-gold/20 px-2 py-0.5 text-[10px] font-bold text-neon-gold">
+              {ownedCount}
             </span>
           </div>
           <div className="flex gap-2.5 overflow-x-auto pb-1">
-            {[...selected].map((id) => (
+            {[...owned].map((id) => (
               <CardPreview key={id} id={id} onRemove={() => toggle(id)} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Spacer so the last content clears the bottom bar(s). */}
-      <div aria-hidden className={home ? "h-44" : "h-28"} />
-
-      {/* Join action. On the landing it floats above the tab bar and only shows
-          once cards are selected; on the VIP sub-screen it's the full-width
-          bottom bar. */}
-      {(!home || selCount > 0) && (
-        <div
-          className={
-            home
-              ? "fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-50 rounded-2xl border border-white/10 bg-bg/95 px-4 py-3 shadow-lg backdrop-blur"
-              : "fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur"
-          }
-        >
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-            <div className="text-sm">
-              <div className="font-bold text-ink">
-                {t("card.selectedCount", { count: selCount })}
-              </div>
-              <div className="text-xs text-ink-muted">
-                {t("card.total")}:{" "}
-                <span className="font-bold text-neon-gold">{money(totalCost)}</span>
-              </div>
-            </div>
-            <Button
-              variant="gold"
-              loading={joining}
-              disabled={selCount === 0}
-              onClick={confirm}
-              className="min-w-[8rem]"
-            >
-              {selCount > 1
-                ? t("card.joinN", { n: selCount, bet: money(totalCost) })
-                : t("card.join", { bet: money(totalCost) })}
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Spacer so the last row clears the sticky tab bar. */}
+      <div aria-hidden className={home ? "h-24" : "h-6"} />
     </ScreenShell>
   );
 }
