@@ -21,6 +21,7 @@ import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
 import { useWallet } from "@/store/walletStore";
+import { useSettings } from "@/store/settingsStore";
 import type { GameType } from "@/types/api";
 
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
@@ -38,6 +39,8 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const balance = useWallet((s) => s.balance);
   const refreshWallet = useWallet((s) => s.refresh);
   const push = useToast((s) => s.push);
+  const soundEnabled = useSettings((s) => s.soundEnabled);
+  const toggleSound = useSettings((s) => s.toggleSound);
 
   // Pull a fresh balance whenever the picker opens, so the affordability gating
   // (which cards are selectable, the cost preview) reflects real money — not a
@@ -203,6 +206,16 @@ export function CardSelect({ home = false }: { home?: boolean }) {
             >
               👑 {t("lobby.vipRoom")}
             </button>
+            <button
+              onClick={() => {
+                haptic.select();
+                toggleSound();
+              }}
+              aria-label={t("profile.sound")}
+              className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base active:scale-95"
+            >
+              {soundEnabled ? "🔊" : "🔇"}
+            </button>
             <LangToggle />
           </div>
         </div>
@@ -292,16 +305,21 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               disabled={disabled}
               onClick={() => toggle(id)}
               className={[
-                "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-colors",
+                "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-all",
                 isSel
-                  ? "bg-grad-gold text-bg ring-2 ring-white"
+                  ? // Picked: solid gold with a glow — impossible to miss.
+                    "scale-105 bg-neon-gold text-bg ring-2 ring-neon-gold shadow-[0_0_10px_rgba(240,190,60,0.65)]"
                   : isOwned
-                    ? "bg-neon-green/20 text-neon-green ring-1 ring-neon-green/40"
+                    ? // Already yours: solid green.
+                      "bg-neon-green/25 text-neon-green ring-2 ring-neon-green"
                     : isTaken
-                      ? "cursor-not-allowed bg-white/5 text-ink-faint/40 line-through"
+                      ? // Taken by someone else: dim + struck, clearly gone.
+                        "cursor-not-allowed bg-white/[0.03] text-ink-faint/30 line-through ring-1 ring-white/5"
                       : disabled
-                        ? "cursor-not-allowed bg-bg-card text-ink-faint/40"
-                        : "bg-bg-card text-ink hover:bg-white/10",
+                        ? // Can't pick now (cap/balance): muted, no green border.
+                          "cursor-not-allowed bg-bg-card text-ink-faint/40 ring-1 ring-white/5"
+                        : // Available: dark tile with a green outline invites a tap.
+                          "bg-bg-card text-ink ring-1 ring-neon-green/40 hover:bg-neon-green/5 hover:ring-neon-green",
               ].join(" ")}
             >
               {id}

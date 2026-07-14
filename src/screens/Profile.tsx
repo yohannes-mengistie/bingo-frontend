@@ -78,7 +78,6 @@ export function Profile() {
         <Row label={t("profile.language")}>
           <LangToggle />
         </Row>
-        <Toggle label={t("profile.sound")} on={settings.soundEnabled} onClick={settings.toggleSound} />
         <Toggle label={t("profile.haptics")} on={settings.hapticsEnabled} onClick={settings.toggleHaptics} />
       </Card>
 
