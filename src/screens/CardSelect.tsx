@@ -163,14 +163,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     }
   };
 
-  // Jump into the room for a game the player already holds cards in (fallback to
-  // the auto-enter above, e.g. reached from the lobby's "LIVE NOW").
-  const enterGame = () => {
-    if (!gameId) return;
-    haptic.impact("medium");
-    nav(`/game/${gameId}`);
-  };
-
   if (gameQ.isLoading) {
     return (
       <ScreenShell tabs={home}>
@@ -207,16 +199,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               {money(bet)}{" "}
               <span className="text-sm text-ink-faint">{`· ${type}`}</span>
             </span>
-          }
-          right={
-            ownedCount > 0 ? (
-              <button
-                onClick={enterGame}
-                className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-active active:bg-accent-active"
-              >
-                {t("card.enterGame")}
-              </button>
-            ) : undefined
           }
         />
       )}
