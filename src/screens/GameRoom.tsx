@@ -223,7 +223,8 @@ export function GameRoom() {
                 ? prev
                 : { type: "lose" },
           );
-          if (mine && soundEnabled) sound.win();
+          // Announce "Bingo!" (recorded voice) to everyone in the room.
+          if (soundEnabled) sound.bingo();
           refreshWallet().catch(() => {});
           break;
         }

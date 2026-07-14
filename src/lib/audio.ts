@@ -134,7 +134,7 @@ export const sound = {
     if (!this.enabled) return;
     resume();
     for (let n = 1; n <= MAX_CALL; n++) load(`/audio/am/${n}.mp3`);
-    load("/sounds/win.mp3");
+    load("/sounds/bingo.aac");
   },
 
   /** Call out a drawn number in Amharic (with letter); beep fallback. */
@@ -148,10 +148,11 @@ export const sound = {
     });
   },
 
-  win() {
+  /** The "Bingo!" voice announcement, played to the room when someone wins. */
+  bingo() {
     if (!this.enabled) return;
-    playBuffer("/sounds/win.mp3", {
-      group: "voice",
+    playBuffer("/sounds/bingo.aac", {
+      group: "voice", // cuts any in-flight number call
       fallback: () => {
         beep(660, 120);
         setTimeout(() => beep(880, 200), 130);
