@@ -166,6 +166,13 @@ export function GameRoom() {
             refreshWallet().catch(() => {});
           } else if (status) {
             setPhase(status);
+            // Stakes are charged the moment the game starts (reservation model),
+            // and a paid player can also be charged when a game reverts to
+            // WAITING after another reserver fails to pay — pull the fresh
+            // balance on both so the wallet reflects the debit.
+            if (status === "DRAWING" || status === "WAITING") {
+              refreshWallet().catch(() => {});
+            }
           }
           if (typeof msg.data.player_count === "number") setPlayers(msg.data.player_count);
           if (typeof msg.data.prize_pool === "number") setPrize(msg.data.prize_pool);
