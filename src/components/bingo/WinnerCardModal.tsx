@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { BingoCardView } from "@/components/bingo/BingoCard";
 import { api } from "@/lib/api";
 import { winnerMarks } from "@/lib/bingo";
+import { money } from "@/lib/format";
 import type { BingoCard } from "@/types/api";
 
 /**
@@ -22,6 +23,8 @@ export function WinnerCardModal({
   marked,
   drawn,
   winnerName,
+  closeLabel,
+  youWon,
 }: {
   open: boolean;
   onClose: () => void;
@@ -30,6 +33,10 @@ export function WinnerCardModal({
   /** All numbers called this game — for context (called-but-unmarked cells). */
   drawn?: Set<number>;
   winnerName: string;
+  /** Label for the single action button (defaults to a plain "Close"). */
+  closeLabel?: string;
+  /** When the viewer is the winner, the amount they won — shown as a banner. */
+  youWon?: number;
 }) {
   const { t } = useTranslation();
   const [card, setCard] = useState<BingoCard | null>(null);
@@ -65,6 +72,11 @@ export function WinnerCardModal({
       <p className="mt-0.5 text-sm text-ink-faint">
         {t("result.winnerCardSub", { name: winnerName })}
       </p>
+      {youWon != null && youWon > 0 && (
+        <p className="mt-2 text-lg font-bold text-neon-gold">
+          {t("result.wonAmount", { amount: money(youWon) })}
+        </p>
+      )}
 
       <div className="mt-4">
         {error ? (
@@ -93,7 +105,7 @@ export function WinnerCardModal({
 
       <div className="mt-5">
         <Button variant="gold" fullWidth onClick={onClose}>
-          {t("common.close")}
+          {closeLabel ?? t("common.close")}
         </Button>
       </div>
     </Modal>

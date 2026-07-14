@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import confetti from "canvas-confetti";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { WinnerCardModal } from "@/components/bingo/WinnerCardModal";
 import { money } from "@/lib/format";
-import { shareToTelegram, haptic } from "@/lib/telegram";
+import { haptic } from "@/lib/telegram";
 
 export type GameResult =
   | { type: "win"; prize: number }
@@ -47,14 +47,11 @@ export function ResultOverlay({
   onPlayAgain: () => void;
 }) {
   const { t } = useTranslation();
-  // The winner whose card is currently open for inspection (null = closed).
-  const [selected, setSelected] = useState<WinnerEntry | null>(null);
   const isWin = result?.type === "win";
-
   const winners = winner?.winners ?? [];
-  const split = !!winner?.split && winners.length > 1;
-  const showWinners = winners.length > 0 && result?.type !== "cancelled";
-  // Winners whose card can be inspected (we know the card id + marks).
+  const prize = result?.type === "win" ? result.prize : 0;
+
+  // The primary winner whose card we can show and verify (id + marks known).
   const firstVerifiable = winners.find(
     (w) => typeof w.cardId === "number" && !!w.marked,
   );
@@ -74,122 +71,65 @@ export function ResultOverlay({
     }
   }, [isWin, result]);
 
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "Habtam_bingobot";
-  const prize = result?.type === "win" ? result.prize : 0;
+  if (!result) return null;
 
-  // Reveal the primary winner's card to EVERYONE automatically the moment
-  // results land (no tap), so anyone can verify the win. Any winner's card can
-  // then be opened from the list below.
-  useEffect(() => {
-    if (result && result.type !== "cancelled" && firstVerifiable) {
-      setSelected(firstVerifiable);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, winners.length]);
+  // Primary path: a single popup showing the winner's marked card (auto-opened
+  // for everyone, so any player can verify the win), with one "Back to lobby"
+  // button. No stacked results modal.
+  if (
+    result.type !== "cancelled" &&
+    firstVerifiable?.cardId != null &&
+    firstVerifiable.marked
+  ) {
+    return (
+      <WinnerCardModal
+        open
+        onClose={onPlayAgain}
+        closeLabel={t("result.backToLobby")}
+        cardId={firstVerifiable.cardId}
+        marked={firstVerifiable.marked}
+        drawn={drawn}
+        winnerName={firstVerifiable.name}
+        youWon={isWin ? prize : undefined}
+      />
+    );
+  }
 
+  // Fallback: cancelled game, or a result with no card to display. A minimal
+  // popup so the player always has a clear way back to the lobby.
   return (
-    <>
-    <Modal open={!!result}>
+    <Modal open onClose={onPlayAgain}>
       <div className="text-6xl">
         {isWin
           ? "🏆"
-          : result?.type === "eliminated"
+          : result.type === "eliminated"
             ? "❌"
-            : result?.type === "cancelled"
+            : result.type === "cancelled"
               ? "↩️"
               : "🎲"}
       </div>
       <h2 className="mt-3 font-display text-2xl font-extrabold">
         {isWin
           ? t("result.winTitle")
-          : result?.type === "eliminated"
+          : result.type === "eliminated"
             ? t("result.eliminatedTitle")
-            : result?.type === "cancelled"
+            : result.type === "cancelled"
               ? t("result.cancelledTitle")
               : t("result.loseTitle")}
       </h2>
       {isWin && (
-        <>
-          <p className="mt-1 text-lg font-bold text-neon-gold">
-            {t("result.wonAmount", { amount: money(prize) })}
-          </p>
-          {split && (
-            <p className="mt-0.5 text-xs text-ink-faint">
-              {t("result.potSplit", { n: winners.length })}
-            </p>
-          )}
-        </>
+        <p className="mt-1 text-lg font-bold text-neon-gold">
+          {t("result.wonAmount", { amount: money(prize) })}
+        </p>
       )}
-      {result?.type === "cancelled" && (
+      {result.type === "cancelled" && (
         <p className="mt-1 text-sm text-ink-faint">{t("result.cancelledBody")}</p>
       )}
-      {showWinners && (
-        <div className="mt-4 w-full rounded-xl border border-neon-gold/30 bg-neon-gold/10 px-3 py-3">
-          <div className="text-[11px] uppercase tracking-wide text-ink-faint">
-            {split
-              ? t("result.winnersLabel", { n: winners.length })
-              : t("result.winnerLabel")}
-          </div>
-          <ul className="mt-1.5 space-y-1.5">
-            {winners.map((w, i) => {
-              const canView = typeof w.cardId === "number" && !!w.marked;
-              return (
-                <li
-                  key={(w.userId ?? "") + i}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-display text-sm font-bold text-neon-gold">
-                      🏆 {w.name}
-                    </div>
-                    <div className="text-xs font-semibold text-neon-gold">
-                      {t("result.prizeWon", { amount: money(w.prize) })}
-                    </div>
-                  </div>
-                  {canView && (
-                    <button
-                      onClick={() => setSelected(w)}
-                      className="shrink-0 rounded-lg border border-neon-gold/30 bg-neon-gold/10 px-2.5 py-1 text-xs font-bold text-neon-gold"
-                    >
-                      🔍 {t("result.viewCard")}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-      <div className="mt-5 flex flex-col gap-2">
-        {isWin && (
-          <Button
-            variant="cyan"
-            onClick={() =>
-              shareToTelegram(
-                `https://t.me/${bot}`,
-                t("result.shareText", { amount: money(prize) }),
-              )
-            }
-          >
-            🔗 {t("result.share")}
-          </Button>
-        )}
-        <Button variant="gold" onClick={onPlayAgain}>
-          {t("result.playAgain")}
+      <div className="mt-5">
+        <Button variant="gold" fullWidth onClick={onPlayAgain}>
+          {t("result.backToLobby")}
         </Button>
       </div>
     </Modal>
-
-    {selected && typeof selected.cardId === "number" && selected.marked && (
-      <WinnerCardModal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        cardId={selected.cardId}
-        marked={selected.marked}
-        drawn={drawn}
-        winnerName={selected.name}
-      />
-    )}
-    </>
   );
 }

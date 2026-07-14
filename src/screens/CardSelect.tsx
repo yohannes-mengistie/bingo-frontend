@@ -15,6 +15,7 @@ import {
   MIN_CARD_ID,
   BET_BY_TYPE,
   MAX_CARDS_PER_PLAYER,
+  HOUSE_CUT,
 } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
@@ -107,6 +108,11 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const totalCards = ownedCount + selCount;
   const remainingCap = Math.max(0, MAX_CARDS_PER_PLAYER - ownedCount);
   const totalCost = selCount * bet;
+  // Projected prize: the backend pool (already net of the house cut) plus what
+  // the cards being selected would add. Updates live as the user picks/removes
+  // cards so the hero number reflects the pot they're about to play for.
+  const houseCut = liveGame?.house_cut ?? HOUSE_CUT;
+  const projectedPrize = (liveGame?.prize_pool ?? 0) + selCount * bet * (1 - houseCut);
   // Can another card be added? (cap + wallet can cover one more)
   const canSelectMore = selCount < remainingCap && balance() >= (selCount + 1) * bet;
 
@@ -229,7 +235,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               {t("card.prize")}
             </div>
             <div className="font-display text-3xl font-extrabold text-neon-gold">
-              {money(liveGame?.prize_pool ?? 0)}
+              {money(projectedPrize)}
             </div>
           </div>
           <div className="text-right">
@@ -323,7 +329,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
       )}
 
       {/* Spacer so the last content clears the bottom bar(s). */}
-      <div aria-hidden className={home ? "h-40" : "h-28"} />
+      <div aria-hidden className={home ? "h-44" : "h-28"} />
 
       {/* Join action. On the landing it floats above the tab bar and only shows
           once cards are selected; on the VIP sub-screen it's the full-width
@@ -332,7 +338,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         <div
           className={
             home
-              ? "fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-30 rounded-2xl border border-white/10 bg-bg/95 px-4 py-3 shadow-lg backdrop-blur"
+              ? "fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-50 rounded-2xl border border-white/10 bg-bg/95 px-4 py-3 shadow-lg backdrop-blur"
               : "fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur"
           }
         >

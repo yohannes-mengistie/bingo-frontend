@@ -15,8 +15,8 @@ export function TabBar() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="sticky bottom-0 z-40 mt-auto">
-      <div className="glass mx-3 mb-3 flex items-center justify-around rounded-3xl px-2 py-2">
+    <nav className="pointer-events-none sticky bottom-0 z-40 mt-auto bg-gradient-to-t from-bg via-bg to-transparent pt-6">
+      <div className="glass pointer-events-auto mx-3 mb-3 flex items-center justify-around rounded-3xl bg-bg-card/95 px-2 py-2">
         {TABS.map((tab) => {
           const active = tab.to === "/" ? pathname === "/" : pathname.startsWith(tab.to);
           return (
