@@ -179,109 +179,120 @@ function ActionSheet({
     }
   };
 
+  const acct = PAYMENT_ACCOUNTS[method];
+  const copyNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(acct.number);
+    } catch {
+      /* clipboard may be unavailable; ignore */
+    }
+    push(t("wallet.copied"), "success");
+  };
+
   return (
     <Sheet
       open={action !== null}
       onClose={onClose}
       title={action ? t(`wallet.${action}`) : ""}
     >
-      <div className="flex flex-col gap-3">
-        <Field label={t("wallet.amount")}>
+      {action === "deposit" ? (
+        <div className="flex flex-col gap-4">
+          {/* The house Telebirr account to pay — big and copyable. */}
+          <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-4 text-center">
+            <div className="font-display text-lg font-extrabold tracking-wider text-neon-cyan">
+              {method.toUpperCase()}
+            </div>
+            <div className="mt-1 text-sm text-ink-muted">{acct.name}</div>
+            <div className="mt-1 select-all font-display text-2xl font-extrabold tracking-wide text-ink">
+              {acct.number}
+            </div>
+            <button
+              onClick={copyNumber}
+              className="mx-auto mt-3 flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2 text-sm font-bold text-ink active:scale-95"
+            >
+              📋 {t("wallet.copyNumber")}
+            </button>
+          </div>
+
+          {/* Numbered steps. */}
+          <div className="space-y-2 text-sm text-ink">
+            <p className="flex gap-2">
+              <span className="font-extrabold text-neon-cyan">1.</span>
+              <span>{t("wallet.depositStep1")}</span>
+            </p>
+            <p className="flex gap-2">
+              <span className="font-extrabold text-neon-cyan">2.</span>
+              <span>{t("wallet.depositStep2")}</span>
+            </p>
+          </div>
+
           <input
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="0"
+            placeholder={t("wallet.amountPlaceholder")}
             className={inputCls}
           />
-        </Field>
-
-        {action === "deposit" && (
-          <DepositTarget
-            method={method}
-            onCopy={() => push(t("wallet.copied"), "success")}
+          <input
+            value={txId}
+            onChange={(e) => setTxId(e.target.value)}
+            placeholder={t("wallet.txnRefPlaceholder")}
+            className={inputCls}
           />
-        )}
 
-        {action === "deposit" && (
-          <Field label={t("wallet.txId")} hint={t("wallet.txIdHint")}>
-            <input value={txId} onChange={(e) => setTxId(e.target.value)} className={inputCls} />
-          </Field>
-        )}
-
-        {action === "withdraw" && (
-          <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
+          <Button
+            variant="gold"
+            fullWidth
+            loading={busy}
+            disabled={!amount.trim() || !txId.trim()}
+            onClick={submit}
+          >
+            📥 {busy ? t("wallet.submitting") : t("wallet.submitDeposit")}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Field label={t("wallet.amount")}>
             <input
-              inputMode="tel"
-              value={withdrawTo}
-              onChange={(e) => setAccount(e.target.value)}
-              placeholder="09…"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
               className={inputCls}
             />
           </Field>
-        )}
 
-        {action === "transfer" && (
-          <Field label={t("wallet.receiverId")}>
-            <input value={receiver} onChange={(e) => setReceiver(e.target.value)} className={inputCls} />
-          </Field>
-        )}
+          {action === "withdraw" && (
+            <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
+              <input
+                inputMode="tel"
+                value={withdrawTo}
+                onChange={(e) => setAccount(e.target.value)}
+                placeholder="09…"
+                className={inputCls}
+              />
+            </Field>
+          )}
 
-        <Button
-          variant="gold"
-          fullWidth
-          loading={busy}
-          disabled={action === "withdraw" && !withdrawTo.trim()}
-          onClick={submit}
-          className="mt-2"
-        >
-          {busy ? t("wallet.submitting") : t("wallet.submit")}
-        </Button>
-      </div>
-    </Sheet>
-  );
-}
+          {action === "transfer" && (
+            <Field label={t("wallet.receiverId")}>
+              <input value={receiver} onChange={(e) => setReceiver(e.target.value)} className={inputCls} />
+            </Field>
+          )}
 
-// Shows the house Telebirr account the player must send their deposit to,
-// with a copy button.
-function DepositTarget({
-  method,
-  onCopy,
-}: {
-  method: PaymentMethod;
-  onCopy: () => void;
-}) {
-  const { t } = useTranslation();
-  const acct = PAYMENT_ACCOUNTS[method];
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(acct.number);
-    } catch {
-      /* clipboard may be unavailable; ignore */
-    }
-    onCopy();
-  };
-
-  return (
-    <div className="rounded-xl border border-neon-gold/30 bg-neon-gold/10 p-3">
-      <div className="text-xs text-ink-faint">{t("wallet.depositTo", { method })}</div>
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="break-all font-display text-lg font-bold text-neon-gold">
-            {acct.number}
-          </div>
-          <div className="text-xs text-ink-muted">{acct.name}</div>
+          <Button
+            variant="gold"
+            fullWidth
+            loading={busy}
+            disabled={action === "withdraw" && !withdrawTo.trim()}
+            onClick={submit}
+            className="mt-2"
+          >
+            {busy ? t("wallet.submitting") : t("wallet.submit")}
+          </Button>
         </div>
-        <button
-          onClick={copy}
-          className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-ink hover:bg-white/20"
-        >
-          {t("wallet.copy")}
-        </button>
-      </div>
-      <div className="mt-2 text-[11px] text-ink-faint">{t("wallet.depositHint")}</div>
-    </div>
+      )}
+    </Sheet>
   );
 }
 
