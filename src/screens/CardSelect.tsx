@@ -89,8 +89,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const roundCode =
     liveGame?.round_code ||
     (gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----");
-  const mmss = (s: number) =>
-    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   // Cards this player has reserved in the current game.
   const ownedQ = useQuery({
@@ -105,6 +103,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   );
 
   const ownedCount = owned.size;
+  const takenCount = taken.size; // total cards reserved in this game (all players)
   // Can another card be reserved? (cap + wallet can cover one more at commit)
   const canAddMore = ownedCount < MAX_CARDS_PER_PLAYER && balance() >= (ownedCount + 1) * bet;
 
@@ -202,51 +201,63 @@ export function CardSelect({ home = false }: { home?: boolean }) {
           }
         />
       )}
-      {/* Live game hero: prize · round · countdown/LIVE. Display only. */}
+      {/* Live game hero — PLAY · ደራሽ (+taken) · WIN, with countdown. Display only. */}
       <div className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-bg-elevated to-bg-card p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="grid grid-cols-3 items-start gap-2">
+          {/* PLAY — the stake for this table */}
           <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
+              🎮 PLAY
+            </div>
+            <div className="font-display text-2xl font-extrabold text-ink">
+              {type === "VIP" ? "👑 " : ""}
+              {money(bet)}
+            </div>
+          </div>
+          {/* ደራሽ — the prize pool + how many cards are taken */}
+          <div className="min-w-0 text-center">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
               {t("card.prize")}
             </div>
-            <div className="font-display text-3xl font-extrabold text-neon-gold">
+            <div className="font-display text-2xl font-extrabold text-neon-cyan">
               {money(liveGame?.prize_pool ?? 0)}
             </div>
+            <div className="text-[10px] text-ink-faint">
+              {t("card.takenCards", { count: takenCount })}
+            </div>
           </div>
-          <div className="text-right">
-            {isCountdown ? (
-              <>
-                <div className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-                  {t("card.startingIn")}
-                </div>
-                <div className="font-display text-3xl font-extrabold tabular-nums text-ink">
-                  {mmss(secondsLeft!)}
-                </div>
-              </>
-            ) : liveGame?.state === "DRAWING" ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-neon-green/15 px-2.5 py-1 text-[11px] font-bold text-neon-green">
-                <span className="size-1.5 animate-pulse rounded-full bg-neon-green" />
-                {t("card.live")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold text-ink-muted">
-                <span className="size-1.5 animate-pulse rounded-full bg-ink-faint" />
-                {t("card.waitingPlayers")}
-              </span>
-            )}
+          {/* WIN — the player's winnings (0 until they win) */}
+          <div className="min-w-0 text-right">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
+              🏆 WIN
+            </div>
+            <div className="font-display text-2xl font-extrabold text-neon-gold">
+              {money(0)}
+            </div>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2.5 border-t border-white/5 pt-2.5 text-xs text-ink-muted">
+        <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5 text-xs text-ink-muted">
           <span className="rounded-md bg-white/5 px-2 py-0.5 font-mono font-bold text-ink">
             {t("card.round")} #{roundCode}
           </span>
-          <span>
-            👥 {liveGame?.player_count ?? 0} {t("common.players")}
-          </span>
-          <span className="ml-auto rounded-md bg-white/5 px-2 py-0.5 font-bold text-ink">
-            {type === "VIP" ? "👑 " : ""}
-            {money(bet)}
-          </span>
+          {isCountdown ? (
+            <span className="flex items-center gap-2">
+              <span className="text-[11px] text-ink-faint">{t("card.startingIn")}</span>
+              <span className="rounded-lg border border-neon-cyan/50 px-2.5 py-0.5 font-display text-lg font-extrabold tabular-nums text-neon-cyan shadow-glow-cyan">
+                {secondsLeft}
+              </span>
+            </span>
+          ) : liveGame?.state === "DRAWING" ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-neon-green/15 px-2.5 py-1 text-[11px] font-bold text-neon-green">
+              <span className="size-1.5 animate-pulse rounded-full bg-neon-green" />
+              {t("card.live")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold text-ink-muted">
+              <span className="size-1.5 animate-pulse rounded-full bg-ink-faint" />
+              {t("card.waitingPlayers")}
+            </span>
+          )}
         </div>
       </div>
 
@@ -270,16 +281,17 @@ export function CardSelect({ home = false }: { home?: boolean }) {
                 "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-all",
                 isBusy ? "opacity-60" : "",
                 isMine
-                  ? // Your reserved card: solid gold with a glow — tap to release.
-                    "scale-105 bg-neon-gold text-bg ring-2 ring-neon-gold shadow-[0_0_10px_rgba(240,190,60,0.65)]"
+                  ? // Your reserved card: black tile ringed with a cyan glow —
+                    // stands out clearly against the flat navy tiles. Tap to release.
+                    "scale-105 bg-black text-neon-cyan ring-2 ring-neon-cyan shadow-glow-cyan"
                   : isTaken
                     ? // Reserved by someone else: dim + struck, clearly gone.
-                      "cursor-not-allowed bg-white/[0.03] text-ink-faint/30 line-through ring-1 ring-white/5"
+                      "cursor-not-allowed bg-white/[0.02] text-ink-faint/30 line-through"
                     : disabled
-                      ? // Can't pick now (cap/balance): muted, no green border.
-                        "cursor-not-allowed bg-bg-card text-ink-faint/40 ring-1 ring-white/5"
-                      : // Available: dark tile with a green outline invites a tap.
-                        "bg-bg-card text-ink ring-1 ring-neon-green/40 hover:bg-neon-green/5 hover:ring-neon-green",
+                      ? // Can't pick now (cap/balance): muted.
+                        "cursor-not-allowed bg-bg-card/50 text-ink-faint/40"
+                      : // Available: flat navy tile, brightens on hover.
+                        "bg-bg-card text-ink-muted ring-1 ring-white/5 hover:text-ink hover:ring-neon-cyan/50",
               ].join(" ")}
             >
               {id}

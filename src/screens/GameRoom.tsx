@@ -7,6 +7,7 @@ import { FullSpinner } from "@/components/ui/Spinner";
 import { BingoCardView } from "@/components/bingo/BingoCard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
+import { CalledBoard } from "@/components/bingo/CalledBoard";
 import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
 import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
@@ -359,6 +360,9 @@ export function GameRoom() {
           <CountdownRing seconds={seconds} total={COUNTDOWN_SECONDS} />
         )}
       </div>
+
+      {/* Full 75-number B·I·N·G·O board: every called number lit up. */}
+      <CalledBoard drawn={drawn} last={last} />
 
       {/* Called numbers: the current ball + the last few calls (with letters). */}
       <div className="glass mb-2 flex items-center gap-3 rounded-2xl p-2">

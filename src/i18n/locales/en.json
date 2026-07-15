@@ -72,6 +72,7 @@
     "title": "Pick your card",
     "round": "Round",
     "prize": "Prize",
+    "takenCards": "Taken: {{count}}",
     "startingIn": "Starting…",
     "waitingPlayers": "Waiting for players",
     "live": "LIVE",
