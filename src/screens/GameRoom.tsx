@@ -8,6 +8,7 @@ import { BingoCardView } from "@/components/bingo/BingoCard";
 import { BallCallout } from "@/components/bingo/BallCallout";
 import { CountdownRing } from "@/components/bingo/CountdownRing";
 import { CalledBoard } from "@/components/bingo/CalledBoard";
+import { TabBar } from "@/components/layout/TabBar";
 import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
 import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
@@ -344,8 +345,10 @@ export function GameRoom() {
 
   return (
     // Header + called-numbers strip stay fixed; the cards area scrolls (a player
-    // may hold up to 4 cards, which won't all fit one screen).
-    <div className="flex h-[100dvh] flex-col overflow-hidden px-4 pb-3 pt-2">
+    // may hold up to 4 cards, which won't all fit one screen). The tab bar sits
+    // below so players/spectators can reach the wallet mid-round.
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
       <Header
         back
         onBack={() => nav("/")}
@@ -453,6 +456,9 @@ export function GameRoom() {
           />
         ))}
       </div>
+      </div>
+
+      <TabBar />
 
       <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={returnToLobby} />
     </div>
