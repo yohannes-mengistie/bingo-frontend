@@ -31,8 +31,8 @@ export const PAYMENT_ACCOUNTS: Record<
   { number: string; name: string }
 > = {
   Telebirr: {
-    number: import.meta.env.VITE_TELEBIRR_NUMBER ?? "0997709691",
-    name: import.meta.env.VITE_PAYMENT_NAME ?? "Habesha Bingo",
+    number: import.meta.env.VITE_TELEBIRR_NUMBER ?? "0999357708",
+    name: import.meta.env.VITE_PAYMENT_NAME ?? "Abebe",
   },
 };
 
