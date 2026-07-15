@@ -320,34 +320,19 @@ export function GameRoom() {
     if (remaining.length === 0) nav("/");
   };
 
-  const onLeave = async () => {
-    if (canRefund) {
-      try {
-        await api.leave(gameId); // no card_id → leave entirely (refund all)
-        await refreshWallet().catch(() => {});
-      } catch {
-        /* ignore */
-      }
-    }
-    nav("/");
-  };
-
-  if (!loaded) {
-    return (
-      <div className="flex min-h-screen flex-col px-4 pt-3">
-        <Header back onBack={() => nav("/")} title={t("game.yourCards", { n: 0 })} />
-        <FullSpinner label={t("common.loading")} />
-      </div>
-    );
-  }
-
   const recent = order.slice(-7).reverse(); // most-recent first
 
   return (
-    // Header + called-numbers strip stay fixed; the cards area scrolls (a player
-    // may hold up to 4 cards, which won't all fit one screen). The tab bar sits
-    // below so players/spectators can reach the wallet mid-round.
-    <div className="flex h-[100dvh] flex-col overflow-hidden">
+    // Header + board stay fixed; the cards area scrolls. The tab bar sits below
+    // so players/spectators can reach the wallet mid-round. The whole room fades
+    // in for a smooth entrance from the picker (board shows instantly; the
+    // player's own cards load in place rather than behind a full-screen spinner).
+    <motion.div
+      className="flex h-[100dvh] flex-col overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
       <Header
         back
@@ -358,28 +343,19 @@ export function GameRoom() {
           </span>
         }
         right={
-          // Sound toggle lives here (handy mid-game). Leaving is only offered
-          // before the draw starts (it releases the reservation). Once the game
-          // is DRAWING/FINISHED there's nothing to leave — cards play
-          // automatically — so that button is hidden; the back arrow still
-          // returns to the lobby without forfeiting.
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (hapticsEnabled) haptic.select();
-                toggleSound();
-              }}
-              aria-label={t("profile.sound")}
-              className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base active:scale-95"
-            >
-              {soundEnabled ? "🔊" : "🔇"}
-            </button>
-            {canRefund && (
-              <button onClick={onLeave} className="glass rounded-xl px-3 py-2 text-xs font-bold text-neon-red">
-                {t("game.leaveRefund")}
-              </button>
-            )}
-          </div>
+          // Players only enter the room once the draw has started, so cards play
+          // automatically to the end — there's nothing to leave/refund here. Just
+          // the sound toggle.
+          <button
+            onClick={() => {
+              if (hapticsEnabled) haptic.select();
+              toggleSound();
+            }}
+            aria-label={t("profile.sound")}
+            className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-base active:scale-95"
+          >
+            {soundEnabled ? "🔊" : "🔇"}
+          </button>
         }
       />
 
@@ -432,36 +408,38 @@ export function GameRoom() {
         </div>
       )}
 
-      {/* Spectator: watching a round they hold no cards in. */}
-      {loaded && cards.length === 0 && phase !== "FINISHED" && phase !== "CANCELLED" && (
+      {/* Cards area: a light loader while the player's cards fetch (board is
+          already live above), then either the spectator banner or the card grid. */}
+      {!loaded ? (
+        <FullSpinner label={t("common.loading")} />
+      ) : cards.length === 0 && phase !== "FINISHED" && phase !== "CANCELLED" ? (
         <div className="mx-1 mt-2 rounded-2xl border border-neon-cyan/25 bg-neon-cyan/5 px-4 py-4 text-center">
           <div className="text-2xl">👀</div>
           <div className="mt-1 text-sm text-ink-muted">{t("game.spectatorWait")}</div>
         </div>
+      ) : (
+        <div
+          className={`min-h-0 flex-1 grid content-start gap-2 overflow-y-auto pb-2 ${
+            cards.length === 1 ? "grid-cols-1" : "grid-cols-2"
+          }`}
+        >
+          {cards.map((c) => (
+            <CardPanel
+              key={c.cardId}
+              entry={c}
+              marked={autoMarked(c.card, drawn)}
+              showRemove={canRefund && cards.length > 0}
+              onRemove={() => onRemoveCard(c.cardId)}
+            />
+          ))}
+        </div>
       )}
-
-      {/* Player's cards in a grid (2 columns; 1 column when solo); each lights up. */}
-      <div
-        className={`min-h-0 flex-1 grid content-start gap-2 overflow-y-auto pb-2 ${
-          cards.length === 1 ? "grid-cols-1" : "grid-cols-2"
-        }`}
-      >
-        {cards.map((c) => (
-          <CardPanel
-            key={c.cardId}
-            entry={c}
-            marked={autoMarked(c.card, drawn)}
-            showRemove={canRefund && cards.length > 0}
-            onRemove={() => onRemoveCard(c.cardId)}
-          />
-        ))}
-      </div>
       </div>
 
       <TabBar />
 
       <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={returnToLobby} />
-    </div>
+    </motion.div>
   );
 }
 
