@@ -6,8 +6,6 @@
 // the caller flows instead of stuttering. Falls back to a synthesized beep if a
 // clip is missing or can't decode.
 
-import { letterForNumber } from "./bingo";
-
 const MAX_CALL = 75; // clips are /audio/am/1..75.mp3
 
 let ctx: AudioContext | null = null;
@@ -119,7 +117,86 @@ function beep(freq: number, durationMs = 160) {
   osc.stop(c.currentTime + durationMs / 1000);
 }
 
-const CALL_TONES: Record<string, number> = { B: 392, I: 440, N: 494, G: 523, O: 587 };
+// ---- Sequential voice caller ----------------------------------------------
+// Number calls are QUEUED and played one-at-a-time to completion, so every
+// called number is announced in order and none get cut off by the next call
+// (the old "replace the in-flight clip" behaviour dropped voices whenever calls
+// bunched up). Clips are pre-decoded (see preloadCalls) so each starts instantly
+// when dequeued; in steady play the queue empties between calls, keeping the
+// voice tight to the board.
+
+let voiceQueue: number[] = [];
+let voiceDraining = false;
+let currentVoice: AudioBufferSourceNode | null = null;
+
+function stopCurrentVoice() {
+  if (currentVoice) {
+    try {
+      currentVoice.onended = null;
+      currentVoice.stop();
+    } catch {
+      /* already stopped */
+    }
+    currentVoice = null;
+  }
+}
+
+// Play one clip to its end, resolving when it finishes (or immediately on error).
+function playVoiceClip(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const c = audioCtx();
+    if (!c) return resolve();
+    resume();
+    load(src)
+      .then((buffer) => {
+        const cc = audioCtx();
+        if (!cc) return resolve();
+        if (!buffer) {
+          // Missing/undecodable clip: short beep so the call isn't fully silent.
+          beep(460, 180);
+          return void setTimeout(resolve, 240);
+        }
+        const now = cc.currentTime;
+        const source = cc.createBufferSource();
+        source.buffer = buffer;
+        const gain = cc.createGain();
+        const end = now + buffer.duration;
+        const fadeIn = 0.01;
+        const fadeOut = Math.min(0.035, buffer.duration / 4);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(1, now + fadeIn);
+        gain.gain.setValueAtTime(1, Math.max(now + fadeIn, end - fadeOut));
+        gain.gain.linearRampToValueAtTime(0.0001, end);
+        source.connect(gain).connect(cc.destination);
+        currentVoice = source;
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          if (currentVoice === source) currentVoice = null;
+          resolve();
+        };
+        source.onended = finish;
+        // Backstop: never let the queue hang if onended doesn't fire.
+        setTimeout(finish, buffer.duration * 1000 + 300);
+        source.start(now);
+      })
+      .catch(() => resolve());
+  });
+}
+
+async function drainVoiceQueue() {
+  if (voiceDraining) return;
+  voiceDraining = true;
+  try {
+    while (voiceQueue.length) {
+      const n = voiceQueue.shift()!;
+      await playVoiceClip(`/audio/am/${n}.mp3`);
+    }
+  } finally {
+    voiceDraining = false;
+  }
+}
 
 export const sound = {
   enabled: true,
@@ -137,22 +214,23 @@ export const sound = {
     load("/sounds/bingo.aac");
   },
 
-  /** Call out a drawn number in Amharic (with letter); beep fallback. */
+  /** Queue a drawn number's Amharic call — played in order, never cut off. */
   callNumber(n: number) {
     if (!this.enabled) return;
-    const base = CALL_TONES[letterForNumber(n)] ?? 440;
-    // "voice" group: a new call cleanly replaces any still-playing one.
-    playBuffer(`/audio/am/${n}.mp3`, {
-      group: "voice",
-      fallback: () => beep(base + (n % 15) * 6),
-    });
+    resume();
+    voiceQueue.push(n);
+    // Safety valve: if calls ever run far ahead of the voice (e.g. a burst after
+    // a reconnect), keep only the most recent few so the caller re-syncs.
+    if (voiceQueue.length > 4) voiceQueue = voiceQueue.slice(-4);
+    drainVoiceQueue();
   },
 
-  /** The "Bingo!" voice announcement, played to the room when someone wins. */
+  /** The "Bingo!" voice announcement — stops number calls and plays once. */
   bingo() {
     if (!this.enabled) return;
+    voiceQueue = [];
+    stopCurrentVoice();
     playBuffer("/sounds/bingo.aac", {
-      group: "voice", // cuts any in-flight number call
       fallback: () => {
         beep(660, 120);
         setTimeout(() => beep(880, 200), 130);
