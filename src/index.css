@@ -4,6 +4,10 @@
 
 :root {
   color-scheme: dark;
+  /* Global type/size scale. Everything sized in rem (text + spacing) shrinks
+     proportionally from the 16px browser default, for a more compact,
+     less-oversized UI. Tune this one value to taste. */
+  font-size: 14px;
 }
 
 html,

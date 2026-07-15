@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import confetti from "canvas-confetti";
 import { Modal } from "@/components/ui/Modal";
@@ -70,6 +70,16 @@ export function ResultOverlay({
       haptic.notify("error");
     }
   }, [isWin, result]);
+
+  // Auto-return to the lobby after the celebration so players don't have to tap.
+  // Ref keeps the latest callback without restarting the timer on every re-render.
+  const onPlayAgainRef = useRef(onPlayAgain);
+  onPlayAgainRef.current = onPlayAgain;
+  useEffect(() => {
+    if (!result) return;
+    const timer = setTimeout(() => onPlayAgainRef.current(), 6000);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   if (!result) return null;
 
