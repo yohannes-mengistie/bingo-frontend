@@ -266,7 +266,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         {t("card.capHint", { count: ownedCount, max: MAX_CARDS_PER_PLAYER })}
       </p>
 
-      <div className="grid grid-cols-6 gap-1.5 pb-3 sm:grid-cols-8">
+      <div className="grid grid-cols-7 gap-1 pb-3 sm:grid-cols-9">
         {ALL_CARDS.map((id) => {
           const isMine = owned.has(id);
           const isTaken = taken.has(id) && !isMine;
@@ -278,20 +278,19 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               disabled={disabled && !isMine}
               onClick={() => toggle(id)}
               className={[
-                "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-all",
+                "flex aspect-square items-center justify-center rounded-md text-[11px] font-bold transition-all",
                 isBusy ? "opacity-60" : "",
                 isMine
-                  ? // Your reserved card: black tile ringed with a cyan glow —
-                    // stands out clearly against the flat navy tiles. Tap to release.
-                    "scale-105 bg-black text-neon-cyan ring-2 ring-neon-cyan shadow-glow-cyan"
+                  ? // YOURS: glowing cyan cell (matches the design) — unmistakable.
+                    "scale-105 bg-neon-cyan/15 text-white ring-2 ring-neon-cyan shadow-glow-cyan"
                   : isTaken
-                    ? // Reserved by someone else: dim + struck, clearly gone.
-                      "cursor-not-allowed bg-white/[0.02] text-ink-faint/30 line-through"
+                    ? // TAKEN by someone else: near-black, dim + struck — clearly blocked.
+                      "cursor-not-allowed bg-black/60 text-ink-faint/25 line-through ring-1 ring-white/5"
                     : disabled
-                      ? // Can't pick now (cap/balance): muted.
-                        "cursor-not-allowed bg-bg-card/50 text-ink-faint/40"
-                      : // Available: flat navy tile, brightens on hover.
-                        "bg-bg-card text-ink-muted ring-1 ring-white/5 hover:text-ink hover:ring-neon-cyan/50",
+                      ? // Can't add more (your cap / balance): muted tile.
+                        "cursor-not-allowed bg-bg-card/40 text-ink-faint/40"
+                      : // AVAILABLE: solid navy tile with a bright number — pick me.
+                        "bg-bg-card text-ink ring-1 ring-white/10 hover:ring-neon-cyan/60",
               ].join(" ")}
             >
               {id}
