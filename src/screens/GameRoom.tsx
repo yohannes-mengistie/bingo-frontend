@@ -75,6 +75,14 @@ export function GameRoom() {
   const [result, setResult] = useState<GameResult>(null);
   const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
 
+  // Guards the end-of-game resolution so the win announcement (sound + confetti +
+  // result popup) fires exactly ONCE — even if the WINNER event arrives twice or
+  // an INITIAL_STATE for the just-finished game also lands. Reset per game.
+  const endedRef = useRef(false);
+  useEffect(() => {
+    endedRef.current = false;
+  }, [gameId]);
+
   sound.enabled = soundEnabled;
 
   // Warm the caller audio (fetch + decode all clips) as soon as the room opens,
@@ -140,7 +148,8 @@ export function GameRoom() {
           // Reconnecting to (or opening) a finished game: the backend includes the
           // winning card(s) so we can show the result screen even though the live
           // WINNER event is long gone.
-          if (Array.isArray(d.winners) && d.winners.length) {
+          if (Array.isArray(d.winners) && d.winners.length && !endedRef.current) {
+            endedRef.current = true;
             const list = parseWinners(d);
             const mine = list.find((w) => !!myId && w.userId === myId);
             setWinnerInfo({
@@ -204,6 +213,8 @@ export function GameRoom() {
           break;
         }
         case "WINNER": {
+          if (endedRef.current) break; // already announced — ignore duplicates
+          endedRef.current = true;
           setPhase("FINISHED");
           // Reveal every winner to EVERYONE (winner, losers, eliminated) so the
           // payout is transparent — including each card + marks so anyone can
@@ -429,7 +440,11 @@ function CardPanel({
   const hasBingo = !!winLine && !entry.eliminated;
 
   return (
-    <div className={`w-full ${entry.eliminated ? "opacity-50" : ""}`}>
+    <div
+      className={`w-full rounded-xl p-1.5 ring-1 ring-white/10 ${
+        entry.eliminated ? "opacity-50" : ""
+      }`}
+    >
       <div className="mb-1 flex items-center justify-between px-0.5">
         <span className="text-xs font-bold text-ink-muted">
           {t("game.cardLabel", { id: entry.cardId })}
