@@ -425,8 +425,8 @@ function CardPanel({
   const hasBingo = !!winLine && !entry.eliminated;
 
   return (
-    <div className={`glass rounded-2xl p-2.5 ${entry.eliminated ? "opacity-50" : ""}`}>
-      <div className="mb-1.5 flex items-center justify-between">
+    <div className={`mx-auto w-full max-w-[15rem] ${entry.eliminated ? "opacity-50" : ""}`}>
+      <div className="mb-1 flex items-center justify-between px-0.5">
         <span className="text-xs font-bold text-ink-muted">
           {t("game.cardLabel", { id: entry.cardId })}
         </span>

@@ -22,7 +22,7 @@ export function CardPreview({ id, onRemove }: { id: number; onRemove?: () => voi
   const flat = card.numbers.flat();
 
   return (
-    <div className="w-40 shrink-0 rounded-2xl bg-bg-card p-2.5 ring-1 ring-white/10">
+    <div className="w-28 shrink-0 rounded-xl bg-bg-card p-1.5 ring-1 ring-white/10">
       <div className="mb-1.5 flex items-center justify-between px-0.5">
         <span className="font-display text-xs font-bold text-ink">#{id}</span>
         {onRemove && (

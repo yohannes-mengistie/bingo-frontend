@@ -28,7 +28,7 @@ export function BingoCardView({ card, daubed, drawn, showCalled = false, winLine
   const flat = card.numbers.flat();
 
   return (
-    <div className={size === "lg" ? "mx-auto w-full max-w-[15rem]" : "w-44"}>
+    <div className={size === "lg" ? "mx-auto w-full max-w-[13rem]" : "w-44"}>
       <div className="mb-1 grid grid-cols-5 gap-1">
         {LETTERS.map((l, i) => (
           <div
