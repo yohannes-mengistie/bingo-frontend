@@ -95,6 +95,11 @@ export function GameRoom() {
     nav("/");
   }, [qc, nav]);
 
+  // A spectator is someone watching a round they hold no cards in. Ref mirror so
+  // the websocket handler (a stable callback) can read the current value.
+  const cardsCountRef = useRef(0);
+  cardsCountRef.current = cards.length;
+
   sound.enabled = soundEnabled;
 
   // Warm the caller audio (fetch + decode all clips) as soon as the room opens,
@@ -183,6 +188,10 @@ export function GameRoom() {
             // The game was force-cancelled or auto-refunded (e.g. all numbers
             // drawn with no winner). The stake is already back in the wallet.
             finishedGames.add(gameId);
+            if (cardsCountRef.current === 0) {
+              returnToLobby(); // spectator → next round
+              break;
+            }
             setPhase("CANCELLED");
             setResult({ type: "cancelled" });
             refreshWallet().catch(() => {});
@@ -230,6 +239,12 @@ export function GameRoom() {
           if (endedRef.current) break; // already announced — ignore duplicates
           endedRef.current = true;
           finishedGames.add(gameId); // don't let the picker re-enter this game
+          // Spectator (no cards): this round's result isn't theirs — send them
+          // back to pick for the next round instead of a win/lose screen.
+          if (cardsCountRef.current === 0) {
+            returnToLobby();
+            break;
+          }
           setPhase("FINISHED");
           // Reveal every winner to EVERYONE (winner, losers, eliminated) so the
           // payout is transparent — including each card + marks so anyone can
@@ -411,6 +426,14 @@ export function GameRoom() {
       {cards.length > 1 && (
         <div className="mb-1 text-xs font-bold text-ink-muted">
           {t("game.yourCards", { n: cards.length })}
+        </div>
+      )}
+
+      {/* Spectator: watching a round they hold no cards in. */}
+      {loaded && cards.length === 0 && phase !== "FINISHED" && phase !== "CANCELLED" && (
+        <div className="mx-1 mt-2 rounded-2xl border border-neon-cyan/25 bg-neon-cyan/5 px-4 py-4 text-center">
+          <div className="text-2xl">👀</div>
+          <div className="mt-1 text-sm text-ink-muted">{t("game.spectatorWait")}</div>
         </div>
       )}
 

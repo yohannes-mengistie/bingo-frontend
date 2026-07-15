@@ -13,7 +13,7 @@ import { Profile } from "@/screens/Profile";
 import { Referral } from "@/screens/Referral";
 import { Leaderboard } from "@/screens/Leaderboard";
 import { TelegramBackButton } from "@/components/layout/TelegramBackButton";
-import { LiveGamePill } from "@/components/layout/LiveGamePill";
+import { LiveGameSync } from "@/components/layout/LiveGameSync";
 
 export default function App() {
   const { status, authenticate, user } = useAuth();
@@ -61,7 +61,7 @@ function renderByStatus(
     return (
       <>
         <TelegramBackButton />
-        <LiveGamePill />
+        <LiveGameSync />
         <Routes>
           <Route path="/" element={<CardSelect home />} />
           <Route path="/play/:gameType" element={<CardSelect />} />
