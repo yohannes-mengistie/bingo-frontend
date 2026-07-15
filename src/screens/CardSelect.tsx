@@ -104,8 +104,6 @@ export function CardSelect({ home = false }: { home?: boolean }) {
 
   const ownedCount = owned.size;
   const takenCount = taken.size; // total cards reserved in this game (all players)
-  // Can another card be reserved? (cap + wallet can cover one more at commit)
-  const canAddMore = ownedCount < MAX_CARDS_PER_PLAYER && balance() >= (ownedCount + 1) * bet;
 
   // When the countdown ends and drawing begins, pull reserved players straight
   // into the game board (only once).
@@ -277,11 +275,16 @@ export function CardSelect({ home = false }: { home?: boolean }) {
           const isMine = owned.has(id);
           const isTaken = taken.has(id) && !isMine;
           const isBusy = busy.has(id);
-          const disabled = isBusy || isTaken || (!isMine && !canAddMore);
+          // Only genuinely unselectable cards are disabled (in-flight, or taken
+          // by someone else). Cards the player can't currently afford — or that
+          // exceed their card cap — stay TAPPABLE: tapping shows a clear
+          // "insufficient balance" / "max cards" message (see toggle) instead of
+          // greying out the whole grid.
+          const blocked = isBusy || isTaken;
           return (
             <button
               key={id}
-              disabled={disabled && !isMine}
+              disabled={blocked && !isMine}
               onClick={() => toggle(id)}
               className={[
                 "flex aspect-square items-center justify-center rounded-md text-[11px] font-bold transition-all",
@@ -292,11 +295,8 @@ export function CardSelect({ home = false }: { home?: boolean }) {
                   : isTaken
                     ? // TAKEN by someone else: near-black, dim + struck — clearly blocked.
                       "cursor-not-allowed bg-black/60 text-ink-faint/25 line-through ring-1 ring-white/5"
-                    : disabled
-                      ? // Can't add more (your cap / balance): muted tile.
-                        "cursor-not-allowed bg-bg-card/40 text-ink-faint/40"
-                      : // AVAILABLE: solid navy tile with a bright number — pick me.
-                        "bg-bg-card text-ink ring-1 ring-white/10 hover:ring-neon-cyan/60",
+                    : // AVAILABLE (incl. low balance / at cap): bright, tappable tile.
+                      "bg-bg-card text-ink ring-1 ring-white/10 hover:ring-neon-cyan/60",
               ].join(" ")}
             >
               {id}
