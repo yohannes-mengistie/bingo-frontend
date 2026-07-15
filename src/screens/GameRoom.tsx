@@ -11,6 +11,7 @@ import { CalledBoard } from "@/components/bingo/CalledBoard";
 import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components/bingo/ResultOverlay";
 import { GameSocket } from "@/lib/ws";
 import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { finishedGames } from "@/lib/finishedGames";
 import { sound } from "@/lib/audio";
@@ -83,6 +84,16 @@ export function GameRoom() {
   useEffect(() => {
     endedRef.current = false;
   }, [gameId]);
+
+  // Clean return to the lobby: drop the picker's stale cache first so it opens on
+  // a fresh game (not a flash of the finished one), then navigate.
+  const qc = useQueryClient();
+  const returnToLobby = useCallback(() => {
+    qc.removeQueries({ queryKey: ["game-for-type"] });
+    qc.removeQueries({ queryKey: ["my-cards"] });
+    qc.removeQueries({ queryKey: ["game-state"] });
+    nav("/");
+  }, [qc, nav]);
 
   sound.enabled = soundEnabled;
 
@@ -420,7 +431,7 @@ export function GameRoom() {
         ))}
       </div>
 
-      <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={() => nav("/")} />
+      <ResultOverlay result={result} winner={winnerInfo} drawn={drawn} onPlayAgain={returnToLobby} />
     </div>
   );
 }

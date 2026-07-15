@@ -8,7 +8,6 @@ import { useToast } from "@/components/ui/Toast";
 import { FullSpinner } from "@/components/ui/Spinner";
 import { BalancePill } from "@/components/ui/BalancePill";
 import { LangToggle } from "@/components/ui/LangToggle";
-import { CardPreview } from "@/components/bingo/CardPreview";
 import {
   MAX_CARD_ID,
   MIN_CARD_ID,
@@ -306,35 +305,8 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         })}
       </div>
 
-      {/* Spacer so the last row can scroll clear of the tab bar + floating strip. */}
-      <div
-        aria-hidden
-        className={home ? (ownedCount > 0 ? "h-64" : "h-24") : ownedCount > 0 ? "h-52" : "h-6"}
-      />
-
-      {/* Reserved cards float over the grid (tap ✕ to release) so they're always
-          visible without scrolling to the bottom. */}
-      {ownedCount > 0 && (
-        <div
-          className={
-            home
-              ? "fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 rounded-2xl border border-white/10 bg-bg/90 p-2 shadow-lg backdrop-blur"
-              : "fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-bg/95 p-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur"
-          }
-        >
-          <div className="mb-1 flex items-center gap-2 px-0.5">
-            <h2 className="font-display text-xs font-bold text-ink">{t("card.yourSelection")}</h2>
-            <span className="rounded-full bg-neon-cyan/20 px-2 py-0.5 text-[10px] font-bold text-neon-cyan">
-              {ownedCount}
-            </span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-0.5">
-            {[...owned].map((id) => (
-              <CardPreview key={id} id={id} onRemove={() => toggle(id)} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Spacer so the last row clears the sticky tab bar. */}
+      <div aria-hidden className={home ? "h-24" : "h-6"} />
     </ScreenShell>
   );
 }
