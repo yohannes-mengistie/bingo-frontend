@@ -19,7 +19,7 @@ export const MAX_CARDS_PER_PLAYER = 4; // mirror of domain.MaxCardsPerPlayer
 export const HOUSE_CUT = 0.2; // 20% — prize = bet * players * 0.8
 export const COUNTDOWN_SECONDS = 40; // mirror of domain.CountdownDuration
 export const MIN_CARD_ID = 1;
-export const MAX_CARD_ID = 200;
+export const MAX_CARD_ID = 500;
 export const GRID = 5;
 export const CENTER_INDEX = 12; // numbers[2][2] = FREE
 
