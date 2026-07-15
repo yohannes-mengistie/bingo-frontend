@@ -173,7 +173,8 @@ function ActionSheet({
       reset();
       onDone();
     } catch (e) {
-      push(e instanceof ApiError ? e.message : "error", "error");
+      const raw = e instanceof ApiError ? e.message : "error";
+      push(localizeWalletError(raw, t), "error");
     } finally {
       setBusy(false);
     }
@@ -293,6 +294,24 @@ function ActionSheet({
       )}
     </Sheet>
   );
+}
+
+// Map known backend deposit/withdrawal error messages to localized text. The
+// limit values mirror the backend constants; unknown messages pass through.
+function localizeWalletError(
+  msg: string,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const m = msg.toLowerCase();
+  if (m.includes("daily withdrawal limit")) return t("wallet.errDailyLimit", { max: 2000 });
+  if (m.includes("remaining balance must be at least"))
+    return t("wallet.errMinRemaining", { min: 50 });
+  if (m.includes("insufficient balance")) return t("wallet.errInsufficient");
+  if (m.includes("at least one completed deposit")) return t("wallet.errNeedDeposit");
+  if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 10 });
+  if (m.includes("telebirr number") || m.includes("valid ethiopian"))
+    return t("wallet.errBadNumber");
+  return msg;
 }
 
 const inputCls =
