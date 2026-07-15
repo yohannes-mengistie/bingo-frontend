@@ -388,8 +388,8 @@ export function GameRoom() {
         </div>
       )}
 
-      {/* Scrollable stack of the player's cards; each lights up automatically. */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
+      {/* Player's cards in a horizontal, swipeable row; each lights up automatically. */}
+      <div className="min-h-0 flex-1 flex items-start gap-3 overflow-x-auto pb-2">
         {cards.map((c) => (
           <CardPanel
             key={c.cardId}
@@ -425,7 +425,7 @@ function CardPanel({
   const hasBingo = !!winLine && !entry.eliminated;
 
   return (
-    <div className={`mx-auto w-full max-w-[15rem] ${entry.eliminated ? "opacity-50" : ""}`}>
+    <div className={`w-[13rem] shrink-0 ${entry.eliminated ? "opacity-50" : ""}`}>
       <div className="mb-1 flex items-center justify-between px-0.5">
         <span className="text-xs font-bold text-ink-muted">
           {t("game.cardLabel", { id: entry.cardId })}
