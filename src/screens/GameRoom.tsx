@@ -82,7 +82,7 @@ export function GameRoom() {
   // missed. Only shown for a fresh round (no numbers drawn yet).
   const [intro, setIntro] = useState(true);
   useEffect(() => {
-    const t = setTimeout(() => setIntro(false), 1800);
+    const t = setTimeout(() => setIntro(false), 1000);
     return () => clearTimeout(t);
   }, []);
 
@@ -492,12 +492,12 @@ function CardPanel({
 
   return (
     <div
-      className={`w-full rounded-xl p-1.5 ring-1 ring-white/10 ${
+      className={`w-full rounded-lg p-1 ring-1 ring-white/10 ${
         entry.eliminated ? "opacity-50" : ""
       }`}
     >
-      <div className="mb-1 flex items-center justify-between px-0.5">
-        <span className="text-xs font-bold text-ink-muted">
+      <div className="mb-0.5 flex items-center justify-between px-0.5">
+        <span className="text-[10px] font-bold text-ink-muted">
           {t("game.cardLabel", { id: entry.cardId })}
         </span>
         <div className="flex items-center gap-2">

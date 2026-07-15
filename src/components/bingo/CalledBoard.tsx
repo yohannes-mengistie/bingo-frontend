@@ -19,15 +19,15 @@ export function CalledBoard({
   last: number | null;
 }) {
   return (
-    <div className="mb-2 rounded-2xl border border-white/10 bg-bg-soft/60 p-1.5">
-      <div className="flex flex-col gap-0.5">
+    <div className="mb-2 rounded-xl border border-white/10 bg-bg-soft/60 p-1">
+      <div className="flex flex-col gap-px">
         {ROWS.map((row) => (
           <div key={row.letter} className="flex items-center gap-0.5">
-            <span className="w-3.5 shrink-0 text-center font-display text-[11px] font-extrabold text-neon-cyan">
+            <span className="w-3 shrink-0 text-center font-display text-[10px] font-extrabold text-neon-cyan">
               {row.letter}
             </span>
             <div
-              className="grid flex-1 gap-0.5"
+              className="grid flex-1 gap-px"
               style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}
             >
               {Array.from({ length: 15 }, (_, i) => row.start + i).map((n) => {
@@ -37,7 +37,7 @@ export function CalledBoard({
                   <span
                     key={n}
                     className={[
-                      "flex aspect-square items-center justify-center rounded-[3px] text-[8px] font-bold leading-none tabular-nums transition-colors",
+                      "flex h-3 items-center justify-center rounded-[2px] text-[7px] font-bold leading-none tabular-nums transition-colors",
                       isLast
                         ? "bg-neon-gold text-bg ring-1 ring-white"
                         : called
