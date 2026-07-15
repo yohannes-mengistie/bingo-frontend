@@ -96,8 +96,8 @@ export function initTelegram(): void {
     // Let inner scroll regions (e.g. the card picker) handle vertical drags
     // instead of Telegram closing/minimizing the app.
     tg.disableVerticalSwipes?.();
-    tg.setHeaderColor?.("#0a0a14");
-    tg.setBackgroundColor?.("#0a0a14");
+    tg.setHeaderColor?.("#12233f");
+    tg.setBackgroundColor?.("#0a1526");
   } catch {
     /* older clients */
   }

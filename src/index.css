@@ -15,8 +15,8 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 600px at 50% -10%, #1f1f45 0%, #0a0a14 60%) fixed,
-    #0a0a14;
+    radial-gradient(1200px 600px at 50% -10%, #16305a 0%, #0a1526 60%) fixed,
+    #0a1526;
   color: #f5f5ff;
   font-family: Inter, system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;

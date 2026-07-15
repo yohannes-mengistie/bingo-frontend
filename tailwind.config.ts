@@ -7,19 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Deep navy-blue theme (EDL design). Body → tiles → raised surfaces.
         bg: {
-          DEFAULT: "#0a0a14",
-          soft: "#12122a",
-          card: "#1a1a38",
-          elevated: "#222247",
+          DEFAULT: "#0a1526",
+          soft: "#0f2038",
+          card: "#14273f",
+          elevated: "#1c3355",
         },
         // Single brand accent (DESIGN.md). Used sparingly: primary CTAs and
-        // active states only. Press = active, faded = disabled. Currently
-        // Claude "coral" — swap these three values to re-theme the whole app.
+        // active states only. Press = active, faded = disabled. A deep cyan so
+        // white text stays readable; the bright neon.cyan is for glows only.
         accent: {
-          DEFAULT: "#cc785c",
-          active: "#a9583e",
-          disabled: "#e6dfd8",
+          DEFAULT: "#0e7490",
+          active: "#155e75",
+          disabled: "#334a63",
         },
         neon: {
           purple: "#a855f7",
@@ -31,9 +32,9 @@ export default {
           red: "#f87171",
         },
         ink: {
-          DEFAULT: "#f5f5ff",
-          muted: "#9a9ac0",
-          faint: "#5a5a7a",
+          DEFAULT: "#eef3ff",
+          muted: "#93a4c4",
+          faint: "#5a6d8f",
         },
       },
       fontFamily: {
@@ -53,7 +54,7 @@ export default {
         // Primary brand accent — cyan → blue (no purple, per client).
         "grad-cyan": "linear-gradient(135deg,#22d3ee 0%,#3b82f6 100%)",
         "grad-gold": "linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%)",
-        "grad-dark": "radial-gradient(1200px 600px at 50% -10%,#1f1f45 0%,#0a0a14 60%)",
+        "grad-dark": "radial-gradient(1200px 600px at 50% -10%,#16305a 0%,#0a1526 60%)",
       },
       keyframes: {
         "ball-pop": {

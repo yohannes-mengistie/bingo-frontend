@@ -30,7 +30,7 @@ export function TabBar() {
                 active ? "text-accent" : "text-ink-faint"
               }`}
             >
-              <span className={`text-xl ${active ? "drop-shadow-[0_0_8px_rgba(204,120,92,0.8)]" : ""}`}>
+              <span className={`text-xl ${active ? "drop-shadow-[0_0_8px_rgba(34,211,238,0.85)]" : ""}`}>
                 {tab.icon}
               </span>
               <span className="text-[11px] font-semibold">{t(`nav.${tab.key}`)}</span>
