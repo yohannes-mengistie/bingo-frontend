@@ -257,7 +257,6 @@ function ActionSheet({
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
               className={inputCls}
             />
           </Field>
