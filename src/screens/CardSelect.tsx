@@ -110,10 +110,17 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // Once a round is being drawn, everyone goes into the room — players to play,
   // and anyone who didn't pick a card to spectate ("wait for next round"). One
   // game per table, so the picker only ever shows the single current game.
+  //
+  // Players are sent in the moment their local countdown hits 0 — not when the
+  // 3s state-poll notices DRAWING — so the game socket connects during the grace
+  // before the first number is drawn and doesn't miss its call/voice.
   const enteredRef = useRef(false);
   useEffect(() => {
+    const drawing = liveGame?.state === "DRAWING";
+    const countdownEnded =
+      isCountdown && secondsLeft !== null && secondsLeft <= 0 && ownedCount > 0;
     if (
-      liveGame?.state === "DRAWING" &&
+      (drawing || countdownEnded) &&
       gameId &&
       !finishedGames.has(gameId) && // never bounce back into a game that's over
       !enteredRef.current
@@ -122,7 +129,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
       haptic.impact("medium");
       nav(`/game/${gameId}`);
     }
-  }, [liveGame?.state, gameId, nav]);
+  }, [liveGame?.state, isCountdown, secondsLeft, ownedCount, gameId, nav]);
 
   // Tapping a card reserves it (or releases it if already reserved). No charge
   // happens here — reserved cards are billed together when the game starts.

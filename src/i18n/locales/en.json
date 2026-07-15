@@ -114,6 +114,7 @@
     "reconnecting": "Reconnecting…",
     "eliminated": "You were eliminated",
     "cardEliminated": "That card is out — your other cards are still in!",
+    "getReady": "Get ready!",
     "spectatorWait": "You didn't pick a card this round. Please wait for the next round."
   },
   "result": {

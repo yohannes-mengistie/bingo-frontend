@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { FullSpinner } from "@/components/ui/Spinner";
 import { BingoCardView } from "@/components/bingo/BingoCard";
@@ -77,6 +77,14 @@ export function GameRoom() {
   const [conn, setConn] = useState<"connecting" | "open" | "closed">("connecting");
   const [result, setResult] = useState<GameResult>(null);
   const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
+  // Brief "get ready" transition on entry — gives the socket + caller audio a
+  // moment to be ready before the first number is called, so its voice isn't
+  // missed. Only shown for a fresh round (no numbers drawn yet).
+  const [intro, setIntro] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setIntro(false), 1800);
+    return () => clearTimeout(t);
+  }, []);
 
   // Guards the end-of-game resolution so the win announcement (sound + confetti +
   // result popup) fires exactly ONCE — even if the WINNER event arrives twice or
@@ -333,6 +341,27 @@ export function GameRoom() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
+      <AnimatePresence>
+        {intro && order.length === 0 && phase !== "FINISHED" && phase !== "CANCELLED" && (
+          <motion.div
+            className="fixed inset-0 z-[45] flex flex-col items-center justify-center bg-bg/95 backdrop-blur"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-6xl"
+              animate={{ scale: [1, 1.12, 1] }}
+              transition={{ repeat: Infinity, duration: 1 }}
+            >
+              🎯
+            </motion.div>
+            <div className="mt-3 font-display text-2xl font-extrabold text-neon-cyan">
+              {t("game.getReady")}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
       <Header
         back
