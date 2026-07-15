@@ -28,19 +28,19 @@ export function BingoCardView({ card, daubed, drawn, showCalled = false, winLine
   const flat = card.numbers.flat();
 
   return (
-    <div className={size === "lg" ? "w-full" : "w-44"}>
-      <div className="mb-1 grid grid-cols-5 gap-1.5">
+    <div className={size === "lg" ? "mx-auto w-full max-w-[15rem]" : "w-44"}>
+      <div className="mb-1 grid grid-cols-5 gap-1">
         {LETTERS.map((l, i) => (
           <div
             key={l}
-            className="rounded-xl bg-bg-elevated py-1 text-center font-display text-lg font-extrabold text-white"
+            className="rounded-lg bg-bg-elevated py-0.5 text-center font-display text-sm font-extrabold text-white"
             style={{ opacity: 0.9 + i * 0.02 }}
           >
             {l}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-5 gap-1">
         {flat.map((num, pos) => {
           const isCenter = pos === CENTER;
           const isDaubed = isCenter || daubed?.has(pos);
@@ -59,8 +59,8 @@ export function BingoCardView({ card, daubed, drawn, showCalled = false, winLine
               animate={inWin ? { scale: [1, 1.12, 1] } : {}}
               transition={inWin ? { repeat: Infinity, duration: 1 } : {}}
               className={[
-                "relative flex aspect-square items-center justify-center rounded-xl font-display font-bold",
-                size === "lg" ? "text-lg" : "text-xs",
+                "relative flex aspect-square items-center justify-center rounded-lg font-display font-bold",
+                size === "lg" ? "text-sm" : "text-xs",
                 isCenter
                   ? "bg-grad-gold text-bg"
                   : inWin
