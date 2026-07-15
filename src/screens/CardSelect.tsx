@@ -19,6 +19,7 @@ import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
 import { haptic } from "@/lib/telegram";
 import { sound } from "@/lib/audio";
+import { finishedGames } from "@/lib/finishedGames";
 import { useWallet } from "@/store/walletStore";
 import { useSettings } from "@/store/settingsStore";
 import type { GameType } from "@/types/api";
@@ -111,7 +112,13 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // into the game board (only once).
   const enteredRef = useRef(false);
   useEffect(() => {
-    if (liveGame?.state === "DRAWING" && ownedCount > 0 && gameId && !enteredRef.current) {
+    if (
+      liveGame?.state === "DRAWING" &&
+      ownedCount > 0 &&
+      gameId &&
+      !finishedGames.has(gameId) && // never bounce back into a game that's over
+      !enteredRef.current
+    ) {
       enteredRef.current = true;
       haptic.impact("medium");
       nav(`/game/${gameId}`);

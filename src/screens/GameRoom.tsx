@@ -12,6 +12,7 @@ import { ResultOverlay, GameResult, WinnerInfo, WinnerEntry } from "@/components
 import { GameSocket } from "@/lib/ws";
 import { autoMarked, findWinningPositions, letterForNumber } from "@/lib/bingo";
 import { api } from "@/lib/api";
+import { finishedGames } from "@/lib/finishedGames";
 import { sound } from "@/lib/audio";
 import { haptic } from "@/lib/telegram";
 import { money } from "@/lib/format";
@@ -150,6 +151,7 @@ export function GameRoom() {
           // WINNER event is long gone.
           if (Array.isArray(d.winners) && d.winners.length && !endedRef.current) {
             endedRef.current = true;
+            finishedGames.add(gameId);
             const list = parseWinners(d);
             const mine = list.find((w) => !!myId && w.userId === myId);
             setWinnerInfo({
@@ -169,6 +171,7 @@ export function GameRoom() {
           if (status === "CANCELLED") {
             // The game was force-cancelled or auto-refunded (e.g. all numbers
             // drawn with no winner). The stake is already back in the wallet.
+            finishedGames.add(gameId);
             setPhase("CANCELLED");
             setResult({ type: "cancelled" });
             refreshWallet().catch(() => {});
@@ -215,6 +218,7 @@ export function GameRoom() {
         case "WINNER": {
           if (endedRef.current) break; // already announced — ignore duplicates
           endedRef.current = true;
+          finishedGames.add(gameId); // don't let the picker re-enter this game
           setPhase("FINISHED");
           // Reveal every winner to EVERYONE (winner, losers, eliminated) so the
           // payout is transparent — including each card + marks so anyone can
