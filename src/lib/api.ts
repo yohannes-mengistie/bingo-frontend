@@ -100,19 +100,11 @@ export const api = {
     })),
   transfers: () =>
     request<{ transfers?: any[] }>("GET", "/api/v1/me/wallet/transfers"),
-  // `phone` is a method-specific extra: the payer's M-Pesa number, required
-  // for M-Pesa deposits (the verifier looks receipts up by payer phone).
-  deposit: (
-    amount: number,
-    transaction_type: PaymentMethod,
-    transaction_id: string,
-    phone?: string,
-  ) =>
+  deposit: (amount: number, transaction_type: PaymentMethod, transaction_id: string) =>
     request<{ transaction: Transaction }>("POST", "/api/v1/wallet/deposit", {
       amount,
       transaction_type,
       transaction_id,
-      ...(phone ? { phone } : {}),
     }),
   withdraw: (amount: number, account_number: string, account_type: PaymentMethod) =>
     request<{ transaction: Transaction }>("POST", "/api/v1/wallet/withdraw", {

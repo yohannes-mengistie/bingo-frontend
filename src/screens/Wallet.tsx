@@ -139,25 +139,20 @@ function ActionSheet({
   // Withdrawals default to the user's verified registration phone, but the
   // player may edit it if their mobile-money wallet is on a different number.
   // `account` is null until the player types, so the field shows the
-  // registered phone. Same pattern for the payer phone an M-Pesa deposit
-  // needs (the verifier looks M-Pesa receipts up by the payer's number).
+  // registered phone.
   const meQ = useQuery({
     queryKey: ["me"],
     queryFn: api.me,
-    enabled: action === "withdraw" || action === "deposit",
+    enabled: action === "withdraw",
   });
   const [account, setAccount] = useState<string | null>(null);
   const withdrawTo = account ?? meQ.data?.phone_number ?? "";
-  const [payerPhone, setPayerPhone] = useState<string | null>(null);
-  const mpesaPhone = payerPhone ?? meQ.data?.phone_number ?? "";
-  const needsPhone = action === "deposit" && method === "Mpesa";
 
   const reset = () => {
     setAmount("");
     setTxId("");
     setReceiver("");
     setAccount(null);
-    setPayerPhone(null);
   };
 
   const submit = async () => {
@@ -166,12 +161,7 @@ function ActionSheet({
     setBusy(true);
     try {
       if (action === "deposit") {
-        await api.deposit(
-          amt,
-          method,
-          txId.trim(),
-          method === "Mpesa" ? mpesaPhone.trim() : undefined,
-        );
+        await api.deposit(amt, method, txId.trim());
         push(t("wallet.depositOk"), "success");
       } else if (action === "withdraw") {
         await api.withdraw(amt, withdrawTo.trim(), method);
@@ -253,26 +243,11 @@ function ActionSheet({
             className={inputCls}
           />
 
-          {/* M-Pesa receipts are verified by receipt number + the PAYER's
-              phone, so the player must tell us which number they paid from
-              (prefilled with their registered phone). */}
-          {needsPhone && (
-            <Field label={t("wallet.mpesaPhone")} hint={t("wallet.mpesaPhoneHint")}>
-              <input
-                inputMode="tel"
-                value={mpesaPhone}
-                onChange={(e) => setPayerPhone(e.target.value)}
-                placeholder="07…"
-                className={inputCls}
-              />
-            </Field>
-          )}
-
           <Button
             variant="gold"
             fullWidth
             loading={busy}
-            disabled={!amount.trim() || !txId.trim() || (needsPhone && !mpesaPhone.trim())}
+            disabled={!amount.trim() || !txId.trim()}
             onClick={submit}
           >
             📥 {busy ? t("wallet.submitting") : t("wallet.submitDeposit")}
@@ -370,7 +345,6 @@ function localizeWalletError(
   if (m.includes("insufficient balance")) return t("wallet.errInsufficient");
   if (m.includes("at least one completed deposit")) return t("wallet.errNeedDeposit");
   if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 10 });
-  if (m.includes("phone is required for mpesa")) return t("wallet.errMpesaPhone");
   if (m.includes("telebirr number") || m.includes("valid ethiopian"))
     return t("wallet.errBadNumber");
   return msg;
