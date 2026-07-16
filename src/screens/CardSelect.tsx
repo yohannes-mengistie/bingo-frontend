@@ -58,12 +58,20 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // entry is dropped once the server confirms — or reverted if it refuses.
   const [overlay, setOverlay] = useState<Map<number, "add" | "remove">>(new Map());
 
-  // Fetch/create the active game for this stake (creates if none).
+  // Fetch/create the active game for this stake (creates if none). Polled:
+  // when a round finishes the backend spawns the NEXT game, and a player
+  // sitting on this screen must roll over to it automatically — without the
+  // poll they'd keep watching the dead game forever (no countdown, no
+  // redirect) until they re-opened the bot. The WS below also triggers an
+  // immediate refetch on NEW_GAME_AVAILABLE / game-over, so the poll is just
+  // the safety net.
   const gameQ = useQuery({
     queryKey: ["game-for-type", type],
     queryFn: async () => (await api.games(type)).games[0] ?? null,
+    refetchInterval: 5000,
   });
   const gameId = gameQ.data?.id ?? null;
+  const refetchGame = gameQ.refetch;
 
   // Poll taken cards + live game state (fallback / periodic reconcile).
   const stateQ = useQuery({
@@ -113,6 +121,18 @@ export function CardSelect({ home = false }: { home?: boolean }) {
           if (typeof msg.data?.prize_pool === "number") {
             setLivePrize(msg.data.prize_pool);
           }
+          break;
+        }
+        // The round we're watching ended and its successor exists (the backend
+        // announces it on the OLD game's channel) — jump to the new round now
+        // rather than on the next poll, so the fresh grid/countdown appears
+        // with no manual action.
+        case "NEW_GAME_AVAILABLE":
+          refetchGame();
+          break;
+        case "GAME_STATUS": {
+          const status = msg.data?.status ?? msg.data?.state;
+          if (status === "FINISHED" || status === "CANCELLED") refetchGame();
           break;
         }
       }
@@ -209,6 +229,29 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // backend's first-draw grace this leaves several seconds of headroom even
   // on a slow connection.)
   const enteredRef = useRef(false);
+
+  // Rolling over to the next round replaces gameId while the picker stays
+  // mounted — every bit of per-game local state must reset with it, or the
+  // old round's optimistic glows / taken cards / entry latch would leak onto
+  // the fresh grid.
+  useEffect(() => {
+    enteredRef.current = false;
+    setOverlay(new Map());
+    setTakenLive(new Set());
+    setLivePrize(null);
+    desired.current.clear();
+    confirmed.current.clear();
+    inFlight.current.clear();
+  }, [gameId]);
+
+  // Poll-based fallback for the rollover (the WS refetch above is the fast
+  // path): if the state feed says the watched round is over, look up its
+  // successor.
+  const roundOver = liveGame?.state === "FINISHED" || liveGame?.state === "CANCELLED";
+  useEffect(() => {
+    if (roundOver) refetchGame();
+  }, [roundOver, refetchGame]);
+
   useEffect(() => {
     const drawing = liveGame?.state === "DRAWING";
     const countdownEnded =
