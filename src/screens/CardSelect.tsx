@@ -90,6 +90,14 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // tap reverts (see syncCard).
   const [takenLive, setTakenLive] = useState<Set<number>>(new Set());
   const [livePrize, setLivePrize] = useState<number | null>(null);
+  // Server-anchored countdown end, expressed on the LOCAL clock: set from the
+  // server-computed secondsLeft in WS INITIAL_STATE (someone opening the app
+  // mid-countdown gets the true remaining time immediately) and re-anchored by
+  // every per-second COUNTDOWN tick. Deriving seconds from the game's
+  // countdown_ends timestamp against Date.now() — the fallback below — is off
+  // by however much the player's device clock is skewed, which can freeze the
+  // display at 0 with many seconds left or hold it past the real start.
+  const [serverEndsAt, setServerEndsAt] = useState<number | null>(null);
   useEffect(() => {
     if (stateQ.data?.takenCards) setTakenLive(new Set(stateQ.data.takenCards));
   }, [stateQ.data]);
@@ -105,6 +113,17 @@ export function CardSelect({ home = false }: { home?: boolean }) {
           }
           if (typeof msg.data?.game?.prize_pool === "number") {
             setLivePrize(msg.data.game.prize_pool);
+          }
+          if (
+            msg.data?.game?.state === "COUNTDOWN" &&
+            typeof msg.data?.secondsLeft === "number"
+          ) {
+            setServerEndsAt(Date.now() + msg.data.secondsLeft * 1000);
+          }
+          break;
+        case "COUNTDOWN":
+          if (typeof msg.data?.secondsLeft === "number") {
+            setServerEndsAt(Date.now() + msg.data.secondsLeft * 1000);
           }
           break;
         case "PLAYER_JOINED":
@@ -133,6 +152,9 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         case "GAME_STATUS": {
           const status = msg.data?.status ?? msg.data?.state;
           if (status === "FINISHED" || status === "CANCELLED") refetchGame();
+          // Countdown aborted (not enough paying players → back to WAITING):
+          // drop the anchor so the hero doesn't keep ticking a dead countdown.
+          if (status === "WAITING") setServerEndsAt(null);
           break;
         }
       }
@@ -152,10 +174,19 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     const t = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  const countdownEnds = liveGame?.countdown_ends ? Date.parse(liveGame.countdown_ends) : null;
+  // Prefer the server-anchored end (skew-free); fall back to the game's
+  // countdown_ends timestamp only until the first WS anchor arrives.
+  const countdownEnds =
+    serverEndsAt ??
+    (liveGame?.countdown_ends ? Date.parse(liveGame.countdown_ends) : null);
   const secondsLeft =
     countdownEnds != null ? Math.max(0, Math.ceil((countdownEnds - nowTs) / 1000)) : null;
-  const isCountdown = liveGame?.state === "COUNTDOWN" && secondsLeft != null;
+  // A live server anchor still in the future proves the countdown is running
+  // even while the 3s state poll hasn't caught up yet (e.g. the app was opened
+  // seconds after the countdown started).
+  const isCountdown =
+    secondsLeft != null &&
+    (liveGame?.state === "COUNTDOWN" || (serverEndsAt != null && serverEndsAt > nowTs));
   // Human-readable daily round code from the backend, e.g. "3" (3rd game of the
   // day). Falls back to a game-id slice for older games without the field.
   const roundCode =
@@ -248,6 +279,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     setOverlay(new Map());
     setTakenLive(new Set());
     setLivePrize(null);
+    setServerEndsAt(null);
     desired.current.clear();
     confirmed.current.clear();
     inFlight.current.clear();
