@@ -51,8 +51,11 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     refreshWallet().catch(() => {});
   }, [refreshWallet]);
 
-  // Cards whose reserve/release request is currently in flight (tap debounce).
-  const [busy, setBusy] = useState<Set<number>>(new Set());
+  // Optimistic selection overlay: cards whose on-screen state is ahead of the
+  // server. A tap flips the card here INSTANTLY (glow appears/disappears like
+  // a click); the reserve/release request then runs in the background and the
+  // entry is dropped once the server confirms — or reverted if it refuses.
+  const [overlay, setOverlay] = useState<Map<number, "add" | "remove">>(new Map());
 
   // Fetch/create the active game for this stake (creates if none).
   const gameQ = useQuery({
@@ -97,10 +100,48 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     enabled: !!gameId,
     refetchInterval: 3000,
   });
-  const owned = useMemo(
+  const serverOwned = useMemo(
     () => new Set((ownedQ.data?.cards ?? []).map((c) => c.card_id)),
     [ownedQ.data],
   );
+
+  // What the player sees = server state + optimistic overlay.
+  const owned = useMemo(() => {
+    const s = new Set(serverOwned);
+    overlay.forEach((op, id) => (op === "add" ? s.add(id) : s.delete(id)));
+    return s;
+  }, [serverOwned, overlay]);
+
+  // Per-card background sync machinery: `desired` is the latest intent (what
+  // the player wants the card to be), `confirmed` the last state the server
+  // acknowledged to us directly (poll data may lag it by up to 3s), `inFlight`
+  // guards one request chain per card. A rapid select→unselect while the first
+  // request is still on the wire simply updates `desired`; the chain fires the
+  // follow-up call when the first completes — latest intent always wins.
+  const desired = useRef(new Map<number, boolean>());
+  const confirmed = useRef(new Map<number, boolean>());
+  const inFlight = useRef(new Set<number>());
+  const serverOwnedRef = useRef(serverOwned);
+  serverOwnedRef.current = serverOwned;
+
+  // Drop overlay entries (and per-card confirmations) once a poll agrees with
+  // them — the server has caught up, the base data is now authoritative. Until
+  // then the overlay keeps the glow correct even if a stale in-flight poll
+  // response lands after a successful reserve.
+  useEffect(() => {
+    setOverlay((prev) => {
+      const n = new Map(prev);
+      let changed = false;
+      n.forEach((op, id) => {
+        if ((op === "add") === serverOwned.has(id)) {
+          n.delete(id);
+          confirmed.current.delete(id);
+          changed = true;
+        }
+      });
+      return changed ? n : prev;
+    });
+  }, [serverOwned]);
 
   const ownedCount = owned.size;
   const takenCount = taken.size; // total cards reserved in this game (all players)
@@ -133,8 +174,13 @@ export function CardSelect({ home = false }: { home?: boolean }) {
 
   // Tapping a card reserves it (or releases it if already reserved). No charge
   // happens here — reserved cards are billed together when the game starts.
-  const toggle = async (id: number) => {
-    if (!gameId || busy.has(id)) return;
+  //
+  // The tap is OPTIMISTIC: the glow flips immediately (feels like a click) and
+  // the reserve/release request runs in the background via syncCard. If the
+  // server refuses (e.g. another player grabbed the card in the same second),
+  // the card visibly reverts and a toast explains why.
+  const toggle = (id: number) => {
+    if (!gameId) return;
     // Unlock + warm the caller audio on this real user gesture: resume the
     // AudioContext (it starts suspended) and fetch+decode the call clips now, so
     // the FIRST number call in the game room plays instantly instead of being
@@ -154,24 +200,49 @@ export function CardSelect({ home = false }: { home?: boolean }) {
       }
     }
 
-    setBusy((prev) => new Set(prev).add(id));
     haptic.select();
+    const want = !isMine;
+    desired.current.set(id, want);
+    setOverlay((prev) => new Map(prev).set(id, want ? "add" : "remove"));
+    void syncCard(id);
+  };
+
+  // Background request chain for one card: keep issuing join/leave until the
+  // server state matches the player's latest intent. Never runs more than one
+  // request per card at a time; new taps just update `desired` and the chain
+  // catches up — so a select→unselect faster than one round-trip still ends
+  // released on the server (a stale reservation here would bill the player at
+  // countdown end).
+  const syncCard = async (id: number) => {
+    if (!gameId || inFlight.current.has(id)) return;
+    inFlight.current.add(id);
     try {
-      if (isMine) {
-        await api.leave(gameId, id); // release the reservation (nothing charged)
-      } else {
-        await api.join(gameId, id); // reserve the card (charged at game start)
+      for (;;) {
+        const want = desired.current.get(id);
+        const actual = confirmed.current.get(id) ?? serverOwnedRef.current.has(id);
+        if (want === undefined || want === actual) break;
+        if (want) {
+          await api.join(gameId, id); // reserve the card (charged at game start)
+        } else {
+          await api.leave(gameId, id); // release the reservation (nothing charged)
+        }
+        confirmed.current.set(id, want);
       }
-      await Promise.all([ownedQ.refetch(), stateQ.refetch()]);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "error";
-      push(msg === "insufficient balance" ? t("card.insufficient") : msg, "error");
-    } finally {
-      setBusy((prev) => {
-        const n = new Set(prev);
+      // Server refused (card taken in a race, game already started, …): revert
+      // this card's optimistic state and re-sync the grid so the player sees
+      // the truth.
+      desired.current.delete(id);
+      setOverlay((prev) => {
+        const n = new Map(prev);
         n.delete(id);
         return n;
       });
+      const msg = e instanceof ApiError ? e.message : "error";
+      push(msg === "insufficient balance" ? t("card.insufficient") : msg, "error");
+      void Promise.all([ownedQ.refetch(), stateQ.refetch()]);
+    } finally {
+      inFlight.current.delete(id);
     }
   };
 
@@ -283,21 +354,18 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         {ALL_CARDS.map((id) => {
           const isMine = owned.has(id);
           const isTaken = taken.has(id) && !isMine;
-          const isBusy = busy.has(id);
-          // Only genuinely unselectable cards are disabled (in-flight, or taken
-          // by someone else). Cards the player can't currently afford — or that
-          // exceed their card cap — stay TAPPABLE: tapping shows a clear
-          // "insufficient balance" / "max cards" message (see toggle) instead of
-          // greying out the whole grid.
-          const blocked = isBusy || isTaken;
+          // Only cards taken by someone else are disabled. Cards the player
+          // can't currently afford — or that exceed their card cap — stay
+          // TAPPABLE: tapping shows a clear "insufficient balance" / "max
+          // cards" message (see toggle) instead of greying out the whole grid.
+          // No in-flight lock: taps apply optimistically and sync behind.
           return (
             <button
               key={id}
-              disabled={blocked && !isMine}
+              disabled={isTaken}
               onClick={() => toggle(id)}
               className={[
-                "flex aspect-square items-center justify-center rounded-md text-[11px] font-bold transition-all",
-                isBusy ? "opacity-60" : "",
+                "flex aspect-square items-center justify-center rounded-md text-[11px] font-bold transition-all duration-100 active:scale-90",
                 isMine
                   ? // YOURS: glowing cyan cell (matches the design) — unmistakable.
                     "scale-105 bg-neon-cyan/15 text-white ring-2 ring-neon-cyan shadow-glow-cyan"
