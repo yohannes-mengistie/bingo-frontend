@@ -162,6 +162,15 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     liveGame?.round_code ||
     (gameId ? gameId.replace(/-/g, "").slice(0, 4).toUpperCase() : "----");
 
+  // The player's winnings today (Ethiopian day) — the WIN stat in the hero.
+  // Refetched when a round ends so a fresh win shows the moment the player
+  // lands back on the picker.
+  const winningsQ = useQuery({
+    queryKey: ["my-winnings"],
+    queryFn: api.myWinnings,
+    refetchInterval: 60000,
+  });
+
   // Cards this player has reserved in the current game.
   const ownedQ = useQuery({
     queryKey: ["my-cards", gameId],
@@ -248,9 +257,13 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // path): if the state feed says the watched round is over, look up its
   // successor.
   const roundOver = liveGame?.state === "FINISHED" || liveGame?.state === "CANCELLED";
+  const refetchWinnings = winningsQ.refetch;
   useEffect(() => {
-    if (roundOver) refetchGame();
-  }, [roundOver, refetchGame]);
+    if (roundOver) {
+      refetchGame();
+      refetchWinnings(); // a just-won prize shows in WIN immediately
+    }
+  }, [roundOver, refetchGame, refetchWinnings]);
 
   useEffect(() => {
     const drawing = liveGame?.state === "DRAWING";
@@ -414,13 +427,14 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               {t("card.takenCards", { count: takenCount })}
             </div>
           </div>
-          {/* WIN — the player's winnings (0 until they win) */}
+          {/* WIN — what this player has won TODAY (Ethiopian day). 0 until
+              they win a round; updates the moment a won round ends. */}
           <div className="min-w-0 text-right">
             <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
               🏆 WIN
             </div>
             <div className="font-display text-2xl font-extrabold text-neon-gold">
-              {money(0)}
+              {money(winningsQ.data?.today ?? 0)}
             </div>
           </div>
         </div>

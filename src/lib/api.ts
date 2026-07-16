@@ -133,6 +133,10 @@ export const api = {
       ? Promise.resolve({ card: local })
       : request<{ card: BingoCard }>("GET", `/api/v1/cards/${cardId}`);
   },
+  // Summed prize money — today (Ethiopian time) and all time. Backs the WIN
+  // stat on the card picker.
+  myWinnings: () =>
+    request<{ today: number; total: number }>("GET", "/api/v1/me/winnings"),
   myGames: (limit = 20, offset = 0) =>
     request<{ games: any[]; count: number }>(
       "GET",
