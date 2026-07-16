@@ -117,84 +117,70 @@ function beep(freq: number, durationMs = 160) {
   osc.stop(c.currentTime + durationMs / 1000);
 }
 
-// ---- Sequential voice caller ----------------------------------------------
-// Number calls are QUEUED and played one-at-a-time to completion, so every
-// called number is announced in order and none get cut off by the next call
-// (the old "replace the in-flight clip" behaviour dropped voices whenever calls
-// bunched up). Clips are pre-decoded (see preloadCalls) so each starts instantly
-// when dequeued; in steady play the queue empties between calls, keeping the
-// voice tight to the board.
+// ---- Latest-wins voice caller ----------------------------------------------
+// The board updates the INSTANT a NUMBER_DRAWN event arrives, and the voice
+// must track it exactly. So the caller has no queue: a new call cuts whatever
+// clip is playing (20ms fade, no click) and starts at once — clips are
+// pre-decoded (see preloadCalls) so in steady play the voice starts in the
+// same tick as the display. A queue would drift seconds behind the board the
+// moment calls bunch up, and dropping its overflow silently skipped numbers.
+//
+// Every call takes a token from the gate; a clip may only START if its token
+// is still current when the (usually cached) decode resolves. That closes the
+// race the old code had on slow connections: a clip whose fetch was still in
+// flight when "Bingo!" hit would begin playing over the announcement, because
+// only the ALREADY-playing source got stopped. Now stopCalls() bumps the
+// epoch, so anything not yet started can never start.
 
-let voiceQueue: number[] = [];
-let voiceDraining = false;
-let currentVoice: AudioBufferSourceNode | null = null;
+/**
+ * Decides whether an async-loaded call clip may still start. Exported for
+ * tests: this small state machine IS the determinism guarantee.
+ * - a newer call supersedes older pending ones (latest wins);
+ * - stop() (bingo, winner announcement, leaving the room) invalidates
+ *   everything pending until the next call.
+ */
+export class CallGate {
+  private seq = 0;
+  private epoch = 0;
 
-function stopCurrentVoice() {
-  if (currentVoice) {
-    try {
-      currentVoice.onended = null;
-      currentVoice.stop();
-    } catch {
-      /* already stopped */
-    }
-    currentVoice = null;
+  /** Register a new call; returns its token. */
+  next(): { seq: number; epoch: number } {
+    return { seq: ++this.seq, epoch: this.epoch };
+  }
+
+  /** Hard stop: nothing pending may start until the next call. */
+  stop() {
+    this.epoch++;
+  }
+
+  /** May the clip holding this token start playing now? */
+  mayStart(token: { seq: number; epoch: number }): boolean {
+    return token.seq === this.seq && token.epoch === this.epoch;
   }
 }
 
-// Play one clip to its end, resolving when it finishes (or immediately on error).
-function playVoiceClip(src: string): Promise<void> {
-  return new Promise((resolve) => {
-    const c = audioCtx();
-    if (!c) return resolve();
-    resume();
-    load(src)
-      .then((buffer) => {
-        const cc = audioCtx();
-        if (!cc) return resolve();
-        if (!buffer) {
-          // Missing/undecodable clip: short beep so the call isn't fully silent.
-          beep(460, 180);
-          return void setTimeout(resolve, 240);
-        }
-        const now = cc.currentTime;
-        const source = cc.createBufferSource();
-        source.buffer = buffer;
-        const gain = cc.createGain();
-        const end = now + buffer.duration;
-        const fadeIn = 0.01;
-        const fadeOut = Math.min(0.035, buffer.duration / 4);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(1, now + fadeIn);
-        gain.gain.setValueAtTime(1, Math.max(now + fadeIn, end - fadeOut));
-        gain.gain.linearRampToValueAtTime(0.0001, end);
-        source.connect(gain).connect(cc.destination);
-        currentVoice = source;
-        let done = false;
-        const finish = () => {
-          if (done) return;
-          done = true;
-          if (currentVoice === source) currentVoice = null;
-          resolve();
-        };
-        source.onended = finish;
-        // Backstop: never let the queue hang if onended doesn't fire.
-        setTimeout(finish, buffer.duration * 1000 + 300);
-        source.start(now);
-      })
-      .catch(() => resolve());
-  });
-}
+const callGate = new CallGate();
+let currentVoice: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
 
-async function drainVoiceQueue() {
-  if (voiceDraining) return;
-  voiceDraining = true;
+// Fade out + stop the clip that is currently audible (click-free hard cut).
+function cutCurrentVoice() {
+  if (!currentVoice) return;
+  const { src, gain } = currentVoice;
+  currentVoice = null;
   try {
-    while (voiceQueue.length) {
-      const n = voiceQueue.shift()!;
-      await playVoiceClip(`/audio/am/${n}.mp3`);
+    src.onended = null;
+    const c = audioCtx();
+    if (c) {
+      const now = c.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0.0001, now + 0.02);
+      src.stop(now + 0.03);
+    } else {
+      src.stop();
     }
-  } finally {
-    voiceDraining = false;
+  } catch {
+    /* already stopped */
   }
 }
 
@@ -214,22 +200,63 @@ export const sound = {
     load("/sounds/bingo.aac");
   },
 
-  /** Queue a drawn number's Amharic call — played in order, never cut off. */
+  /**
+   * Voice the drawn number NOW, in sync with the board: cuts any clip still
+   * playing (latest wins) and starts immediately — clips are pre-decoded so
+   * this is same-tick in steady play. On a cold cache the clip may start a
+   * beat late, but only while its number is still the latest call and no hard
+   * stop happened meanwhile; a superseded clip is skipped entirely (playing it
+   * late would be more out of sync than silence).
+   */
   callNumber(n: number) {
     if (!this.enabled) return;
     resume();
-    voiceQueue.push(n);
-    // Safety valve: if calls ever run far ahead of the voice (e.g. a burst after
-    // a reconnect), keep only the most recent few so the caller re-syncs.
-    if (voiceQueue.length > 4) voiceQueue = voiceQueue.slice(-4);
-    drainVoiceQueue();
+    const token = callGate.next();
+    load(`/audio/am/${n}.mp3`).then((buffer) => {
+      if (!callGate.mayStart(token)) return; // superseded or hard-stopped
+      cutCurrentVoice();
+      const c = audioCtx();
+      if (!c) return;
+      if (!buffer) {
+        // Missing/undecodable clip: short beep so the call isn't fully silent.
+        beep(460, 180);
+        return;
+      }
+      const now = c.currentTime;
+      const source = c.createBufferSource();
+      source.buffer = buffer;
+      const gain = c.createGain();
+      const end = now + buffer.duration;
+      const fadeIn = 0.01;
+      const fadeOut = Math.min(0.035, buffer.duration / 4);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(1, now + fadeIn);
+      gain.gain.setValueAtTime(1, Math.max(now + fadeIn, end - fadeOut));
+      gain.gain.linearRampToValueAtTime(0.0001, end);
+      source.connect(gain).connect(c.destination);
+      currentVoice = { src: source, gain };
+      source.onended = () => {
+        if (currentVoice?.src === source) currentVoice = null;
+      };
+      source.start(now);
+    });
   },
 
-  /** The "Bingo!" voice announcement — stops number calls and plays once. */
+  /**
+   * Hard-stop the number caller: cut the audible clip and invalidate every
+   * pending one (even clips whose download is still in flight can never
+   * start). Call on winner announcement, game end/cancel, and when leaving
+   * the room. Deliberately NOT gated on `enabled` — stopping must always work.
+   */
+  stopCalls() {
+    callGate.stop();
+    cutCurrentVoice();
+  },
+
+  /** The "Bingo!" voice announcement — hard-stops number calls, plays once. */
   bingo() {
+    this.stopCalls();
     if (!this.enabled) return;
-    voiceQueue = [];
-    stopCurrentVoice();
     playBuffer("/sounds/bingo.aac", {
       fallback: () => {
         beep(660, 120);

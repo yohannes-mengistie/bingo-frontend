@@ -193,6 +193,10 @@ export function GameRoom() {
         case "GAME_STATUS": {
           // Backend sends the new state under `status`; tolerate `state` too.
           const status: GameState | undefined = msg.data.status ?? msg.data.state;
+          if (status === "FINISHED" || status === "CANCELLED") {
+            // The round is over — no number call may play past this point.
+            sound.stopCalls();
+          }
           if (status === "CANCELLED") {
             // The game was force-cancelled or auto-refunded (e.g. all numbers
             // drawn with no winner). The stake is already back in the wallet.
@@ -233,6 +237,10 @@ export function GameRoom() {
           setSeconds(msg.data.secondsLeft);
           break;
         case "NUMBER_DRAWN": {
+          // A draw can land AFTER the winner announcement (pub/sub ordering,
+          // or an event broadcast while the round was finalizing). The round
+          // is over: never voice it or mutate the frozen board.
+          if (endedRef.current) break;
           const n: number = msg.data.number;
           setPhase("DRAWING");
           setLast(n);
@@ -247,6 +255,10 @@ export function GameRoom() {
         case "WINNER": {
           if (endedRef.current) break; // already announced — ignore duplicates
           endedRef.current = true;
+          // Silence the number caller the moment the announcement begins —
+          // cuts the audible clip AND anything still loading, for everyone
+          // (players and spectators, sound toggle regardless).
+          sound.stopCalls();
           finishedGames.add(gameId); // don't let the picker re-enter this game
           // Spectator (no cards): this round's result isn't theirs — send them
           // back to pick for the next round instead of a win/lose screen.
@@ -303,6 +315,9 @@ export function GameRoom() {
       offStatus();
       feed.close();
       feedRef.current = null;
+      // Leaving the room (back to lobby, next round, app nav): the caller
+      // must not keep talking — cut the clip and void anything in flight.
+      sound.stopCalls();
     };
     // handleMessage is stable enough; re-subscribing on each draw would reset the socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
