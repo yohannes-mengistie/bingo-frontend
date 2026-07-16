@@ -9,12 +9,24 @@ import { winnerMarks } from "@/lib/bingo";
 import { money } from "@/lib/format";
 import type { BingoCard } from "@/types/api";
 
+/** One co-winner listed on the split-pot result (name, share, and card). */
+export interface CoWinner {
+  name: string;
+  prize: number;
+  cardId?: number;
+  marked?: number[];
+}
+
 /**
  * Shows the winner's card with the exact cells they marked, so every player in
  * the game can verify the win is legitimate after it ends. The card is fetched
  * by id; `marked` are the actual card NUMBERS the winner daubed (the WINNER
  * event payload), which we map back to board positions for highlighting. The
  * winning line is recomputed locally and spotlighted in green.
+ *
+ * When several cards completed on the same draw (`winners.length > 1`), every
+ * co-winner is listed with their share of the pot; tapping a row switches the
+ * displayed card so each win can be verified.
  */
 export function WinnerCardModal({
   open,
@@ -23,6 +35,7 @@ export function WinnerCardModal({
   marked,
   drawn,
   winnerName,
+  winners,
   closeLabel,
   youWon,
 }: {
@@ -33,6 +46,8 @@ export function WinnerCardModal({
   /** All numbers called this game — for context (called-but-unmarked cells). */
   drawn?: Set<number>;
   winnerName: string;
+  /** Every co-winner of a split pot — listed when there is more than one. */
+  winners?: CoWinner[];
   /** Label for the single action button (defaults to a plain "Close"). */
   closeLabel?: string;
   /** When the viewer is the winner, the amount they won — shown as a banner. */
@@ -42,35 +57,75 @@ export function WinnerCardModal({
   const [card, setCard] = useState<BingoCard | null>(null);
   const [error, setError] = useState(false);
 
+  // Which co-winner's card is on display. Defaults to the primary winner from
+  // the props; tapping a listed co-winner (with a verifiable card) switches.
+  const [sel, setSel] = useState<CoWinner | null>(null);
+  const shownCardId = sel?.cardId ?? cardId;
+  const shownMarked = sel?.marked ?? marked;
+  const shownName = sel?.name ?? winnerName;
+  const split = (winners?.length ?? 0) > 1;
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setCard(null);
     setError(false);
     api
-      .card(cardId)
+      .card(shownCardId)
       .then((r) => !cancelled && setCard(r.card))
       .catch(() => !cancelled && setError(true));
     return () => {
       cancelled = true;
     };
-  }, [open, cardId]);
+  }, [open, shownCardId]);
 
   // Map the winner's marked numbers to board positions (0-24), then recompute
   // the winning line from those positions.
   const { daubed, winLine } = useMemo(() => {
     if (!card) return { daubed: new Set<number>(), winLine: null as number[] | null };
-    const { positions, winLine } = winnerMarks(card, marked);
+    const { positions, winLine } = winnerMarks(card, shownMarked);
     return { daubed: positions, winLine };
-  }, [card, marked]);
+  }, [card, shownMarked]);
 
   return (
     <Modal open={open} onClose={onClose}>
       <h2 className="font-display text-xl font-extrabold">
-        🏆 {t("result.winnerCardTitle")}
+        🏆 {split ? t("result.winnersLabel", { n: winners!.length }) : t("result.winnerCardTitle")}
       </h2>
-      <p className="mt-0.5 text-sm text-ink-faint">
-        {t("result.winnerCardSub", { name: winnerName })}
+      {split && (
+        <p className="mt-0.5 text-sm font-semibold text-neon-gold">
+          {t("result.potSplit", { n: winners!.length })}
+        </p>
+      )}
+      {split && (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {winners!.map((w, i) => {
+            const verifiable = typeof w.cardId === "number" && !!w.marked;
+            const active = verifiable && w.cardId === shownCardId;
+            return (
+              <button
+                key={`${w.cardId ?? "?"}-${i}`}
+                disabled={!verifiable}
+                onClick={() => setSel(w)}
+                className={[
+                  "flex items-center justify-between rounded-xl px-3 py-2 text-sm",
+                  active
+                    ? "bg-neon-cyan/10 ring-1 ring-neon-cyan"
+                    : "bg-white/5 ring-1 ring-white/10",
+                  verifiable ? "active:scale-[0.98]" : "opacity-70",
+                ].join(" ")}
+              >
+                <span className="min-w-0 truncate font-semibold">{w.name}</span>
+                <span className="ml-3 shrink-0 font-bold text-neon-gold">
+                  {money(w.prize)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <p className={`${split ? "mt-2" : "mt-0.5"} text-sm text-ink-faint`}>
+        {t("result.winnerCardSub", { name: shownName })}
       </p>
       {youWon != null && youWon > 0 && (
         <p className="mt-2 text-lg font-bold text-neon-gold">

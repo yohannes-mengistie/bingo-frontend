@@ -100,6 +100,7 @@ export function ResultOverlay({
         marked={firstVerifiable.marked}
         drawn={drawn}
         winnerName={firstVerifiable.name}
+        winners={winners}
         youWon={isWin ? prize : undefined}
       />
     );
