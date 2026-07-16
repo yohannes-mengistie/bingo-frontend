@@ -16,6 +16,7 @@ import {
 } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
+import { GameSocket } from "@/lib/ws";
 import { haptic } from "@/lib/telegram";
 import { sound } from "@/lib/audio";
 import { finishedGames } from "@/lib/finishedGames";
@@ -64,17 +65,65 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   });
   const gameId = gameQ.data?.id ?? null;
 
-  // Poll taken cards + live game state.
+  // Poll taken cards + live game state (fallback / periodic reconcile).
   const stateQ = useQuery({
     queryKey: ["game-state", gameId],
     queryFn: () => api.gameState(gameId!),
     enabled: !!gameId,
     refetchInterval: 3000,
   });
-  const taken = useMemo(
-    () => new Set(stateQ.data?.takenCards ?? []),
-    [stateQ.data],
-  );
+
+  // Live taken-cards set: seeded from poll snapshots, then kept current in
+  // REAL TIME by the game WebSocket — the backend broadcasts PLAYER_JOINED /
+  // PLAYER_LEFT with the card_id on every reservation and release, so other
+  // players' picks grey out here within milliseconds instead of waiting for
+  // the next 3s poll. That makes two-players-tap-the-same-card races rare;
+  // when one still happens, the server arbitrates and the loser's optimistic
+  // tap reverts (see syncCard).
+  const [takenLive, setTakenLive] = useState<Set<number>>(new Set());
+  const [livePrize, setLivePrize] = useState<number | null>(null);
+  useEffect(() => {
+    if (stateQ.data?.takenCards) setTakenLive(new Set(stateQ.data.takenCards));
+  }, [stateQ.data]);
+  useEffect(() => {
+    if (!gameId) return;
+    setLivePrize(null); // prize belongs to a game; reset when it changes
+    const feed = new GameSocket(gameId);
+    const off = feed.on((msg) => {
+      switch (msg.event) {
+        case "INITIAL_STATE":
+          if (Array.isArray(msg.data?.takenCards)) {
+            setTakenLive(new Set<number>(msg.data.takenCards));
+          }
+          if (typeof msg.data?.game?.prize_pool === "number") {
+            setLivePrize(msg.data.game.prize_pool);
+          }
+          break;
+        case "PLAYER_JOINED":
+        case "PLAYER_LEFT": {
+          const cardId = msg.data?.card_id;
+          if (typeof cardId === "number") {
+            setTakenLive((prev) => {
+              const n = new Set(prev);
+              if (msg.event === "PLAYER_JOINED") n.add(cardId);
+              else n.delete(cardId);
+              return n;
+            });
+          }
+          if (typeof msg.data?.prize_pool === "number") {
+            setLivePrize(msg.data.prize_pool);
+          }
+          break;
+        }
+      }
+    });
+    feed.connect();
+    return () => {
+      off();
+      feed.close();
+    };
+  }, [gameId]);
+  const taken = takenLive;
 
   // Live snapshot for the hero: prize, player count, state and the countdown.
   const liveGame = stateQ.data?.game ?? gameQ.data ?? null;
@@ -187,7 +236,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     // swallowed by a still-suspended context. Idempotent (cached after first).
     sound.preloadCalls();
     const isMine = owned.has(id);
-    if (!isMine && taken.has(id)) return; // reserved by someone else
+    if (takenByOther(id, isMine)) return; // reserved by someone else
 
     if (!isMine) {
       if (ownedCount >= MAX_CARDS_PER_PLAYER) {
@@ -206,6 +255,14 @@ export function CardSelect({ home = false }: { home?: boolean }) {
     setOverlay((prev) => new Map(prev).set(id, want ? "add" : "remove"));
     void syncCard(id);
   };
+
+  // A card counts as taken by ANOTHER player only when it isn't mine in any
+  // sense — not on screen, not on the server, not mid-flight. The WS echoes my
+  // own reservation into `taken` almost instantly, so without the extra
+  // checks a card I'm releasing would flash the "taken by someone else" style
+  // until the release round-trip completes.
+  const takenByOther = (id: number, isMine: boolean) =>
+    taken.has(id) && !isMine && !serverOwned.has(id) && !overlay.has(id);
 
   // Background request chain for one card: keep issuing join/leave until the
   // server state matches the player's latest intent. Never runs more than one
@@ -304,7 +361,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
               {t("card.prize")}
             </div>
             <div className="font-display text-2xl font-extrabold text-neon-cyan">
-              {money(liveGame?.prize_pool ?? 0)}
+              {money(livePrize ?? liveGame?.prize_pool ?? 0)}
             </div>
             <div className="text-[10px] text-ink-faint">
               {t("card.takenCards", { count: takenCount })}
@@ -353,7 +410,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
       <div className="grid grid-cols-7 gap-1 pb-3 sm:grid-cols-9">
         {ALL_CARDS.map((id) => {
           const isMine = owned.has(id);
-          const isTaken = taken.has(id) && !isMine;
+          const isTaken = takenByOther(id, isMine);
           // Only cards taken by someone else are disabled. Cards the player
           // can't currently afford — or that exceed their card cap — stay
           // TAPPABLE: tapping shows a clear "insufficient balance" / "max
