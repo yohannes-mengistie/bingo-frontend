@@ -3,6 +3,11 @@ import type { Config } from "tailwindcss";
 // Neon / gradient dark theme — bold and premium to stand out from competitor
 // bingo apps. Colors are exposed as CSS-var friendly tokens.
 export default {
+  // Apply hover: styles only on devices that truly hover (mouse/trackpad).
+  // Without this, mobile browsers keep a tapped element in :hover until the
+  // next touch — e.g. an unselected card kept its hover ring, looking still
+  // half-selected.
+  future: { hoverOnlyWhenSupported: true },
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
