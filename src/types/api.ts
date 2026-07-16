@@ -13,7 +13,8 @@ export type GameState =
 
 export type BingoLetter = "B" | "I" | "N" | "G" | "O";
 
-export type PaymentMethod = "Telebirr";
+// Mirrors backend domain.SupportedPaymentMethods — all phone-based mobile money.
+export type PaymentMethod = "Telebirr" | "CBEBirr" | "Mpesa";
 
 export interface User {
   id: string;

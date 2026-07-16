@@ -1,5 +1,5 @@
 // Game constants — mirror of internal/domain/constants.go & game.go.
-import type { GameType } from "@/types/api";
+import type { GameType, PaymentMethod } from "@/types/api";
 
 export type Stake = { type: GameType; bet: number; vip: boolean };
 
@@ -27,14 +27,41 @@ export const CENTER_INDEX = 12; // numbers[2][2] = FREE
 // send money. Configure the real values via Vercel/.env (VITE_* are inlined
 // into the public bundle — these are destination accounts, not secrets).
 export const PAYMENT_ACCOUNTS: Record<
-  "Telebirr",
+  PaymentMethod,
   { number: string; name: string }
 > = {
   Telebirr: {
     number: import.meta.env.VITE_TELEBIRR_NUMBER ?? "0999357708",
     name: import.meta.env.VITE_PAYMENT_NAME ?? "Abebe",
   },
+  // Keep these numbers in sync with the backend's VERIFY_CBEBIRR_ACCOUNT /
+  // VERIFY_MPESA_ACCOUNT (render.yaml) — the verifier only auto-approves
+  // receipts credited to those exact accounts.
+  CBEBirr: {
+    // No house CBE Birr account registered yet — empty hides the method from
+    // the pickers until VITE_CBEBIRR_NUMBER is configured.
+    number: import.meta.env.VITE_CBEBIRR_NUMBER ?? "",
+    name: import.meta.env.VITE_CBEBIRR_NAME ?? import.meta.env.VITE_PAYMENT_NAME ?? "Abebe",
+  },
+  Mpesa: {
+    number: import.meta.env.VITE_MPESA_NUMBER ?? "0710132230",
+    name: import.meta.env.VITE_MPESA_NAME ?? import.meta.env.VITE_PAYMENT_NAME ?? "Abebe",
+  },
 };
+
+// Human-facing method names (the enum values are API identifiers).
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  Telebirr: "Telebirr",
+  CBEBirr: "CBE Birr",
+  Mpesa: "M-Pesa",
+};
+
+// Methods offered in the deposit/withdraw pickers. A method whose house
+// account number is not configured is hidden — players would have nowhere to
+// send money and its deposits could never be auto-verified.
+export const PAYMENT_METHODS: PaymentMethod[] = (
+  ["Telebirr", "CBEBirr", "Mpesa"] as PaymentMethod[]
+).filter((m) => PAYMENT_ACCOUNTS[m].number !== "");
 
 export const LETTERS = ["B", "I", "N", "G", "O"] as const;
 

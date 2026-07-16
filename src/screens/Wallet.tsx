@@ -9,7 +9,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { money, shortDate } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
-import { PAYMENT_ACCOUNTS } from "@/lib/constants";
+import { PAYMENT_ACCOUNTS, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { useWallet } from "@/store/walletStore";
 import type { PaymentMethod, Transaction } from "@/types/api";
 
@@ -131,28 +131,33 @@ function ActionSheet({
   const { t } = useTranslation();
   const push = useToast((s) => s.push);
   const [amount, setAmount] = useState("");
-  // Telebirr is the only supported payment method.
-  const method: PaymentMethod = "Telebirr";
+  const [method, setMethod] = useState<PaymentMethod>(PAYMENT_METHODS[0] ?? "Telebirr");
   const [txId, setTxId] = useState("");
   const [receiver, setReceiver] = useState("");
   const [busy, setBusy] = useState(false);
 
   // Withdrawals default to the user's verified registration phone, but the
-  // player may edit it if their Telebirr is on a different number. `account` is
-  // null until the player types, so the field shows the registered phone.
+  // player may edit it if their mobile-money wallet is on a different number.
+  // `account` is null until the player types, so the field shows the
+  // registered phone. Same pattern for the payer phone an M-Pesa deposit
+  // needs (the verifier looks M-Pesa receipts up by the payer's number).
   const meQ = useQuery({
     queryKey: ["me"],
     queryFn: api.me,
-    enabled: action === "withdraw",
+    enabled: action === "withdraw" || action === "deposit",
   });
   const [account, setAccount] = useState<string | null>(null);
   const withdrawTo = account ?? meQ.data?.phone_number ?? "";
+  const [payerPhone, setPayerPhone] = useState<string | null>(null);
+  const mpesaPhone = payerPhone ?? meQ.data?.phone_number ?? "";
+  const needsPhone = action === "deposit" && method === "Mpesa";
 
   const reset = () => {
     setAmount("");
     setTxId("");
     setReceiver("");
     setAccount(null);
+    setPayerPhone(null);
   };
 
   const submit = async () => {
@@ -161,7 +166,12 @@ function ActionSheet({
     setBusy(true);
     try {
       if (action === "deposit") {
-        await api.deposit(amt, method, txId.trim());
+        await api.deposit(
+          amt,
+          method,
+          txId.trim(),
+          method === "Mpesa" ? mpesaPhone.trim() : undefined,
+        );
         push(t("wallet.depositOk"), "success");
       } else if (action === "withdraw") {
         await api.withdraw(amt, withdrawTo.trim(), method);
@@ -198,10 +208,12 @@ function ActionSheet({
     >
       {action === "deposit" ? (
         <div className="flex flex-col gap-4">
-          {/* The house Telebirr account to pay — big and copyable. */}
+          <MethodPicker method={method} onChange={setMethod} />
+
+          {/* The house account to pay — big and copyable. */}
           <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-4 text-center">
             <div className="font-display text-lg font-extrabold tracking-wider text-neon-cyan">
-              {method.toUpperCase()}
+              {PAYMENT_METHOD_LABELS[method].toUpperCase()}
             </div>
             <div className="mt-1 text-sm text-ink-muted">{acct.name}</div>
             <div className="mt-1 select-all font-display text-2xl font-extrabold tracking-wide text-ink">
@@ -241,11 +253,26 @@ function ActionSheet({
             className={inputCls}
           />
 
+          {/* M-Pesa receipts are verified by receipt number + the PAYER's
+              phone, so the player must tell us which number they paid from
+              (prefilled with their registered phone). */}
+          {needsPhone && (
+            <Field label={t("wallet.mpesaPhone")} hint={t("wallet.mpesaPhoneHint")}>
+              <input
+                inputMode="tel"
+                value={mpesaPhone}
+                onChange={(e) => setPayerPhone(e.target.value)}
+                placeholder="07…"
+                className={inputCls}
+              />
+            </Field>
+          )}
+
           <Button
             variant="gold"
             fullWidth
             loading={busy}
-            disabled={!amount.trim() || !txId.trim()}
+            disabled={!amount.trim() || !txId.trim() || (needsPhone && !mpesaPhone.trim())}
             onClick={submit}
           >
             📥 {busy ? t("wallet.submitting") : t("wallet.submitDeposit")}
@@ -263,15 +290,20 @@ function ActionSheet({
           </Field>
 
           {action === "withdraw" && (
-            <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
-              <input
-                inputMode="tel"
-                value={withdrawTo}
-                onChange={(e) => setAccount(e.target.value)}
-                placeholder="09…"
-                className={inputCls}
-              />
-            </Field>
+            <>
+              <Field label={t("wallet.accountType")}>
+                <MethodPicker method={method} onChange={setMethod} />
+              </Field>
+              <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
+                <input
+                  inputMode="tel"
+                  value={withdrawTo}
+                  onChange={(e) => setAccount(e.target.value)}
+                  placeholder="09…"
+                  className={inputCls}
+                />
+              </Field>
+            </>
           )}
 
           {action === "transfer" && (
@@ -296,6 +328,35 @@ function ActionSheet({
   );
 }
 
+// Segmented picker for the payment method. Hidden entirely while only one
+// method is configured — no point showing a single-choice control.
+function MethodPicker({
+  method,
+  onChange,
+}: {
+  method: PaymentMethod;
+  onChange: (m: PaymentMethod) => void;
+}) {
+  if (PAYMENT_METHODS.length <= 1) return null;
+  return (
+    <div className="grid auto-cols-fr grid-flow-col gap-2">
+      {PAYMENT_METHODS.map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          className={`rounded-xl px-2 py-2 text-sm font-bold ${
+            method === m
+              ? "bg-accent text-white"
+              : "bg-white/5 text-ink-muted ring-1 ring-white/10"
+          }`}
+        >
+          {PAYMENT_METHOD_LABELS[m]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Map known backend deposit/withdrawal error messages to localized text. The
 // limit values mirror the backend constants; unknown messages pass through.
 function localizeWalletError(
@@ -309,6 +370,7 @@ function localizeWalletError(
   if (m.includes("insufficient balance")) return t("wallet.errInsufficient");
   if (m.includes("at least one completed deposit")) return t("wallet.errNeedDeposit");
   if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 10 });
+  if (m.includes("phone is required for mpesa")) return t("wallet.errMpesaPhone");
   if (m.includes("telebirr number") || m.includes("valid ethiopian"))
     return t("wallet.errBadNumber");
   return msg;
