@@ -135,6 +135,7 @@
     "shareText": "በእድል ቢንጎ ላይ {{amount}} አሸነፍኩ! 🎉 መጥተህ ተጫወት፦",
     "viewWinnerCard": "የአሸናፊውን ካርድ ይመልከቱ",
     "winnerCardTitle": "የአሸናፊው ካርድ",
+    "winnerHeadline": "{{name}} አሸንፏል!",
     "winnerCardSub": "{{name}} ምልክት ያደረገባቸው ሳጥኖች",
     "validLine": "ትክክለኛ ቢንጎ — ምልክቶቹ አሸናፊ መስመር ይሠራሉ",
     "noLine": "በእነዚህ ምልክቶች የተሟላ መስመር የለም",

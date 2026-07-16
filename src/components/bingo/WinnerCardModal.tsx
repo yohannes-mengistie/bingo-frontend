@@ -89,8 +89,13 @@ export function WinnerCardModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <h2 className="font-display text-xl font-extrabold">
-        🏆 {split ? t("result.winnersLabel", { n: winners!.length }) : t("result.winnerCardTitle")}
+      {/* Headline: the winner's NAME front and center (or the winner count
+          when the pot split — the names are right below in the list). */}
+      <h2 className="break-words font-display text-2xl font-extrabold">
+        🏆{" "}
+        {split
+          ? t("result.winnersLabel", { n: winners!.length })
+          : t("result.winnerHeadline", { name: shownName })}
       </h2>
       {split && (
         <p className="mt-0.5 text-sm font-semibold text-neon-gold">

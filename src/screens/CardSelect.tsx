@@ -201,14 +201,18 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   // and anyone who didn't pick a card to spectate ("wait for next round"). One
   // game per table, so the picker only ever shows the single current game.
   //
-  // Players are sent in the moment their local countdown hits 0 — not when the
-  // 3s state-poll notices DRAWING — so the game socket connects during the grace
-  // before the first number is drawn and doesn't miss its call/voice.
+  // Players are sent in with ~2s STILL LEFT on the countdown — not when the
+  // 3s state-poll notices DRAWING — so the room is mounted and its game socket
+  // connected BEFORE the first number is drawn: the player sees the last tick
+  // ("2…1"), then the first call arrives live with its voice, instead of
+  // finding a number already sitting on the board. (Combined with the
+  // backend's first-draw grace this leaves several seconds of headroom even
+  // on a slow connection.)
   const enteredRef = useRef(false);
   useEffect(() => {
     const drawing = liveGame?.state === "DRAWING";
     const countdownEnded =
-      isCountdown && secondsLeft !== null && secondsLeft <= 0 && ownedCount > 0;
+      isCountdown && secondsLeft !== null && secondsLeft <= 2 && ownedCount > 0;
     if (
       (drawing || countdownEnded) &&
       gameId &&

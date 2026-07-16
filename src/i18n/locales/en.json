@@ -135,6 +135,7 @@
     "shareText": "I just won {{amount}} on Edl Bingo! 🎉 Come play with me:",
     "viewWinnerCard": "View winner's card",
     "winnerCardTitle": "Winner's card",
+    "winnerHeadline": "{{name}} wins!",
     "winnerCardSub": "The cells {{name}} marked",
     "validLine": "Valid bingo — the marks form a winning line",
     "noLine": "No complete line in these marks",
