@@ -8,6 +8,14 @@
 
 const MAX_CALL = 75; // clips are /audio/am/1..75.mp3
 
+// Cache-busting tag appended to every audio fetch. Audio files keep stable
+// names (e.g. 45.mp3), so a browser/Telegram that cached an old clip would
+// keep serving it after we swap the file. BUMP THIS whenever any file under
+// /public/audio or /public/sounds is replaced — every player then fetches the
+// fresh clip instead of the cached one. (A build-time tag would work too, but
+// would needlessly re-download all 75 clips on every deploy.)
+const AUDIO_VERSION = "2026-07-18";
+
 let ctx: AudioContext | null = null;
 function audioCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -31,7 +39,7 @@ function load(src: string): Promise<AudioBuffer | null> {
   if (!p) {
     const c = audioCtx();
     p = c
-      ? fetch(src)
+      ? fetch(`${src}?v=${AUDIO_VERSION}`)
           .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
           .then((buf) => c.decodeAudioData(buf))
           .catch(() => null)
