@@ -110,8 +110,8 @@ export function Bots() {
             </label>
 
             <Field
-              label="Fill games with fewer real players than"
-              hint="Games with at least this many real players are left alone."
+              label="Start adding bots once real players reach"
+              hint="Bots top a game up once it has at least this many real players (set 1 to fill as soon as one person joins). No upper limit — bots are always added regardless of how many real players join."
             >
               <input
                 type="number"
@@ -122,7 +122,7 @@ export function Bots() {
               />
             </Field>
 
-            <Field label="Target bots per game" hint="Add bots until the game holds this many.">
+            <Field label="Bots per game" hint="Add bots until the game holds this many. Set as high as you want — capped only by free cards.">
               <input
                 type="number"
                 min={0}
