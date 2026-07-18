@@ -185,7 +185,10 @@
     "empty": "እስካሁን ምንም የለም።",
     "pending": "በመጠባበቅ ላይ",
     "completed": "ተጠናቋል",
-    "failed": "ወድቋል"
+    "failed": "ወድቋል",
+    "bonusBalance": "ቦነስ (ለጨዋታ ብቻ)",
+    "bonusExpires": "{{date}} ያበቃል",
+    "bonusHint": "ካርድ ለመግዛት ይሆናል። ገንዘቡ ራሱ አይወጣም — ነገር ግን በእሱ ያሸነፉት ገንዘብ ይወጣል።"
   },
   "profile": {
     "title": "መገለጫ",

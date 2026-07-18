@@ -21,6 +21,16 @@ export function WalletScreen() {
   const [action, setAction] = useState<Action>(null);
   const [tab, setTab] = useState<"deposits" | "withdrawals" | "transfers">("deposits");
 
+  // Play-only bonus. Shown next to the cash balance because a player who does
+  // not know they have it will let it expire — and it is the only balance they
+  // cannot withdraw, so it must never be silently folded into the cash figure.
+  const bonus = useQuery({
+    queryKey: ["my-bonus"],
+    queryFn: () => api.myBonus(),
+    staleTime: 30_000,
+  });
+  const bonusAmount = bonus.data?.bonus.amount ?? 0;
+
   const history = useQuery({
     queryKey: ["wallet-history", tab],
     queryFn: async () => {
@@ -42,6 +52,30 @@ export function WalletScreen() {
             {money(wallet?.balance)}
           </div>
         </Card>
+
+        {bonusAmount > 0 && (
+          <Card className="!p-3.5 border border-neon-cyan/30">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-xs text-ink-faint">🎁 {t("wallet.bonusBalance")}</div>
+              {bonus.data?.bonus.next_expiry && (
+                <div className="text-xs text-ink-faint">
+                  {t("wallet.bonusExpires", { date: shortDate(bonus.data.bonus.next_expiry) })}
+                </div>
+              )}
+            </div>
+            <div className="font-display text-2xl font-extrabold text-neon-cyan">
+              {money(bonusAmount)}
+            </div>
+            {/* Stated plainly: the figure above looks like money, and a player
+                who assumes they can cash it out will be justifiably angry. */}
+            <div className="mt-1 text-xs text-ink-faint">{t("wallet.bonusHint")}</div>
+            {bonus.data?.announcement && (
+              <div className="mt-2 rounded-lg bg-neon-cyan/10 px-2.5 py-1.5 text-xs text-ink">
+                {bonus.data.announcement}
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2">

@@ -26,6 +26,10 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+function segment(value: string | number): string {
+  return encodeURIComponent(String(value));
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -90,6 +94,16 @@ export const api = {
 
   // ---- Wallet ----
   myWallet: () => request<{ wallet: Wallet }>("GET", "/api/v1/me/wallet").then((r) => r.wallet),
+  /**
+   * Play-only bonus: buys cards, can never be withdrawn. Returned alongside
+   * the operator's announcement so the promotion text and the balance it
+   * refers to are always shown together.
+   */
+  myBonus: () =>
+    request<{ bonus: { amount: number; next_expiry?: string }; announcement: string }>(
+      "GET",
+      "/api/v1/me/bonus",
+    ),
   deposits: () =>
     request<{ deposits?: Transaction[] }>("GET", "/api/v1/me/wallet/deposits").then((r) => ({
       transactions: r.deposits ?? [],
@@ -119,10 +133,10 @@ export const api = {
   games: (type?: GameType) =>
     request<{ games: Game[] }>(
       "GET",
-      `/api/v1/games${type ? `?type=${type}` : ""}`,
+      `/api/v1/games${type ? `?type=${encodeURIComponent(type)}` : ""}`,
     ),
   gameState: (gameId: string) =>
-    request<GameStateResponse>("GET", `/api/v1/games/${gameId}/state`),
+    request<GameStateResponse>("GET", `/api/v1/games/${segment(gameId)}/state`),
   card: (cardId: number) => {
     // Cards are a fixed table shipped with the app (an exact mirror of the
     // backend's), so displaying one needs no network round-trip. The server
@@ -131,17 +145,19 @@ export const api = {
     const local = getCard(cardId);
     return local
       ? Promise.resolve({ card: local })
-      : request<{ card: BingoCard }>("GET", `/api/v1/cards/${cardId}`);
+      : request<{ card: BingoCard }>("GET", `/api/v1/cards/${segment(cardId)}`);
   },
   // Summed prize money — today (Ethiopian time) and all time. Backs the WIN
   // stat on the card picker.
   myWinnings: () =>
     request<{ today: number; total: number }>("GET", "/api/v1/me/winnings"),
-  myGames: (limit = 20, offset = 0) =>
-    request<{ games: any[]; count: number }>(
+  myGames: (limit = 20, offset = 0) => {
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return request<{ games: any[]; count: number }>(
       "GET",
-      `/api/v1/me/games?limit=${limit}&offset=${offset}`,
-    ),
+      `/api/v1/me/games?${q.toString()}`,
+    );
+  },
   // The one live game the user still holds cards in (WAITING/COUNTDOWN/DRAWING),
   // or { game: null }. Purpose-built single-row lookup backing the
   // return-to-live-game pill — cheaper and less ambiguous than scanning
@@ -154,27 +170,27 @@ export const api = {
   myPlayerInGame: (gameId: string) =>
     request<{ player: GamePlayer | null }>(
       "GET",
-      `/api/v1/me/games/${gameId}`,
+      `/api/v1/me/games/${segment(gameId)}`,
     ),
   // All of the user's active cards in a game (a player may hold up to 4).
   myCardsInGame: (gameId: string) =>
     request<{ cards: GamePlayer[] }>(
       "GET",
-      `/api/v1/me/games/${gameId}/cards`,
+      `/api/v1/me/games/${segment(gameId)}/cards`,
     ),
   join: (gameId: string, card_id: number) =>
-    request<{ player: GamePlayer }>("POST", `/api/v1/games/${gameId}/join`, {
+    request<{ player: GamePlayer }>("POST", `/api/v1/games/${segment(gameId)}/join`, {
       card_id,
     }),
   // Leave one card (card_id) or the whole game (omit card_id).
   leave: (gameId: string, card_id?: number) =>
-    request<{ message: string }>("POST", `/api/v1/games/${gameId}/leave`, {
+    request<{ message: string }>("POST", `/api/v1/games/${segment(gameId)}/leave`, {
       card_id: card_id ?? 0,
     }),
   claimBingo: (gameId: string, card_id: number, marked_numbers: number[]) =>
     request<{ winner: boolean; message: string }>(
       "POST",
-      `/api/v1/games/${gameId}/bingo`,
+      `/api/v1/games/${segment(gameId)}/bingo`,
       { card_id, marked_numbers },
     ),
 

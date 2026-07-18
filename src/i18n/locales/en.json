@@ -185,7 +185,10 @@
     "empty": "Nothing here yet.",
     "pending": "Pending",
     "completed": "Completed",
-    "failed": "Failed"
+    "failed": "Failed",
+    "bonusBalance": "Bonus (play only)",
+    "bonusExpires": "expires {{date}}",
+    "bonusHint": "Buys game cards. Cannot be withdrawn — but anything you win with it is real cash."
   },
   "profile": {
     "title": "Profile",
