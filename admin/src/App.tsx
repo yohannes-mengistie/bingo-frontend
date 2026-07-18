@@ -10,6 +10,7 @@ import { Games } from "@/pages/Games";
 import { GameDetail } from "@/pages/GameDetail";
 import { Staff } from "@/pages/Staff";
 import { Bots } from "@/pages/Bots";
+import { Bonus } from "@/pages/Bonus";
 import { Reports } from "@/pages/Reports";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/games" element={<Games />} />
         <Route path="/games/:id" element={<GameDetail />} />
         <Route path="/bots" element={<Bots />} />
+        <Route path="/bonus" element={<Bonus />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/staff" element={<Staff />} />
       </Route>

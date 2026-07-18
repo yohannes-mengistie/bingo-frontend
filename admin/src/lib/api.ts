@@ -8,6 +8,10 @@ const TOKEN_KEY = "bingo_admin_token";
 
 let token: string | null = localStorage.getItem(TOKEN_KEY);
 
+function segment(value: string | number): string {
+  return encodeURIComponent(String(value));
+}
+
 export function setToken(t: string | null) {
   token = t;
   if (t) localStorage.setItem(TOKEN_KEY, t);
@@ -205,6 +209,47 @@ export interface BotConfig {
   updated_at: string;
 }
 
+
+// ---- Bonus wallet (play-only money) ----
+
+/** Play-only money: can buy cards, can never be withdrawn. */
+export interface BonusConfig {
+  enabled: boolean;
+  /** Applies to NEW grants only — a deadline already promised is never moved. */
+  expiry_days: number;
+  /** Shown to players beside their bonus balance. */
+  announcement: string;
+  updated_at: string;
+}
+
+export interface BonusGrant {
+  id: string;
+  user_id: string;
+  amount: number;
+  remaining: number;
+  reason?: string;
+  granted_at: string;
+  expires_at: string;
+}
+
+export interface BonusBalance {
+  amount: number;
+  next_expiry?: string;
+}
+
+// ---- Telegram broadcasts ----
+
+export interface Broadcast {
+  id: string;
+  message: string;
+  recipients: number;
+  sent: number;
+  failed: number;
+  status: "sending" | "completed" | "failed";
+  created_at: string;
+  finished_at?: string;
+}
+
 export interface BotFillResult {
   game_id: string;
   requested: number;
@@ -224,36 +269,45 @@ export const api = {
 
   dashboard: () => request<DashboardStats>("/admin/stats/dashboard"),
 
-  users: (limit = 50, offset = 0) =>
-    request<{ users: UserWithWallet[]; count: number }>(`/admin/users?limit=${limit}&offset=${offset}`),
+  users: (limit = 50, offset = 0) => {
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return request<{ users: UserWithWallet[]; count: number }>(`/admin/users?${q.toString()}`);
+  },
 
-  userDetail: (id: string) => request<{ user: UserWithWallet }>(`/admin/users/${id}`),
+  userDetail: (id: string) => request<{ user: UserWithWallet }>(`/admin/users/${segment(id)}`),
 
   setRole: (id: string, role: "user" | "admin") =>
-    request<{ message: string }>(`/admin/users/${id}/role`, {
+    request<{ message: string }>(`/admin/users/${segment(id)}/role`, {
       method: "POST",
       body: JSON.stringify({ role }),
     }),
 
   makeAdmin: (id: string, password: string) =>
-    request<{ message: string }>(`/admin/users/${id}/make-admin`, {
+    request<{ message: string }>(`/admin/users/${segment(id)}/make-admin`, {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
 
-  banUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/ban`, { method: "POST" }),
-  unbanUser: (id: string) => request<{ message: string }>(`/admin/users/${id}/unban`, { method: "POST" }),
-  deleteUser: (id: string) => request<{ message: string }>(`/admin/users/${id}`, { method: "DELETE" }),
+  banUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${segment(id)}/ban`, { method: "POST" }),
+  unbanUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${segment(id)}/unban`, { method: "POST" }),
+  deleteUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${segment(id)}`, { method: "DELETE" }),
 
   adjustBalance: (id: string, amount: number, reason: string) =>
-    request<{ message: string }>(`/admin/users/${id}/adjust-balance`, {
+    request<{ message: string }>(`/admin/users/${segment(id)}/adjust-balance`, {
       method: "POST",
       body: JSON.stringify({ amount, reason }),
     }),
 
   // Transactions — all admin list endpoints return { transactions, count }.
-  transactions: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[]; count: number }>(`/admin/transactions?limit=${limit}&offset=${offset}`),
+  transactions: (limit = 50, offset = 0) => {
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return request<{ transactions: Transaction[]; count: number }>(
+      `/admin/transactions?${q.toString()}`,
+    );
+  },
   pendingDeposits: () => request<{ transactions: Transaction[] }>("/admin/transactions/pending/deposits"),
   pendingWithdrawals: () => request<{ transactions: Transaction[] }>("/admin/transactions/pending/withdrawals"),
   completedDeposits: () => request<{ transactions: Transaction[] }>("/admin/transactions/completed/deposits"),
@@ -262,15 +316,23 @@ export const api = {
   transfers: () => request<{ transactions: Transaction[] }>("/admin/transactions/transfers"),
 
   approveDeposit: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${id}/approve-deposit`, { method: "POST" }),
+    request<{ message: string }>(`/admin/transactions/${segment(id)}/approve-deposit`, {
+      method: "POST",
+    }),
   rejectDeposit: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${id}/reject-deposit`, { method: "POST" }),
+    request<{ message: string }>(`/admin/transactions/${segment(id)}/reject-deposit`, {
+      method: "POST",
+    }),
   approveWithdrawal: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${id}/approve-withdrawal`, { method: "POST" }),
+    request<{ message: string }>(`/admin/transactions/${segment(id)}/approve-withdrawal`, {
+      method: "POST",
+    }),
   rejectWithdrawal: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${id}/reject-withdrawal`, { method: "POST" }),
+    request<{ message: string }>(`/admin/transactions/${segment(id)}/reject-withdrawal`, {
+      method: "POST",
+    }),
   cancelTransaction: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${id}/cancel`, { method: "POST" }),
+    request<{ message: string }>(`/admin/transactions/${segment(id)}/cancel`, { method: "POST" }),
 
   // Games
   games: (opts: { state?: GameState; type?: string; limit?: number; offset?: number } = {}) => {
@@ -283,9 +345,9 @@ export const api = {
       `/admin/games?${q.toString()}`,
     );
   },
-  gameDetail: (id: string) => request<GameDetail>(`/admin/games/${id}`),
+  gameDetail: (id: string) => request<GameDetail>(`/admin/games/${segment(id)}`),
   cancelGame: (id: string) =>
-    request<CancelGameResponse>(`/admin/games/${id}/cancel`, { method: "POST" }),
+    request<CancelGameResponse>(`/admin/games/${segment(id)}/cancel`, { method: "POST" }),
 
   // Filler bots
   botConfig: () => request<BotConfig>("/admin/bots/config"),
@@ -297,10 +359,34 @@ export const api = {
       body: JSON.stringify(count ? { count } : {}),
     }),
   addBots: (gameId: string, count: number) =>
-    request<BotFillResult>(`/admin/games/${gameId}/add-bots`, {
+    request<BotFillResult>(`/admin/games/${segment(gameId)}/add-bots`, {
       method: "POST",
       body: JSON.stringify({ count }),
     }),
+
+  // Bonus wallet
+  bonusConfig: () => request<BonusConfig>("/admin/bonus/config"),
+  updateBonusConfig: (
+    patch: Partial<Pick<BonusConfig, "enabled" | "expiry_days" | "announcement">>,
+  ) => request<BonusConfig>("/admin/bonus/config", { method: "PUT", body: JSON.stringify(patch) }),
+  grantBonus: (user_id: string, amount: number, reason: string) =>
+    request<{ grant: BonusGrant }>("/admin/bonus/grant", {
+      method: "POST",
+      body: JSON.stringify({ user_id, amount, reason }),
+    }),
+  bonusOutstanding: () => request<{ outstanding_bonus: number }>("/admin/bonus/outstanding"),
+  userBonus: (userId: string) =>
+    request<{ grants: BonusGrant[]; balance: BonusBalance }>(`/admin/users/${segment(userId)}/bonus`),
+
+  // Telegram broadcasts
+  broadcastAudience: () => request<{ recipients: number }>("/admin/broadcast/audience"),
+  sendBroadcast: (message: string) =>
+    request<{ broadcast: Broadcast }>("/admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+  broadcast: (id: string) => request<{ broadcast: Broadcast }>(`/admin/broadcast/${segment(id)}`),
+  broadcasts: (limit = 25) => request<{ broadcasts: Broadcast[] }>(`/admin/broadcasts?limit=${limit}`),
 
   // Player problem reports
   reports: (status?: SupportStatus, limit = 100, offset = 0) => {
@@ -311,5 +397,5 @@ export const api = {
     return request<{ reports: SupportReport[]; count: number }>(`/admin/support?${q.toString()}`);
   },
   resolveReport: (id: string) =>
-    request<{ message: string }>(`/admin/support/${id}/resolve`, { method: "POST" }),
+    request<{ message: string }>(`/admin/support/${segment(id)}/resolve`, { method: "POST" }),
 };
