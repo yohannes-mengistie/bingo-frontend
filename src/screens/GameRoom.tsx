@@ -54,6 +54,9 @@ function parseWinners(data: any): WinnerEntry[] {
   return [];
 }
 
+/** Server-side FirstDrawDelay (2s) + DrawInterval (3s). */
+const FIRST_CALL_DELAY_MS = 5000;
+
 export function GameRoom() {
   const { t } = useTranslation();
   const nav = useNavigate();
@@ -85,6 +88,26 @@ export function GameRoom() {
     const t = setTimeout(() => setIntro(false), 1000);
     return () => clearTimeout(t);
   }, []);
+
+  // A round deliberately waits ~5s before its first number (FirstDrawDelay +
+  // DrawInterval on the server) so a client still redirecting, mounting and
+  // finishing its WebSocket handshake cannot miss a call it never heard. From
+  // the player's seat that reads as the game hanging: they arrive and nothing
+  // happens. Counting the wait down turns dead air into anticipation.
+  //
+  // The deadline is derived from the server's started_at rather than a local
+  // timer started on arrival, because players reach the room at different
+  // moments depending on redirect and network speed — a fixed local countdown
+  // would finish early for some and late for others.
+  const [firstCallAt, setFirstCallAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (firstCallAt === null) return;
+    const t = setInterval(() => setNowTick(Date.now()), 200);
+    return () => clearInterval(t);
+  }, [firstCallAt]);
+  const secondsToFirstCall =
+    firstCallAt === null ? 0 : Math.max(0, Math.ceil((firstCallAt - nowTick) / 1000));
 
   // Guards the end-of-game resolution so the win announcement (sound + confetti +
   // result popup) fires exactly ONCE — even if the WINNER event arrives twice or
@@ -170,6 +193,16 @@ export function GameRoom() {
             setDrawn(new Set(nums));
             setOrder(nums);
             if (nums.length) setLast(nums[nums.length - 1]);
+
+            // Only for a round that has started but called nothing yet.
+            if (d.game?.state === "DRAWING" && d.game?.started_at && nums.length === 0) {
+              const eta = new Date(d.game.started_at).getTime() + FIRST_CALL_DELAY_MS;
+              const remaining = eta - Date.now();
+              // A phone clock can be badly wrong, and a nonsense countdown is
+              // worse than none: accept the server-derived deadline only when
+              // it lands inside the window it should, otherwise skip it.
+              setFirstCallAt(remaining > 0 && remaining <= FIRST_CALL_DELAY_MS ? eta : null);
+            }
           }
           // Reconnecting to (or opening) a finished game: the backend includes the
           // winning card(s) so we can show the result screen even though the live
@@ -244,6 +277,7 @@ export function GameRoom() {
           const n: number = msg.data.number;
           setPhase("DRAWING");
           setLast(n);
+          setFirstCallAt(null); // a real number supersedes the pre-roll countdown
           setDrawn((prev) => new Set(prev).add(n));
           setOrder((prev) => (prev.includes(n) ? prev : [...prev, n]));
           if (soundEnabled) sound.callNumber(n);
@@ -430,7 +464,7 @@ export function GameRoom() {
 
       {/* Called numbers: the current ball + the last few calls (with letters). */}
       <div className="glass mb-2 flex items-center gap-3 rounded-2xl p-2">
-        <BallCallout number={last} />
+        <BallCallout number={last} countdown={secondsToFirstCall} />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center justify-between text-[11px] text-ink-faint">
             <span>{t("game.called")}</span>
