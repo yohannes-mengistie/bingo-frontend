@@ -11,6 +11,10 @@ function wsBase(): string {
   return apiBase;
 }
 
+function segment(value: string): string {
+  return encodeURIComponent(value);
+}
+
 type Listener = (msg: WsMessage) => void;
 type StatusListener = (status: "connecting" | "open" | "closed") => void;
 
@@ -27,8 +31,8 @@ export class GameSocket {
   constructor(target: string) {
     const base = wsBase();
     this.url = /^G[1-7]$/.test(target)
-      ? `${base}/api/v1/ws/game?type=${target}`
-      : `${base}/api/v1/ws/game/${target}`;
+      ? `${base}/api/v1/ws/game?type=${encodeURIComponent(target)}`
+      : `${base}/api/v1/ws/game/${segment(target)}`;
   }
 
   connect() {

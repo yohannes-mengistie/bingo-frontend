@@ -51,7 +51,8 @@ declare global {
   }
 }
 
-const SHIM_ENABLED = import.meta.env.VITE_DEV_TELEGRAM_SHIM === "1";
+const SHIM_ENABLED =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_TELEGRAM_SHIM === "1";
 
 /**
  * Dev-only fake initData. The backend verifies the HMAC signature, so this will

@@ -16,8 +16,6 @@ interface AuthState {
   logout: () => void;
 }
 
-const TOKEN_KEY = "habesha_token";
-
 export const useAuth = create<AuthState>((set, get) => ({
   status: "idle",
   token: null,
@@ -43,7 +41,6 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const { token, user } = await api.telegramLogin(initData);
       setAuthToken(token);
-      localStorage.setItem(TOKEN_KEY, token);
       set({ status: "authed", token, user });
     } catch (e: any) {
       const msg = String(e?.message ?? "");
@@ -59,7 +56,6 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   logout: () => {
     setAuthToken(null);
-    localStorage.removeItem(TOKEN_KEY);
     set({ status: "idle", token: null, user: null });
   },
 }));

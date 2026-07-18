@@ -9,7 +9,7 @@
 import type { BingoCard, User, Wallet } from "@/types/api";
 import { COLUMN_RANGES, LETTERS } from "@/lib/constants";
 
-export const DEV_MOCK = import.meta.env.VITE_DEV_MOCK_AUTH === "1";
+export const DEV_MOCK = import.meta.env.DEV && import.meta.env.VITE_DEV_MOCK_AUTH === "1";
 
 /**
  * Generate a valid 5x5 bingo card from a card id, without the backend. Each
