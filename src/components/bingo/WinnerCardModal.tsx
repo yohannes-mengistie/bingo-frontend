@@ -97,6 +97,15 @@ export function WinnerCardModal({
           ? t("result.winnersLabel", { n: winners!.length })
           : t("result.winnerHeadline", { name: shownName })}
       </h2>
+      {/* Single winner: the winning card's number sits directly under the name,
+          so the announcement says who won AND on which card. When the pot split
+          this is omitted here — the number belongs on each co-winner's row
+          below, since the headline is a count rather than one person. */}
+      {!split && (
+        <p className="mt-1.5 inline-block rounded-lg bg-neon-cyan/10 px-2.5 py-1 text-sm font-bold text-neon-cyan ring-1 ring-neon-cyan/30">
+          {t("card.selectId", { id: shownCardId })}
+        </p>
+      )}
       {split && (
         <p className="mt-0.5 text-sm font-semibold text-neon-gold">
           {t("result.potSplit", { n: winners!.length })}
@@ -120,7 +129,14 @@ export function WinnerCardModal({
                   verifiable ? "active:scale-[0.98]" : "opacity-70",
                 ].join(" ")}
               >
-                <span className="min-w-0 truncate font-semibold">{w.name}</span>
+                <span className="min-w-0 truncate font-semibold">
+                  {w.name}
+                  {typeof w.cardId === "number" && (
+                    <span className="ml-1.5 font-normal text-ink-faint">
+                      #{w.cardId}
+                    </span>
+                  )}
+                </span>
                 <span className="ml-3 shrink-0 font-bold text-neon-gold">
                   {money(w.prize)}
                 </span>
@@ -131,6 +147,14 @@ export function WinnerCardModal({
       )}
       <p className={`${split ? "mt-2" : "mt-0.5"} text-sm text-ink-faint`}>
         {t("result.winnerCardSub", { name: shownName })}
+        {/* On a split pot the grid below shows whichever co-winner is selected,
+            so name the card here too — the single-winner badge above already
+            covers the other case. */}
+        {split && (
+          <span className="ml-1 font-semibold text-neon-cyan">
+            · {t("card.selectId", { id: shownCardId })}
+          </span>
+        )}
       </p>
       {youWon != null && youWon > 0 && (
         <p className="mt-2 text-lg font-bold text-neon-gold">
