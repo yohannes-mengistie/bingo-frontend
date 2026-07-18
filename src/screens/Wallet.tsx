@@ -344,7 +344,7 @@ function localizeWalletError(
     return t("wallet.errMinRemaining", { min: 50 });
   if (m.includes("insufficient balance")) return t("wallet.errInsufficient");
   if (m.includes("at least one completed deposit")) return t("wallet.errNeedDeposit");
-  if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 10 });
+  if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 50 });
   if (m.includes("telebirr number") || m.includes("valid ethiopian"))
     return t("wallet.errBadNumber");
   return msg;
