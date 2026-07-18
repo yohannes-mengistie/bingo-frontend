@@ -40,7 +40,7 @@ export function CardSelect({ home = false }: { home?: boolean }) {
   const { gameType } = useParams<{ gameType: GameType }>();
   const type = (gameType ?? "REGULAR") as GameType;
   const bet = BET_BY_TYPE[type] ?? 0;
-  const balance = useWallet((s) => s.balance);
+  const spendable = useWallet((s) => s.spendable);
   const refreshWallet = useWallet((s) => s.refresh);
   const push = useToast((s) => s.push);
   const soundEnabled = useSettings((s) => s.soundEnabled);
@@ -335,7 +335,9 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         push(t("card.maxCards", { max: MAX_CARDS_PER_PLAYER }), "error");
         return;
       }
-      if (balance() < (ownedCount + 1) * bet) {
+      // Cash PLUS bonus: bonus pays for cards first, so gating on cash alone
+      // locked players out of the very thing their bonus was granted for.
+      if (spendable() < (ownedCount + 1) * bet) {
         push(t("card.insufficient"), "error");
         return;
       }

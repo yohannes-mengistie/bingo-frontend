@@ -49,6 +49,7 @@
     "empty": "Please describe the problem first."
   },
   "lobby": {
+    "bonus": "Bonus",
     "chooseStake": "Choose your table",
     "pickRoom": "Pick a room",
     "playBingo": "Play Bingo",
