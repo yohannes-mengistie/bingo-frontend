@@ -132,6 +132,11 @@ export function GameRoom() {
   const cardsCountRef = useRef(0);
   cardsCountRef.current = cards.length;
 
+  // The socket handler closes over state from the render it was created in, so
+  // it must read "have any numbers been called yet" through a ref.
+  const orderRef = useRef<number[]>([]);
+  orderRef.current = order;
+
   sound.enabled = soundEnabled;
 
   // Warm the caller audio (fetch + decode all clips) as soon as the room opens,
@@ -249,6 +254,19 @@ export function GameRoom() {
             // balance on both so the wallet reflects the debit.
             if (status === "DRAWING" || status === "WAITING") {
               refreshWallet().catch(() => {});
+            }
+            // The round has just begun and its first number is ~5s away
+            // (FirstDrawDelay + DrawInterval on the server). This event marks
+            // the transition itself, so the wait starts now — no server
+            // timestamp needed, and none is sent with it.
+            //
+            // This is the path the normal flow takes. A player is redirected
+            // in around the transition, so their INITIAL_STATE usually still
+            // reads COUNTDOWN; keying the countdown solely off INITIAL_STATE
+            // meant it only ever fired for someone reconnecting mid-round,
+            // which is why the wait still looked like dead air.
+            if (status === "DRAWING" && orderRef.current.length === 0) {
+              setFirstCallAt((prev) => prev ?? Date.now() + FIRST_CALL_DELAY_MS);
             }
           }
           if (typeof msg.data.player_count === "number") setPlayers(msg.data.player_count);
