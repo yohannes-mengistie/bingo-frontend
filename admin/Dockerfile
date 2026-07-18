@@ -21,6 +21,8 @@ WORKDIR /app
 RUN npm install -g serve@14
 
 COPY --from=build /app/dist ./dist
+# serve reads its config from the directory it serves.
+COPY serve.json ./dist/serve.json
 
 EXPOSE 3000
 CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]

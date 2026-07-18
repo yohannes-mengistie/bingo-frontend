@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/serve.json",
+  "headers": [
+    {
+      "//": "index.html must be revalidated on every load. It is the file that names the content-hashed bundle, so a cached copy pins the client to an OLD build forever — a new deploy changes the bundle's hash but the stale index.html never learns about it. This is exactly how a shipped fix fails to reach players. Telegram's webview caches heuristically when no directive is present, which is what happened.",
+      "source": "**/*.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
+      "//": "Hashed assets are content-addressed: a change produces a new filename, so these can be cached hard and forever.",
+      "source": "assets/**",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    }
+  ]
+}
