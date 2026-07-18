@@ -374,6 +374,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ user_id, amount, reason }),
     }),
+  /** Award the same bonus to many players — the shape a campaign actually takes. */
+  grantBonusBulk: (user_ids: string[], amount: number, reason: string) =>
+    request<{ granted: number; attempted: number; failed: Record<string, string> }>(
+      "/admin/bonus/grant-bulk",
+      { method: "POST", body: JSON.stringify({ user_ids, amount, reason }) },
+    ),
   bonusOutstanding: () => request<{ outstanding_bonus: number }>("/admin/bonus/outstanding"),
   userBonus: (userId: string) =>
     request<{ grants: BonusGrant[]; balance: BonusBalance }>(`/admin/users/${segment(userId)}/bonus`),

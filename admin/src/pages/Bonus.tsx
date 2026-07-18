@@ -1,69 +1,353 @@
-import { useEffect, useState } from "react";
-import { api, type BonusConfig, type Broadcast } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { api, type BonusConfig, type Broadcast, type UserWithWallet } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import { Button, Card, Spinner, ErrorNote, Badge } from "@/components/ui";
+import { Button, Card, Spinner, ErrorNote, Badge, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { date } from "@/lib/format";
+import { birr, date } from "@/lib/format";
+
+const PAGE = 200;
+type Tab = "grant" | "policy" | "broadcast";
 
 /**
  * Bonus is PLAY-ONLY money: it buys game cards but can never be withdrawn.
- * Winnings from a bonus-funded card are ordinary cash. That is why this page
- * shows "outstanding" separately from any wallet figure — it is the house's
- * liability, i.e. bonus players could still stake, not money they can take.
+ * Winnings from a bonus-funded card are ordinary cash. "Outstanding" is
+ * therefore a house liability — bonus players could still stake — not money
+ * anyone can take out.
  */
 export function Bonus() {
-  const { data, loading, error, reload } = useApi(() => api.bonusConfig(), []);
-  const push = useToast((s) => s.push);
+  const { data: cfgData, loading, error, reload } = useApi(() => api.bonusConfig(), []);
+  const [tab, setTab] = useState<Tab>("grant");
 
   const [form, setForm] = useState<BonusConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [outstanding, setOutstanding] = useState<number | null>(null);
-
-  // Grant form
-  const [grantUser, setGrantUser] = useState("");
-  const [grantAmount, setGrantAmount] = useState("");
-  const [grantReason, setGrantReason] = useState("");
-  const [granting, setGranting] = useState(false);
-
-  // Broadcast
   const [audience, setAudience] = useState<number | null>(null);
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [run, setRun] = useState<Broadcast | null>(null);
-  const [history, setHistory] = useState<Broadcast[]>([]);
 
   useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
+    if (cfgData) setForm(cfgData);
+  }, [cfgData]);
 
-  const refreshSidebars = () => {
+  const refreshStats = () => {
     api.bonusOutstanding().then((r) => setOutstanding(r.outstanding_bonus)).catch(() => {});
     api.broadcastAudience().then((r) => setAudience(r.recipients)).catch(() => {});
-    api.broadcasts(10).then((r) => setHistory(r.broadcasts ?? [])).catch(() => {});
   };
-  useEffect(refreshSidebars, []);
+  useEffect(refreshStats, []);
 
-  // A broadcast is delivered in the background at ~20 messages/sec, so the
-  // response only tells us it started. Poll until it settles.
-  useEffect(() => {
-    if (!run || run.status !== "sending") return;
-    const t = setInterval(async () => {
-      try {
-        const r = await api.broadcast(run.id);
-        setRun(r.broadcast);
-        if (r.broadcast.status !== "sending") {
-          clearInterval(t);
-          refreshSidebars();
-        }
-      } catch {
-        clearInterval(t);
+  if (loading) return <Spinner />;
+  if (error) return <ErrorNote message={error} onRetry={reload} />;
+  if (!form) return null;
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold">Bonus</h1>
+          <Badge tone={form.enabled ? "green" : "neutral"}>
+            {form.enabled ? "Granting on" : "Granting off"}
+          </Badge>
+        </div>
+        <div className="flex gap-2 text-sm">
+          <Stat label="Outstanding" value={outstanding === null ? "—" : birr(outstanding)} />
+          <Stat label="Players reachable" value={audience === null ? "—" : String(audience)} />
+          <Stat label="Expires after" value={`${form.expiry_days}d`} />
+        </div>
+      </div>
+
+      <div className="mb-4 inline-flex rounded-lg border border-edge bg-panel p-1 text-sm">
+        {(
+          [
+            ["grant", "Grant bonus"],
+            ["policy", "Policy"],
+            ["broadcast", "Broadcast"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`rounded-md px-3 py-1.5 font-medium transition ${
+              tab === key ? "bg-brand text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "grant" && (
+        <GrantPanel expiryDays={form.expiry_days} enabled={form.enabled} onGranted={refreshStats} />
+      )}
+      {tab === "policy" && (
+        <PolicyPanel form={form} setForm={setForm} saving={saving} setSaving={setSaving} reload={reload} />
+      )}
+      {tab === "broadcast" && <BroadcastPanel audience={audience} announcement={form.announcement} />}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-edge bg-panel px-3 py-1.5">
+      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="font-semibold text-slate-200">{value}</div>
+    </div>
+  );
+}
+
+/**
+ * Picking recipients from a checkbox list rather than typing user IDs.
+ * A UUID is not something an operator has to hand, and a mistyped one either
+ * fails or — worse — silently pays the wrong player.
+ */
+function GrantPanel({
+  expiryDays,
+  enabled,
+  onGranted,
+}: {
+  expiryDays: number;
+  enabled: boolean;
+  onGranted: () => void;
+}) {
+  const push = useToast((s) => s.push);
+  const { data, loading, error, reload } = useApi(() => api.users(PAGE, 0), []);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Filler bots are excluded outright: they are bankrolled from the house
+  // float, so granting them bonus would double-count the giveaway and inflate
+  // the liability figure. The backend refuses anyway — this keeps them out of
+  // sight rather than letting an admin select rows that can only fail.
+  const players = useMemo(
+    () => (data?.users ?? []).filter((u) => u.telegram_id > 0),
+    [data],
+  );
+
+  // The list is paged; anyone beyond it cannot be selected. Surfaced below
+  // rather than left implicit.
+  const truncated = (data?.count ?? 0) > players.length;
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return players;
+    return players.filter((u) => {
+      const name = `${u.first_name} ${u.last_name ?? ""}`.toLowerCase();
+      return (
+        name.includes(term) ||
+        u.phone_number?.toLowerCase().includes(term) ||
+        String(u.telegram_id).includes(term)
+      );
+    });
+  }, [players, q]);
+
+  // "Select all" applies to what is CURRENTLY VISIBLE, not the whole database.
+  // Selecting rows a search has hidden is how an operator accidentally pays
+  // everyone while believing they targeted a few.
+  const allVisibleSelected = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
+  const toggleAll = () => {
+    const next = new Set(selected);
+    if (allVisibleSelected) filtered.forEach((u) => next.delete(u.id));
+    else filtered.forEach((u) => next.add(u.id));
+    setSelected(next);
+  };
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const grant = async () => {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      push("Enter an amount greater than 0", "error");
+      return;
+    }
+    if (selected.size === 0) {
+      push("Select at least one player", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api.grantBonusBulk([...selected], amt, reason.trim());
+      const failedCount = Object.keys(r.failed ?? {}).length;
+      if (failedCount > 0) {
+        // Reported rather than swallowed: a partial campaign the admin thinks
+        // succeeded is worse than one they know to retry.
+        push(`Granted to ${r.granted} of ${r.attempted} — ${failedCount} failed`, "error");
+      } else {
+        push(`Granted ${birr(amt)} to ${r.granted} player${r.granted === 1 ? "" : "s"}`, "success");
       }
-    }, 1500);
-    return () => clearInterval(t);
-  }, [run]);
+      setSelected(new Set());
+      setAmount("");
+      setReason("");
+      onGranted();
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Grant failed", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inputCls =
+    "rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
+
+  return (
+    <div className="space-y-4">
+      {!enabled && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          Granting is switched off in Policy — grants will be rejected until you turn it back on.
+        </div>
+      )}
+
+      <Card>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+              Amount (birr)
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="50"
+              className={`${inputCls} w-32`}
+            />
+          </div>
+          <div className="min-w-[12rem] flex-1">
+            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+              Reason (optional)
+            </label>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Weekend promo"
+              className={`${inputCls} w-full`}
+            />
+          </div>
+          <Button onClick={grant} disabled={busy || selected.size === 0}>
+            {busy
+              ? "Granting…"
+              : `Grant to ${selected.size} selected`}
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Each player is notified on Telegram immediately. Their bonus expires in {expiryDays} day
+          {expiryDays === 1 ? "" : "s"} and can buy cards but never be withdrawn.
+        </p>
+      </Card>
+
+      <Card className="p-0">
+        <div className="flex flex-col gap-3 border-b border-edge p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} />
+              {allVisibleSelected ? "Unselect all" : "Select all"}
+              <span className="text-slate-500">
+                ({filtered.length} shown{q.trim() ? ", filtered" : ""})
+              </span>
+            </label>
+            {selected.size > 0 && (
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-slate-400 underline hover:text-slate-200"
+              >
+                clear {selected.size}
+              </button>
+            )}
+          </div>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name, phone, Telegram ID…"
+            className={`${inputCls} w-full sm:w-72`}
+          />
+        </div>
+
+        {truncated && (
+          <div className="border-b border-edge bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Showing the first {players.length} of {data?.count} players — “Select all” covers only
+            these. Search to reach the rest.
+          </div>
+        )}
+
+        {loading && <Spinner />}
+        {error && (
+          <div className="p-4">
+            <ErrorNote message={error} onRetry={reload} />
+          </div>
+        )}
+        {!loading && !error && filtered.length === 0 && <EmptyState message="No players found." />}
+        {!loading && !error && filtered.length > 0 && (
+          <div className="max-h-[28rem] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-panel">
+                <tr className="border-b border-edge text-left text-xs uppercase tracking-wide text-slate-400">
+                  <th className="w-10 px-3 py-2"></th>
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Phone</th>
+                  <th className="px-3 py-2">Balance</th>
+                  <th className="px-3 py-2">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((u: UserWithWallet) => {
+                  const on = selected.has(u.id);
+                  return (
+                    <tr
+                      key={u.id}
+                      onClick={() => toggleOne(u.id)}
+                      className={`cursor-pointer border-b border-edge/50 last:border-0 ${
+                        on ? "bg-brand/10" : "hover:bg-white/5"
+                      }`}
+                    >
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={on} readOnly />
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="font-medium text-slate-200">
+                          {u.first_name} {u.last_name ?? ""}
+                        </span>
+                        {u.banned && (
+                          <span className="ml-2">
+                            <Badge tone="red">banned</Badge>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-400">{u.phone_number}</td>
+                      <td className="px-3 py-2 text-slate-400">{birr(u.wallet?.balance ?? 0)}</td>
+                      <td className="px-3 py-2 text-slate-500">{date(u.created_at)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function PolicyPanel({
+  form,
+  setForm,
+  saving,
+  setSaving,
+  reload,
+}: {
+  form: BonusConfig;
+  setForm: (c: BonusConfig) => void;
+  saving: boolean;
+  setSaving: (b: boolean) => void;
+  reload: () => void;
+}) {
+  const push = useToast((s) => s.push);
+  const inputCls =
+    "rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
 
   const save = async () => {
-    if (!form) return;
     setSaving(true);
     try {
       const updated = await api.updateBonusConfig({
@@ -72,7 +356,7 @@ export function Bonus() {
         announcement: form.announcement,
       });
       setForm(updated);
-      push("Bonus policy saved", "success");
+      push("Policy saved", "success");
       reload();
     } catch (e) {
       push(e instanceof Error ? e.message : "Save failed", "error");
@@ -81,32 +365,106 @@ export function Bonus() {
     }
   };
 
-  const grant = async () => {
-    const amount = Number(grantAmount);
-    if (!grantUser.trim() || !Number.isFinite(amount) || amount <= 0) {
-      push("Enter a user ID and a positive amount", "error");
-      return;
-    }
-    setGranting(true);
-    try {
-      await api.grantBonus(grantUser.trim(), amount, grantReason.trim());
-      push(`Granted ${amount} birr of bonus`, "success");
-      setGrantAmount("");
-      setGrantReason("");
-      refreshSidebars();
-    } catch (e) {
-      push(e instanceof Error ? e.message : "Grant failed", "error");
-    } finally {
-      setGranting(false);
-    }
-  };
+  return (
+    <Card>
+      <label className="mb-4 flex items-start gap-3">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={form.enabled}
+          onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+        />
+        <span>
+          <span className="block font-medium text-slate-200">Allow new bonus grants</span>
+          <span className="block text-xs text-slate-500">
+            Switching this off never takes back bonus already given — existing grants stay
+            spendable until they expire.
+          </span>
+        </span>
+      </label>
 
-  const broadcast = async (text: string) => {
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-slate-200">Expires after (days)</label>
+        <input
+          type="number"
+          min={1}
+          max={365}
+          value={form.expiry_days}
+          onChange={(e) => setForm({ ...form, expiry_days: Number(e.target.value) })}
+          className={`${inputCls} w-32`}
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Applies to new grants only. A deadline already promised to a player is never moved.
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-slate-200">Announcement</label>
+        <textarea
+          rows={3}
+          maxLength={500}
+          value={form.announcement}
+          onChange={(e) => setForm({ ...form, announcement: e.target.value })}
+          placeholder="Shown to players in the app beside their bonus balance."
+          className={`${inputCls} w-full`}
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          {form.announcement.length}/500 · shown in the app. To push it to Telegram, use the
+          Broadcast tab.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 border-t border-edge pt-4">
+        <Button onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save policy"}
+        </Button>
+        <span className="text-xs text-slate-500">Last updated {date(form.updated_at)}</span>
+      </div>
+    </Card>
+  );
+}
+
+function BroadcastPanel({
+  audience,
+  announcement,
+}: {
+  audience: number | null;
+  announcement: string;
+}) {
+  const push = useToast((s) => s.push);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [run, setRun] = useState<Broadcast | null>(null);
+  const [history, setHistory] = useState<Broadcast[]>([]);
+
+  const loadHistory = () =>
+    api.broadcasts(10).then((r) => setHistory(r.broadcasts ?? [])).catch(() => {});
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  // Delivery is paced at ~20 messages/sec in the background, so the response
+  // only means "started". Poll until it settles.
+  useEffect(() => {
+    if (!run || run.status !== "sending") return;
+    const t = setInterval(async () => {
+      try {
+        const r = await api.broadcast(run.id);
+        setRun(r.broadcast);
+        if (r.broadcast.status !== "sending") {
+          clearInterval(t);
+          loadHistory();
+        }
+      } catch {
+        clearInterval(t);
+      }
+    }, 1500);
+    return () => clearInterval(t);
+  }, [run]);
+
+  const send = async (text: string) => {
     const body = text.trim();
-    if (!body) {
-      push("Nothing to send", "error");
-      return;
-    }
+    if (!body) return;
     setSending(true);
     try {
       const r = await api.sendBroadcast(body);
@@ -119,124 +477,16 @@ export function Bonus() {
     }
   };
 
-  if (loading) return <Spinner label="Loading bonus policy…" />;
-  if (error) return <ErrorNote message={error} onRetry={reload} />;
-  if (!form) return null;
-
   const inputCls =
-    "w-full rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
+    "w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold">Bonus</h1>
-        <Badge tone={form.enabled ? "green" : "neutral"}>
-          {form.enabled ? "Granting on" : "Granting off"}
-        </Badge>
-        {outstanding !== null && (
-          <span className="text-sm text-slate-400">
-            Outstanding liability: <strong>{outstanding.toFixed(2)} birr</strong>
-          </span>
-        )}
-      </div>
-
+    <div className="space-y-4">
       <Card>
-        <h2 className="mb-1 font-semibold">Policy</h2>
-        <p className="mb-4 text-sm text-slate-400">
-          Bonus can buy game cards but can never be withdrawn. Anything won with a bonus-funded
-          card is ordinary cash.
-        </p>
-
-        <label className="mb-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-          />
-          Allow new bonus grants
-          <span className="text-slate-500">
-            (turning this off never takes back bonus already given)
-          </span>
-        </label>
-
-        <label className="mb-1 block text-sm font-medium">Expires after (days)</label>
-        <input
-          type="number"
-          min={1}
-          max={365}
-          value={form.expiry_days}
-          onChange={(e) => setForm({ ...form, expiry_days: Number(e.target.value) })}
-          className={`${inputCls} mb-1 max-w-[10rem]`}
-        />
-        <p className="mb-4 text-xs text-slate-500">
-          Applies to new grants only. A deadline already promised to a player is never changed.
-        </p>
-
-        <label className="mb-1 block text-sm font-medium">Announcement</label>
-        <textarea
-          rows={3}
-          maxLength={500}
-          value={form.announcement}
-          onChange={(e) => setForm({ ...form, announcement: e.target.value })}
-          placeholder="Shown to players next to their bonus balance."
-          className={`${inputCls} mb-1`}
-        />
-        <p className="mb-4 text-xs text-slate-500">{form.announcement.length}/500</p>
-
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save policy"}
-          </Button>
-          <Button
-            onClick={() => broadcast(form.announcement)}
-            disabled={sending || !form.announcement.trim()}
-          >
-            Broadcast this announcement
-          </Button>
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="mb-1 font-semibold">Grant bonus</h2>
-        <p className="mb-4 text-sm text-slate-400">
-          Find a player&apos;s ID on the Users page. Their bonus expires in {form.expiry_days} day
-          {form.expiry_days === 1 ? "" : "s"}.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <input
-            value={grantUser}
-            onChange={(e) => setGrantUser(e.target.value)}
-            placeholder="User ID"
-            className={inputCls}
-          />
-          <input
-            type="number"
-            min={1}
-            value={grantAmount}
-            onChange={(e) => setGrantAmount(e.target.value)}
-            placeholder="Amount (birr)"
-            className={inputCls}
-          />
-          <input
-            value={grantReason}
-            onChange={(e) => setGrantReason(e.target.value)}
-            placeholder="Reason (optional)"
-            className={inputCls}
-          />
-        </div>
-        <div className="mt-3">
-          <Button onClick={grant} disabled={granting}>
-            {granting ? "Granting…" : "Grant"}
-          </Button>
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="mb-1 font-semibold">Broadcast to players</h2>
-        <p className="mb-4 text-sm text-slate-400">
+        <p className="mb-3 text-sm text-slate-400">
           Sends a Telegram message to every registered player
-          {audience !== null ? ` (${audience} right now)` : ""}. Delivery is paced to stay inside
-          Telegram&apos;s limits, so a large audience takes a few minutes.
+          {audience !== null ? ` (${audience} right now)` : ""}. Paced to stay inside Telegram&apos;s
+          limits, so a large audience takes a few minutes.
         </p>
         <textarea
           rows={4}
@@ -247,32 +497,29 @@ export function Bonus() {
           className={`${inputCls} mb-2`}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => broadcast(message)} disabled={sending || !message.trim()}>
+          <Button onClick={() => send(message)} disabled={sending || !message.trim()}>
             {sending ? "Starting…" : "Send to all players"}
           </Button>
+          {announcement.trim() && (
+            <Button onClick={() => setMessage(announcement)} disabled={sending}>
+              Use announcement text
+            </Button>
+          )}
           <span className="text-xs text-slate-500">{message.length}/4000</span>
         </div>
 
         {run && (
-          <div className="mt-4 rounded-lg bg-panel2 p-3 text-sm">
-            <div className="mb-1 flex items-center gap-2">
-              <Badge
-                tone={
-                  run.status === "completed"
-                    ? "green"
-                    : run.status === "failed"
-                      ? "red"
-                      : "yellow"
-                }
-              >
+          <div className="mt-4 rounded-lg border border-edge bg-panel2 p-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Badge tone={run.status === "completed" ? "green" : run.status === "failed" ? "red" : "yellow"}>
                 {run.status}
               </Badge>
-              <span>
+              <span className="text-slate-300">
                 {run.sent} sent{run.failed > 0 ? `, ${run.failed} failed` : ""} of {run.recipients}
               </span>
             </div>
             {run.failed > 0 && (
-              <p className="text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-500">
                 Failures are usually players who have blocked the bot.
               </p>
             )}
@@ -281,20 +528,18 @@ export function Bonus() {
       </Card>
 
       {history.length > 0 && (
-        <Card>
-          <h2 className="mb-3 font-semibold">Recent broadcasts</h2>
-          <div className="space-y-2">
+        <Card className="p-0">
+          <div className="border-b border-edge px-4 py-3 text-xs uppercase tracking-wide text-slate-400">
+            Recent broadcasts
+          </div>
+          <div className="divide-y divide-edge/50">
             {history.map((b) => (
-              <div key={b.id} className="flex flex-wrap items-center gap-2 border-b border-edge py-2 text-sm last:border-0">
-                <Badge
-                  tone={
-                    b.status === "completed" ? "green" : b.status === "failed" ? "red" : "yellow"
-                  }
-                >
+              <div key={b.id} className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-sm">
+                <Badge tone={b.status === "completed" ? "green" : b.status === "failed" ? "red" : "yellow"}>
                   {b.status}
                 </Badge>
-                <span className="min-w-0 flex-1 truncate">{b.message}</span>
-                <span className="shrink-0 text-slate-500">
+                <span className="min-w-0 flex-1 truncate text-slate-300">{b.message}</span>
+                <span className="shrink-0 text-slate-400">
                   {b.sent}/{b.recipients}
                 </span>
                 <span className="shrink-0 text-xs text-slate-500">{date(b.created_at)}</span>
