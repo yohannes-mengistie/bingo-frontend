@@ -30,7 +30,12 @@
     "errorTitle": "የሆነ ችግር ተፈጥሯል",
     "errorBody": "ልናስገባህ አልቻልንም። እባክህ እንደገና ሞክር።"
   },
-  "nav": { "play": "ጨዋታ", "wallet": "ቦርሳ", "profile": "መገለጫ", "report": "ሪፖርት" },
+  "nav": {
+    "play": "ጨዋታ",
+    "wallet": "ቦርሳ",
+    "profile": "መገለጫ",
+    "report": "ሪፖርት"
+  },
   "report": {
     "open": "ችግር አሳውቅ",
     "title": "ችግር አሳውቅ",
@@ -55,7 +60,10 @@
     "playBingo": "ጨዋታ ጀምር",
     "vipRoom": "ቪአይፒ ክፍል",
     "higherBigger": "ከፍ ያለ ውርርድ፣ ትልቅ ሽልማት!",
-    "tier": { "REGULAR": "መደበኛ", "VIP": "ቪአይፒ" },
+    "tier": {
+      "REGULAR": "መደበኛ",
+      "VIP": "ቪአይፒ"
+    },
     "vipTag": "ፕሪሚየም",
     "resume": "ወደ ቀጥታ ጨዋታህ ተመለስ",
     "resumeHint": "ወደ ጨዋታው ለመመለስ ንካ",
@@ -219,5 +227,24 @@
     "you": "አንተ",
     "wins": "{{n}} ድሎች",
     "bestEffort": "በቅርብ ጨዋታዎችህ ላይ የተመሰረተ። ሙሉ የውጤት ሰሌዳ በቅርቡ።"
+  },
+  "bonus": {
+    "title": "የዛሬ ቦነስ: {{amount}} ብር",
+    "subtitle": "ለመጀመሪያዎቹ {{total}} ተጫዋቾች — እያንዳንዱ {{each}} ብር",
+    "claim": "ውሰድ",
+    "claiming": "በመውሰድ ላይ…",
+    "gone": "አልቋል",
+    "allGone": "ሁሉም ቦታዎች ተይዘዋል",
+    "slotsLeft": "ከ{{total}} ውስጥ {{left}} ቀርቷል",
+    "claimedToast": "{{amount}} ብር ቦነስ አግኝተዋል!",
+    "claimedBanner": "{{amount}} ብር ወስደዋል",
+    "refused": {
+      "no_campaign": "አሁን ምንም ቦነስ የለም",
+      "exhausted": "ቦታዎቹ አልቀዋል — ነገ ይሞክሩ",
+      "already_claimed": "የዛሬውን ቦነስ ወስደዋል",
+      "not_eligible": "ቦነሱን ለመክፈት አንድ ጊዜ ያስገቡ",
+      "refused": "ይህን ቦነስ መውሰድ አይችሉም",
+      "failed": "መውሰድ አልተቻለም — እባክዎ እንደገና ይሞክሩ"
+    }
   }
 }

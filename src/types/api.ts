@@ -149,3 +149,41 @@ export interface WinnerData {
   prize_pool?: number;
   split?: boolean;
 }
+
+/**
+ * A "first N players" bonus giveaway: a pot split into a fixed number of equal
+ * slots, claimed first-come-first-served. Mirrors
+ * bingo-backend/internal/domain/bonus_campaign.go.
+ */
+export interface BonusCampaign {
+  id: string;
+  total_amount: number;
+  slots: number;
+  /** What one claimer receives — frozen when the campaign is created. */
+  amount_per_slot: number;
+  claimed_count: number;
+  announcement: string;
+  status: "active" | "ended";
+  created_at: string;
+  ended_at?: string;
+}
+
+/** The running campaign plus what the current player can do about it. */
+export interface BonusCampaignStatus {
+  /** null on a day with no promotion — an empty state, not an error. */
+  campaign: BonusCampaign | null;
+  claimed: boolean;
+  claimed_amount?: number;
+  can_claim: boolean;
+  /** Machine-readable code explaining a false can_claim. */
+  reason?: string;
+}
+
+export interface BonusClaim {
+  campaign_id: string;
+  user_id: string;
+  amount: number;
+  /** 1-based place in the queue — "you were 3rd". */
+  position: number;
+  claimed_at: string;
+}

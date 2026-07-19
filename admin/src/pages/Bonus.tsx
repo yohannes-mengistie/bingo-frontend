@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type BonusConfig, type Broadcast, type UserWithWallet } from "@/lib/api";
+import {
+  api,
+  type BonusCampaign,
+  type BonusConfig,
+  type Broadcast,
+  type UserWithWallet,
+} from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Button, Card, Spinner, ErrorNote, Badge, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { birr, date } from "@/lib/format";
 
 const PAGE = 200;
-type Tab = "grant" | "policy" | "broadcast";
+type Tab = "campaign" | "grant" | "policy" | "broadcast";
 
 /**
  * Bonus is PLAY-ONLY money: it buys game cards but can never be withdrawn.
@@ -16,7 +22,7 @@ type Tab = "grant" | "policy" | "broadcast";
  */
 export function Bonus() {
   const { data: cfgData, loading, error, reload } = useApi(() => api.bonusConfig(), []);
-  const [tab, setTab] = useState<Tab>("grant");
+  const [tab, setTab] = useState<Tab>("campaign");
 
   const [form, setForm] = useState<BonusConfig | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,6 +62,7 @@ export function Bonus() {
       <div className="mb-4 inline-flex rounded-lg border border-edge bg-panel p-1 text-sm">
         {(
           [
+            ["campaign", "Today's bonus"],
             ["grant", "Grant bonus"],
             ["policy", "Policy"],
             ["broadcast", "Broadcast"],
@@ -73,6 +80,7 @@ export function Bonus() {
         ))}
       </div>
 
+      {tab === "campaign" && <CampaignPanel enabled={form.enabled} onChanged={refreshStats} />}
       {tab === "grant" && (
         <GrantPanel expiryDays={form.expiry_days} enabled={form.enabled} onGranted={refreshStats} />
       )}
@@ -549,5 +557,338 @@ function BroadcastPanel({
         </Card>
       )}
     </div>
+  );
+}
+
+/**
+ * "Today's bonus": a pot split among the first N players who claim it.
+ *
+ * The amount and the number of slots are set here per campaign — nothing is
+ * fixed in code. Only ONE campaign runs at a time, so this panel is either a
+ * create form or a live scoreboard, never both.
+ */
+function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: () => void }) {
+  const push = useToast((s) => s.push);
+  const { data, loading, error, reload } = useApi(() => api.campaigns(25), []);
+  const [amount, setAmount] = useState("");
+  const [slots, setSlots] = useState("");
+  const [announcement, setAnnouncement] = useState("");
+  const [broadcast, setBroadcast] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const campaigns = data?.campaigns ?? [];
+  const active = campaigns.find((c) => c.status === "active") ?? null;
+
+  // Live scoreboards go stale fast during a stampede, so poll while one runs.
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(reload, 5000);
+    return () => clearInterval(id);
+  }, [active?.id, reload]);
+
+  const amt = Number(amount);
+  const n = Number(slots);
+  const validNumbers = Number.isFinite(amt) && amt > 0 && Number.isInteger(n) && n > 0;
+  // Mirrors the backend: the pot is split into equal slots, rounded DOWN to
+  // the cent so slots * per-player can never exceed what was authorised.
+  const perSlot = validNumbers ? Math.floor((amt / n) * 100) / 100 : 0;
+
+  const create = async () => {
+    if (!validNumbers) {
+      push("Enter an amount and a whole number of players", "error");
+      return;
+    }
+    if (perSlot < 1) {
+      push(`${birr(amt)} across ${n} players is only ${birr(perSlot)} each`, "error");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Start today's bonus?\n\n${birr(amt)} for the first ${n} players — ${birr(perSlot)} each.` +
+          (broadcast ? `\n\nThis WILL Telegram every registered player.` : ""),
+      )
+    )
+      return;
+
+    setBusy(true);
+    try {
+      await api.createCampaign({
+        total_amount: amt,
+        slots: n,
+        announcement: announcement.trim(),
+        broadcast,
+      });
+      push(broadcast ? "Campaign started and announced" : "Campaign started", "success");
+      setAmount("");
+      setSlots("");
+      setAnnouncement("");
+      reload();
+      onChanged();
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Could not start the campaign", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const end = async (id: string) => {
+    if (!window.confirm("Stop this campaign? Players who already claimed keep their bonus."))
+      return;
+    setBusy(true);
+    try {
+      await api.endCampaign(id);
+      push("Campaign stopped", "success");
+      reload();
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Could not stop the campaign", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorNote message={error} onRetry={reload} />;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <h2 className="mb-1 font-semibold">{active ? "Running now" : "Start today's bonus"}</h2>
+
+        {active ? (
+          <ActiveCampaign campaign={active} onEnd={() => end(active.id)} busy={busy} />
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-slate-400">
+              A pot split equally among the first N players who claim it. Only players who have
+              completed a deposit can claim, and each player can claim once.
+            </p>
+
+            {!enabled && (
+              <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                Bonus granting is switched off in Policy — turn it on first or every claim will
+                fail.
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Total amount (birr)">
+                <input
+                  className={campaignInputCls}
+                  type="number"
+                  min={1}
+                  step="1"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="1000"
+                />
+              </Field>
+              <Field label="Number of players">
+                <input
+                  className={campaignInputCls}
+                  type="number"
+                  min={1}
+                  step="1"
+                  value={slots}
+                  onChange={(e) => setSlots(e.target.value)}
+                  placeholder="10"
+                />
+              </Field>
+            </div>
+
+            {/* The number the player actually receives, shown before committing
+                — the split is the easiest thing to get wrong. */}
+            <div className="mt-3 rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm">
+              {validNumbers ? (
+                <span className="text-slate-200">
+                  Each player gets <strong className="text-brand">{birr(perSlot)}</strong>
+                  {perSlot * n < amt && (
+                    <span className="text-slate-400">
+                      {" "}
+                      · {birr(amt - perSlot * n)} of the pot stays unspent (rounding)
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-slate-500">Enter an amount and a player count</span>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <Field label="Announcement (optional)" hint="Left blank, a bilingual default is sent.">
+                <textarea
+                  className={`${campaignInputCls} h-24 resize-none`}
+                  maxLength={1000}
+                  value={announcement}
+                  onChange={(e) => setAnnouncement(e.target.value)}
+                  placeholder="🎁 የዛሬ ቦነስ…"
+                />
+              </Field>
+            </div>
+
+            <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={broadcast}
+                onChange={(e) => setBroadcast(e.target.checked)}
+              />
+              Telegram every player when this starts
+            </label>
+
+            <Button className="mt-4 w-full" onClick={create} disabled={busy || !validNumbers}>
+              {busy ? "Starting…" : "Start campaign"}
+            </Button>
+          </>
+        )}
+      </Card>
+
+      <Card className="p-0">
+        <div className="border-b border-edge px-4 py-3">
+          <h2 className="font-semibold">{active ? "Who claimed" : "Past campaigns"}</h2>
+        </div>
+        {active ? (
+          <ClaimsTable campaignId={active.id} />
+        ) : campaigns.length === 0 ? (
+          <EmptyState message="No campaigns yet." />
+        ) : (
+          <div className="max-h-[28rem] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-edge text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-4 py-2">Started</th>
+                  <th className="px-4 py-2">Pot</th>
+                  <th className="px-4 py-2">Each</th>
+                  <th className="px-4 py-2">Claimed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c) => (
+                  <tr key={c.id} className="border-b border-edge/50">
+                    <td className="px-4 py-2 text-slate-400">{date(c.created_at)}</td>
+                    <td className="px-4 py-2">{birr(c.total_amount)}</td>
+                    <td className="px-4 py-2">{birr(c.amount_per_slot)}</td>
+                    <td className="px-4 py-2">
+                      {c.claimed_count} / {c.slots}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function ActiveCampaign({
+  campaign,
+  onEnd,
+  busy,
+}: {
+  campaign: BonusCampaign;
+  onEnd: () => void;
+  busy: boolean;
+}) {
+  const left = Math.max(0, campaign.slots - campaign.claimed_count);
+  const pct = Math.round((campaign.claimed_count / campaign.slots) * 100);
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Badge tone={left === 0 ? "yellow" : "green"}>
+          {left === 0 ? "All slots claimed" : `${left} left`}
+        </Badge>
+        <span className="text-xs text-slate-400">started {date(campaign.created_at)}</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <Stat label="Pot" value={birr(campaign.total_amount)} />
+        <Stat label="Each" value={birr(campaign.amount_per_slot)} />
+        <Stat label="Claimed" value={`${campaign.claimed_count}/${campaign.slots}`} />
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-panel2">
+        <div
+          className="h-full rounded-full bg-brand transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <p className="mt-3 text-xs text-slate-400">
+        {left === 0
+          ? "Every slot is gone. The campaign stays visible to players so latecomers see it sold out; starting the next one retires it."
+          : "Players are claiming now. Stopping early keeps every bonus already handed out."}
+      </p>
+
+      <Button variant="danger" className="mt-3 w-full" onClick={onEnd} disabled={busy}>
+        {busy ? "Working…" : "Stop campaign"}
+      </Button>
+    </div>
+  );
+}
+
+/** Who got in, in the order they got in. */
+function ClaimsTable({ campaignId }: { campaignId: string }) {
+  const { data, loading, error, reload } = useApi(
+    () => api.campaignClaims(campaignId),
+    [campaignId],
+  );
+  const claims = data?.claims ?? [];
+
+  if (loading) return <Spinner />;
+  if (error)
+    return (
+      <div className="p-4">
+        <ErrorNote message={error} onRetry={reload} />
+      </div>
+    );
+  if (claims.length === 0) return <EmptyState message="Nobody has claimed yet." />;
+
+  return (
+    <div className="max-h-[28rem] overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 border-b border-edge bg-panel text-left text-xs uppercase tracking-wide text-slate-400">
+          <tr>
+            <th className="px-4 py-2">#</th>
+            <th className="px-4 py-2">Player</th>
+            <th className="px-4 py-2">Got</th>
+            <th className="px-4 py-2">When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {claims.map((c) => (
+            <tr key={c.user_id} className="border-b border-edge/50">
+              <td className="px-4 py-2 text-slate-500">{c.position}</td>
+              <td className="px-4 py-2">
+                <div className="text-slate-200">{c.name || "—"}</div>
+                <div className="text-xs text-slate-500">{c.phone}</div>
+              </td>
+              <td className="px-4 py-2">{birr(c.amount)}</td>
+              <td className="px-4 py-2 text-slate-400">{date(c.claimed_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const campaignInputCls =
+  "w-full rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-xs font-medium text-slate-400">{label}</div>
+      {children}
+      {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
+    </label>
   );
 }

@@ -22,6 +22,7 @@ import { sound } from "@/lib/audio";
 import { finishedGames } from "@/lib/finishedGames";
 import { useWallet } from "@/store/walletStore";
 import { useSettings } from "@/store/settingsStore";
+import { BonusCampaign } from "@/components/lobby/BonusCampaign";
 import type { GameType } from "@/types/api";
 
 const ALL_CARDS = Array.from({ length: MAX_CARD_ID - MIN_CARD_ID + 1 }, (_, i) => i + MIN_CARD_ID);
@@ -436,6 +437,9 @@ export function CardSelect({ home = false }: { home?: boolean }) {
           }
         />
       )}
+      {/* Today's giveaway. Home only — inside a table the player is here to
+          pick a card, and it renders nothing when no campaign is running. */}
+      {home && <BonusCampaign />}
       {/* Live game hero — PLAY · ደራሽ (+taken) · WIN, with countdown. Display only. */}
       <div className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-bg-elevated to-bg-card p-4">
         <div className="grid grid-cols-3 items-start gap-2">

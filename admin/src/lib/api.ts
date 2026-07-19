@@ -222,6 +222,36 @@ export interface BonusConfig {
   updated_at: string;
 }
 
+/**
+ * A "first N players" giveaway: a pot split into a fixed number of equal
+ * slots, claimed first-come-first-served. Only ONE can be active at a time.
+ */
+export interface BonusCampaign {
+  id: string;
+  total_amount: number;
+  slots: number;
+  /** What one claimer receives — frozen at creation, so everyone gets the same. */
+  amount_per_slot: number;
+  claimed_count: number;
+  announcement: string;
+  status: "active" | "ended";
+  created_by?: string;
+  created_at: string;
+  ended_at?: string;
+}
+
+/** One player's claim, with their identity joined in for the admin table. */
+export interface BonusCampaignClaim {
+  campaign_id: string;
+  user_id: string;
+  amount: number;
+  /** 1-based place in the queue. */
+  position: number;
+  claimed_at: string;
+  name?: string;
+  phone?: string;
+}
+
 export interface BonusGrant {
   id: string;
   user_id: string;
@@ -381,6 +411,34 @@ export const api = {
       { method: "POST", body: JSON.stringify({ user_ids, amount, reason }) },
     ),
   bonusOutstanding: () => request<{ outstanding_bonus: number }>("/admin/bonus/outstanding"),
+
+  // "First N players" giveaways
+  /**
+   * Start today's giveaway. `broadcast: true` also Telegrams every player —
+   * creating the campaign and announcing it are one action so the two can
+   * never drift apart.
+   */
+  createCampaign: (input: {
+    total_amount: number;
+    slots: number;
+    announcement?: string;
+    broadcast?: boolean;
+  }) =>
+    request<{ campaign: BonusCampaign }>("/admin/bonus/campaigns", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  campaigns: (limit = 25) =>
+    request<{ campaigns: BonusCampaign[] }>(`/admin/bonus/campaigns?limit=${limit}`),
+  campaignClaims: (id: string) =>
+    request<{ claims: BonusCampaignClaim[] }>(
+      `/admin/bonus/campaigns/${segment(id)}/claims`,
+    ),
+  /** Stop a campaign early. Slots already claimed keep their money. */
+  endCampaign: (id: string) =>
+    request<{ campaign: BonusCampaign }>(`/admin/bonus/campaigns/${segment(id)}/end`, {
+      method: "POST",
+    }),
   userBonus: (userId: string) =>
     request<{ grants: BonusGrant[]; balance: BonusBalance }>(`/admin/users/${segment(userId)}/bonus`),
 

@@ -30,7 +30,12 @@
     "errorTitle": "Something went wrong",
     "errorBody": "We couldn't sign you in. Please try again."
   },
-  "nav": { "play": "Play", "wallet": "Wallet", "profile": "Profile", "report": "Report" },
+  "nav": {
+    "play": "Play",
+    "wallet": "Wallet",
+    "profile": "Profile",
+    "report": "Report"
+  },
   "report": {
     "open": "Report a problem",
     "title": "Report a problem",
@@ -55,7 +60,10 @@
     "playBingo": "Play Bingo",
     "vipRoom": "VIP Room",
     "higherBigger": "Higher bet, bigger prize!",
-    "tier": { "REGULAR": "Regular", "VIP": "VIP" },
+    "tier": {
+      "REGULAR": "Regular",
+      "VIP": "VIP"
+    },
     "vipTag": "Premium",
     "resume": "Return to your live game",
     "resumeHint": "Tap to rejoin the draw",
@@ -219,5 +227,24 @@
     "you": "You",
     "wins": "{{n}} wins",
     "bestEffort": "Based on your recent games. Full leaderboard coming soon."
+  },
+  "bonus": {
+    "title": "Today's bonus: {{amount}} birr",
+    "subtitle": "First {{total}} players — {{each}} birr each",
+    "claim": "Claim",
+    "claiming": "Claiming…",
+    "gone": "Finished",
+    "allGone": "All slots have been claimed",
+    "slotsLeft": "{{left}} of {{total}} left",
+    "claimedToast": "You got {{amount}} birr bonus!",
+    "claimedBanner": "You claimed {{amount}} birr",
+    "refused": {
+      "no_campaign": "There is no bonus running right now",
+      "exhausted": "All the slots are gone — try again tomorrow",
+      "already_claimed": "You have already claimed today's bonus",
+      "not_eligible": "Deposit once to unlock the bonus",
+      "refused": "You cannot claim this bonus",
+      "failed": "Could not claim — please try again"
+    }
   }
 }

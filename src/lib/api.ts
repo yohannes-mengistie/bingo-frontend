@@ -3,6 +3,8 @@
 
 import type {
   BingoCard,
+  BonusCampaignStatus,
+  BonusClaim,
   Game,
   GamePlayer,
   GameStateResponse,
@@ -32,9 +34,19 @@ function segment(value: string | number): string {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /**
+   * Stable machine-readable code from the server, when it sends one (e.g. a
+   * refused bonus claim: "exhausted" | "already_claimed" | "not_eligible").
+   *
+   * Carried separately from `message` because `message` is English prose
+   * written for developers. Anything shown to a player has to come from the
+   * translation files, so the UI switches on this and never renders `message`.
+   */
+  reason?: string;
+  constructor(status: number, message: string, reason?: string) {
     super(message);
     this.status = status;
+    this.reason = reason;
     this.name = "ApiError";
   }
 }
@@ -65,7 +77,7 @@ async function request<T>(
   if (!res.ok) {
     const msg =
       (data && (data.error || data.message)) || `HTTP ${res.status}`;
-    throw new ApiError(res.status, msg);
+    throw new ApiError(res.status, msg, data?.reason);
   }
   return data as T;
 }
@@ -104,6 +116,19 @@ export const api = {
       "GET",
       "/api/v1/me/bonus",
     ),
+  /**
+   * The running "first N players" giveaway, plus what THIS player can do about
+   * it. `campaign` is null on a day with no promotion — that is a normal empty
+   * state, not an error.
+   */
+  myBonusCampaign: () =>
+    request<BonusCampaignStatus>("GET", "/api/v1/me/bonus/campaign"),
+  /**
+   * Take a slot. Rejects with ApiError(409) carrying a `reason` code when the
+   * slots are gone, the player already claimed, or they have never deposited.
+   */
+  claimBonus: () =>
+    request<{ claim: BonusClaim }>("POST", "/api/v1/me/bonus/claim"),
   deposits: () =>
     request<{ deposits?: Transaction[] }>("GET", "/api/v1/me/wallet/deposits").then((r) => ({
       transactions: r.deposits ?? [],
