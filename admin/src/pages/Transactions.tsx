@@ -9,7 +9,9 @@ import {
   tdClass,
   trClass,
   StatusBadge,
+  Badge,
   IconButton,
+  Button,
   Avatar,
   Tabs,
   SearchInput,
@@ -17,6 +19,8 @@ import {
   ErrorNote,
   EmptyState,
   PageHeader,
+  Drawer,
+  DetailRow,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { birr, date, fullName, initials, shortId, statusTone } from "@/lib/format";
@@ -47,6 +51,7 @@ export function Transactions() {
   const { data, loading, error, reload, updatedAt } = usePolling(() => active.fetch(), [tab], 8000);
   const push = useToast((s) => s.push);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Transaction | null>(null);
 
   // Fetch users once to resolve user_id → name/phone for the Player column.
   // Loaded separately so a slow/failed user fetch never blocks the tx table.
@@ -178,6 +183,7 @@ export function Transactions() {
                     <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(t.created_at)}</td>
                     <td className={tdClass}>
                       <div className="flex justify-end gap-2">
+                        <IconButton icon="eye" title="View details" onClick={() => setDetail(t)} />
                         {t.status === "pending" && t.type === "deposit" && (
                           <>
                             <IconButton
@@ -225,7 +231,6 @@ export function Transactions() {
                               onClick={() => act(t.id, api.cancelTransaction, "Cancel")}
                             />
                           )}
-                        {t.status !== "pending" && <span className="text-txt-4">—</span>}
                       </div>
                     </td>
                   </tr>
@@ -235,6 +240,100 @@ export function Transactions() {
           </Table>
         )}
       </Card>
+
+      <TransactionDrawer
+        tx={detail}
+        user={detail ? userMap.get(detail.user_id) : undefined}
+        busy={detail ? busyId === detail.id : false}
+        onClose={() => setDetail(null)}
+        onAct={(id, fn, label) => {
+          act(id, fn, label);
+          setDetail(null);
+        }}
+      />
     </div>
+  );
+}
+
+function TransactionDrawer({
+  tx,
+  user,
+  busy,
+  onClose,
+  onAct,
+}: {
+  tx: Transaction | null;
+  user?: UserWithWallet;
+  busy: boolean;
+  onClose: () => void;
+  onAct: (id: string, fn: (id: string) => Promise<unknown>, label: string) => void;
+}) {
+  if (!tx) return null;
+  const isIn = tx.type === "deposit" || tx.type === "transfer_in";
+  const name = user ? fullName(user.first_name, user.last_name) : "";
+
+  const footer =
+    tx.status === "pending" ? (
+      <div className="flex gap-2">
+        {tx.type === "deposit" && (
+          <>
+            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveDeposit, "Approve")}>
+              Approve
+            </Button>
+            <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectDeposit, "Reject")}>
+              Reject
+            </Button>
+          </>
+        )}
+        {tx.type === "withdraw" && (
+          <>
+            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveWithdrawal, "Approve")}>
+              Approve
+            </Button>
+            <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectWithdrawal, "Reject")}>
+              Reject
+            </Button>
+          </>
+        )}
+        {tx.type !== "deposit" && tx.type !== "withdraw" && (
+          <Button variant="danger" icon="stop" loading={busy} className="w-full" onClick={() => onAct(tx.id, api.cancelTransaction, "Cancel")}>
+            Cancel transaction
+          </Button>
+        )}
+      </div>
+    ) : undefined;
+
+  return (
+    <Drawer open title="Transaction" subtitle={date(tx.created_at)} onClose={onClose} footer={footer}>
+      {/* Amount hero */}
+      <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4 text-center">
+        <div className={`text-3xl font-bold tabular-nums ${isIn ? "text-success" : "text-txt"}`}>
+          {isIn ? "+" : "−"}
+          {birr(tx.amount)}
+        </div>
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <StatusBadge value={tx.category ?? tx.type} tone={statusTone(tx.category ?? tx.type)} />
+          <StatusBadge value={tx.status} tone={statusTone(tx.status)} />
+        </div>
+      </div>
+
+      <DetailRow label="Player">
+        <Link to={`/users/${tx.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
+          <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
+          {name || shortId(tx.user_id)}
+        </Link>
+      </DetailRow>
+      {user?.phone_number && <DetailRow label="Phone" mono>{user.phone_number}</DetailRow>}
+      <DetailRow label="Direction">
+        <Badge tone={isIn ? "green" : "neutral"}>{isIn ? "Money in" : "Money out"}</Badge>
+      </DetailRow>
+      <DetailRow label="Category">{tx.category ?? "—"}</DetailRow>
+      <DetailRow label="Ledger type">{tx.type}</DetailRow>
+      <DetailRow label="Payment method">{tx.transaction_type ?? "—"}</DetailRow>
+      <DetailRow label="Receipt / reference" mono>{tx.transaction_id ?? "—"}</DetailRow>
+      <DetailRow label="Internal reference" mono>{tx.reference ?? "—"}</DetailRow>
+      <DetailRow label="Created">{date(tx.created_at)}</DetailRow>
+      <DetailRow label="Transaction ID" mono>{tx.id}</DetailRow>
+    </Drawer>
   );
 }
