@@ -251,6 +251,8 @@
       "minutes": "{{count}} min",
       "hours": "{{count}} hr",
       "days": "{{count}} days"
-    }
+    },
+    "heading": "Today's bonus",
+    "claimedShort": "You claimed today's bonus"
   }
 }

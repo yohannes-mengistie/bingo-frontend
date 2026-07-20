@@ -8,12 +8,13 @@ import { useToast } from "@/components/ui/Toast";
 import { useWallet } from "@/store/walletStore";
 
 /**
- * The "today's bonus" banner: a pot split among the first N players, claimed
- * first-come-first-served.
+ * The "today's bonus" banner. Deliberately minimal: a heading and a Claim
+ * button, nothing else — no pot size, per-player amount, remaining-slot count
+ * or countdown. It appears only while a slot still exists and the campaign is
+ * running; once the player claims it becomes a small confirmation.
  *
- * Renders nothing at all when no campaign is running, which is most days — an
- * empty gold banner saying "no bonus today" would train players to ignore the
- * spot the promotion needs to own.
+ * Renders nothing when no campaign is running (most days) or when the bonus is
+ * finished, so the spot is never occupied by a dead banner.
  */
 export function BonusCampaign() {
   const { t } = useTranslation();
@@ -24,9 +25,7 @@ export function BonusCampaign() {
   const status = useQuery({
     queryKey: ["bonus-campaign"],
     queryFn: () => api.myBonusCampaign(),
-    // Slots drain in seconds once the announcement goes out, so a stale "4
-    // left" is worse than a slightly chatty poll — it invites a player to tap
-    // a button that is already dead.
+    // Kept fresh so the banner disappears promptly once the bonus is finished.
     refetchInterval: 15000,
     retry: false,
   });
@@ -35,117 +34,58 @@ export function BonusCampaign() {
   const campaign = data?.campaign;
   if (!campaign) return null;
 
-  const left = Math.max(0, campaign.slots - campaign.claimed_count);
-  const taken = campaign.slots - left;
-  const expiry = humanizeExpiry(campaign.expiry_minutes, t);
-
   const claim = async () => {
     setBusy(true);
     try {
       const res = await api.claimBonus();
       haptic.notify("success");
       push(t("bonus.claimedToast", { amount: res.claim.amount }), "success");
-      // Both refreshes matter: the wallet so the bonus pill updates instantly,
-      // the campaign so the slot counter reflects the one this player took.
+      // Refresh the wallet so the bonus pill updates, and the campaign so the
+      // banner flips to its claimed state.
       await Promise.all([refreshWallet(), status.refetch()]);
     } catch (e) {
       haptic.notify("error");
       const reason = e instanceof ApiError ? e.reason : undefined;
       // Never surface the server's English prose — map the code to a
-      // translated string, falling back to a generic failure.
+      // translated string (e.g. "deposit once first"), else a generic failure.
       const key = reason ? `bonus.refused.${reason}` : "bonus.refused.failed";
-      const msg = t(key, { defaultValue: t("bonus.refused.failed") });
-      push(msg, "error");
-      // A refusal usually means the world moved on (slots gone, already
-      // claimed), so re-read rather than leaving a stale button on screen.
+      push(t(key, { defaultValue: t("bonus.refused.failed") }), "error");
+      // A refusal usually means the world moved on (gone, already claimed), so
+      // re-read rather than leaving a stale button on screen.
       status.refetch();
     } finally {
       setBusy(false);
     }
   };
 
-  // Already claimed: keep the banner, but as a receipt rather than a button.
-  // Removing it would make the player wonder whether the claim really worked.
+  // Already claimed — a small confirmation so the player knows it worked.
   if (data?.claimed) {
     return (
       <Shell>
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-display text-sm font-bold">
-            ✅ {t("bonus.claimedBanner", { amount: data.claimed_amount ?? campaign.amount_per_slot })}
-          </span>
-          <span className="rounded-full bg-bg/20 px-2.5 py-1 text-xs font-bold">
-            {t("bonus.slotsLeft", { left, total: campaign.slots })}
-          </span>
-        </div>
+        <span className="font-display text-sm font-bold">✅ {t("bonus.claimedShort")}</span>
       </Shell>
     );
   }
 
-  const soldOut = left <= 0;
-  const blocked = soldOut || !data?.can_claim;
+  // Only offer the button while a slot exists and the campaign is still active;
+  // otherwise show nothing (no counts, no "finished" clutter).
+  const finished = campaign.claimed_count >= campaign.slots || campaign.status !== "active";
+  if (finished) return null;
 
   return (
     <Shell>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-display text-sm font-bold leading-tight">
-            🎁 {t("bonus.title", { amount: campaign.total_amount })}
-          </div>
-          <div className="text-xs opacity-80">
-            {soldOut
-              ? t("bonus.allGone")
-              : t("bonus.subtitle", {
-                  each: campaign.amount_per_slot,
-                  total: campaign.slots,
-                })}
-          </div>
-          {/* Urgency: a short-lived bonus is the whole reason for a per-campaign
-              expiry, so say it out loud when one is set. */}
-          {!soldOut && expiry && (
-            <div className="text-[11px] font-semibold">⏳ {t("bonus.useWithin", { duration: expiry })}</div>
-          )}
-        </div>
-
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-sm font-bold">🎁 {t("bonus.heading")}</span>
         <button
           onClick={claim}
-          disabled={blocked || busy}
-          className="shrink-0 rounded-full bg-bg/20 px-4 py-1.5 text-sm font-bold transition disabled:opacity-50"
+          disabled={busy}
+          className="shrink-0 rounded-full bg-bg/20 px-5 py-1.5 text-sm font-bold transition disabled:opacity-50"
         >
-          {busy ? t("bonus.claiming") : soldOut ? t("bonus.gone") : t("bonus.claim")}
+          {busy ? t("bonus.claiming") : t("bonus.claim")}
         </button>
-      </div>
-
-      {/* Slot meter — the scarcity is the whole pitch, so show it moving. */}
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg/20">
-        <div
-          className="h-full rounded-full bg-bg/60 transition-all duration-500"
-          style={{ width: `${Math.round((taken / campaign.slots) * 100)}%` }}
-        />
-      </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] opacity-80">
-        <span>{t("bonus.slotsLeft", { left, total: campaign.slots })}</span>
-        {/* Explains a dead button rather than leaving the player guessing. */}
-        {!soldOut && !data?.can_claim && data?.reason === "not_eligible" && (
-          <span>{t("bonus.refused.not_eligible")}</span>
-        )}
       </div>
     </Shell>
   );
-}
-
-/**
- * Turn a minute count into a short human duration in the player's language.
- * Falls back through days → hours → minutes, showing whole units only, since
- * campaign expiries are always set as a round number of one unit.
- */
-function humanizeExpiry(
-  minutes: number | undefined,
-  t: (k: string, o?: Record<string, unknown>) => string,
-): string | null {
-  if (!minutes || minutes <= 0) return null;
-  if (minutes % 1440 === 0) return t("bonus.dur.days", { count: minutes / 1440 });
-  if (minutes % 60 === 0) return t("bonus.dur.hours", { count: minutes / 60 });
-  return t("bonus.dur.minutes", { count: minutes });
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -153,7 +93,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <motion.div
       initial={{ scale: 0.97, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="mt-3 w-full rounded-2xl bg-grad-gold px-4 py-2.5 text-bg"
+      className="mt-3 w-full rounded-2xl bg-grad-gold px-4 py-3 text-bg"
     >
       {children}
     </motion.div>

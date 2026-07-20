@@ -251,6 +251,8 @@
       "minutes": "{{count}} ደቂቃ",
       "hours": "{{count}} ሰዓት",
       "days": "{{count}} ቀን"
-    }
+    },
+    "heading": "የዛሬ ቦነስ",
+    "claimedShort": "የዛሬውን ቦነስ ወስደዋል"
   }
 }
