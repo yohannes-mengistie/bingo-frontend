@@ -506,6 +506,32 @@ export function CardSelect({ home = false }: { home?: boolean }) {
         {t("card.capHint", { count: ownedCount, max: MAX_CARDS_PER_PLAYER })}
       </p>
 
+      {/* Selected-cards strip. With hundreds of cards in the grid, the cyan
+          highlight on a picked cell scrolls out of view — this pins the chosen
+          numbers to the top so the player always sees what they picked. Each
+          chip removes that card (releases the reservation) on tap. */}
+      {ownedCount > 0 && (
+        <div className="sticky top-0 z-10 -mx-4 mb-2 border-b border-white/5 bg-bg/95 px-4 py-2 backdrop-blur">
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-neon-cyan">
+            {t("card.yourSelection")} · {t("card.selectedCount", { count: ownedCount })}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[...owned]
+              .sort((a, b) => a - b)
+              .map((id) => (
+                <button
+                  key={id}
+                  onClick={() => toggle(id)}
+                  className="flex items-center gap-1 rounded-full bg-neon-cyan/15 px-2.5 py-1 text-xs font-bold text-white ring-1 ring-neon-cyan/50 transition active:scale-90"
+                >
+                  #{id}
+                  <span className="text-[10px] opacity-60">✕</span>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-7 gap-1 pb-3 sm:grid-cols-9">
         {ALL_CARDS.map((id) => {
           const isMine = owned.has(id);
