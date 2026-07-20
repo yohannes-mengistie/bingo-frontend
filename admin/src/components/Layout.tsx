@@ -1,17 +1,46 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/store/auth";
+import { Icon, type IconName } from "@/components/Icon";
+import { initials } from "@/lib/format";
 
-const nav = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/transactions", label: "Transactions" },
-  { to: "/games", label: "Games" },
-  { to: "/bots", label: "Bots" },
-  { to: "/bonus", label: "Bonus" },
-  { to: "/reports", label: "Reports" },
-  { to: "/users", label: "Users" },
-  { to: "/staff", label: "Staff" },
+type NavItem = { to: string; label: string; icon: IconName; end?: boolean };
+
+const groups: { heading: string; items: NavItem[] }[] = [
+  {
+    heading: "Overview",
+    items: [
+      { to: "/", label: "Dashboard", icon: "dashboard", end: true },
+      { to: "/transactions", label: "Transactions", icon: "transactions" },
+      { to: "/users", label: "Users", icon: "users" },
+      { to: "/games", label: "Games", icon: "games" },
+    ],
+  },
+  {
+    heading: "Operations",
+    items: [
+      { to: "/bots", label: "Filler bots", icon: "bots" },
+      { to: "/bonus", label: "Bonus", icon: "bonus" },
+      { to: "/promo", label: "Promo codes", icon: "promo" },
+      { to: "/reports", label: "Reports", icon: "reports" },
+      { to: "/staff", label: "Staff", icon: "staff" },
+    ],
+  },
 ];
+
+function Brand() {
+  return (
+    <div className="flex items-center gap-2.5 px-2 py-1">
+      <div className="grid h-8 w-8 place-items-center rounded-[10px] bg-gradient-to-br from-brand to-brandDark text-[15px] font-extrabold text-ink shadow-glow">
+        B
+      </div>
+      <div className="leading-tight">
+        <div className="text-sm font-bold tracking-tight text-txt">EDL Bingo</div>
+        <div className="text-[11px] text-txt-3">Admin console</div>
+      </div>
+    </div>
+  );
+}
 
 export function Layout() {
   const user = useAuth((s) => s.user);
@@ -20,99 +49,92 @@ export function Layout() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => {
-    setOpen(false);
-  }, [location.pathname]);
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  const navBody = (
+    <>
+      <div className="px-3 pb-4 pt-1">
+        <Brand />
+      </div>
+      <nav className="flex-1 space-y-5 px-3">
+        {groups.map((g) => (
+          <div key={g.heading}>
+            <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-txt-4">
+              {g.heading}
+            </div>
+            <div className="space-y-0.5">
+              {g.items.map((n) => (
+                <NavLink
+                  key={n.to}
+                  to={n.to}
+                  end={n.end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-brand font-semibold text-ink"
+                        : "text-txt-2 hover:bg-panel2 hover:text-txt"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon name={n.icon} size={17} className={isActive ? "text-ink" : "text-txt-3"} />
+                      {n.label}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+      <div className="mt-4 flex items-center gap-2.5 border-t border-edgeSoft px-4 py-3">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-panel3 text-xs font-bold text-txt-2">
+          {initials(user?.first_name, undefined)}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="truncate text-[13px] font-semibold text-txt">{user?.first_name ?? "Admin"}</div>
+          <div className="text-[11px] text-txt-3">Administrator</div>
+        </div>
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+          title="Log out"
+          className="grid h-8 w-8 place-items-center rounded-lg text-txt-3 transition hover:bg-danger/10 hover:text-danger"
+        >
+          <Icon name="logout" size={16} />
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen lg:flex">
-      {/* Backdrop — mobile only, shown while the drawer is open */}
       {open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setOpen(false)}
-          aria-hidden
-        />
+        <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setOpen(false)} aria-hidden />
       )}
 
-      {/* Sidebar — off-canvas drawer on mobile, static column on desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-edge bg-panel transition-transform duration-200 lg:static lg:w-56 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-edgeSoft bg-panel py-4 transition-transform duration-200 lg:static lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-5 py-5">
-          <span className="text-lg font-bold text-brand">🎰 Bingo Admin</span>
-          <button
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="text-xl leading-none text-slate-400 hover:text-slate-200 lg:hidden"
-          >
-            ✕
-          </button>
-        </div>
-        <nav className="flex flex-1 flex-col gap-1 px-3">
-          {nav.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isActive ? "bg-brand text-ink" : "text-slate-300 hover:bg-panel2"
-                }`
-              }
-            >
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="border-t border-edge px-4 py-4 text-xs text-slate-400">
-          <div className="mb-2">
-            Signed in as <span className="text-slate-200">{user?.first_name ?? "admin"}</span>
-          </div>
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            className="font-semibold text-red-300 hover:text-red-200"
-          >
-            Log out
-          </button>
-        </div>
+        {navBody}
       </aside>
 
-      {/* Main column. min-w-0 lets inner tables scroll horizontally instead of
-          stretching the whole page (which caused the displaced layout on mobile). */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar — mobile only, holds the hamburger */}
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-edge bg-panel px-4 py-3 lg:hidden">
-          <button
-            onClick={() => setOpen(true)}
-            aria-label="Open menu"
-            className="text-slate-200 hover:text-white"
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+        {/* Mobile top bar */}
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-edgeSoft bg-panel/90 px-4 py-3 backdrop-blur lg:hidden">
+          <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-txt-2 hover:text-txt">
+            <Icon name="menu" size={22} />
           </button>
-          <span className="text-base font-bold text-brand">🎰 Bingo Admin</span>
+          <Brand />
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>

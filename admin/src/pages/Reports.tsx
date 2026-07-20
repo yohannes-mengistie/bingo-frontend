@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type SupportCategory, type SupportReport, type SupportStatus } from "@/lib/api";
-import { useApi } from "@/lib/useApi";
-import { Badge, Button, Card, Spinner, ErrorNote, EmptyState } from "@/components/ui";
+import { usePolling } from "@/lib/usePolling";
+import {
+  Card,
+  Button,
+  Tabs,
+  Badge,
+  StatusBadge,
+  Skeleton,
+  ErrorNote,
+  EmptyState,
+  PageHeader,
+} from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { date, fullName, shortId } from "@/lib/format";
+import { date, fullName, shortId, statusTone } from "@/lib/format";
 
 type TabKey = "open" | "resolved" | "all";
 
@@ -26,9 +36,10 @@ export function Reports() {
   const push = useToast((s) => s.push);
 
   const active = TABS.find((t) => t.key === tab)!;
-  const { data, loading, error, reload } = useApi(
+  const { data, loading, error, reload, updatedAt } = usePolling(
     () => api.reports(active.status, 200, 0),
     [tab],
+    12000,
   );
 
   async function resolve(r: SupportReport) {
@@ -45,73 +56,70 @@ export function Reports() {
   }
 
   const reports = data?.reports ?? [];
+  const link = "text-txt-3 transition hover:text-brand";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Reports</h1>
-        {data && <span className="text-sm text-neutral-400">{data.count} total</span>}
+    <div>
+      <PageHeader
+        title="Reports"
+        subtitle="Player problem reports"
+        updatedAt={updatedAt}
+        onReload={reload}
+      />
+
+      <div className="mb-4">
+        <Tabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-full px-3 py-1 text-sm transition ${
-              tab === t.key
-                ? "bg-indigo-600 text-white"
-                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <Spinner label="Loading reports…" />
-      ) : error ? (
+      {loading && !data ? (
+        <Card className="p-0">
+          <Skeleton />
+        </Card>
+      ) : error && !data ? (
         <ErrorNote message={error} onRetry={reload} />
       ) : reports.length === 0 ? (
-        <EmptyState message={tab === "open" ? "No open reports 🎉" : "No reports here."} />
+        <Card className="p-0">
+          <EmptyState message={tab === "open" ? "No open reports — all clear." : "No reports here."} icon="reports" />
+        </Card>
       ) : (
         <div className="space-y-3">
           {reports.map((r) => {
             const cat = CATEGORY_META[r.category] ?? CATEGORY_META.other;
             return (
-              <Card key={r.id} className="space-y-3">
+              <Card key={r.id} className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={cat.tone}>{cat.label}</Badge>
-                  <Badge tone={r.status === "open" ? "yellow" : "green"}>{r.status}</Badge>
-                  <span className="text-sm text-neutral-400">{date(r.created_at)}</span>
+                  <StatusBadge value={r.status} tone={statusTone(r.status)} />
+                  <span className="text-xs text-txt-3">{date(r.created_at)}</span>
                 </div>
 
-                <p className="whitespace-pre-wrap break-words text-sm text-neutral-100">{r.message}</p>
+                <p className="whitespace-pre-wrap break-words text-sm text-txt">{r.message}</p>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-400">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <Link to={`/users/${r.user_id}`} className="text-indigo-400 hover:underline">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-txt-3">
+                    <Link to={`/users/${r.user_id}`} className={link}>
                       {fullName(r.reporter_first_name, r.reporter_last_name) || shortId(r.user_id)}
                     </Link>
-                    {r.reporter_phone && <span>{r.reporter_phone}</span>}
+                    {r.reporter_phone && <span className="tabular-nums">{r.reporter_phone}</span>}
                     {r.reporter_telegram_id ? (
-                      <a
-                        href={`tg://user?id=${r.reporter_telegram_id}`}
-                        className="text-indigo-400 hover:underline"
-                      >
+                      <a href={`tg://user?id=${r.reporter_telegram_id}`} className={link}>
                         Telegram
                       </a>
                     ) : null}
                     {r.game_id && (
-                      <Link to={`/games/${r.game_id}`} className="text-indigo-400 hover:underline">
+                      <Link to={`/games/${r.game_id}`} className={link}>
                         Game {shortId(r.game_id)}
                       </Link>
                     )}
                   </div>
                   {r.status === "open" && (
-                    <Button onClick={() => resolve(r)} disabled={resolving === r.id}>
-                      {resolving === r.id ? "Resolving…" : "Mark resolved"}
+                    <Button
+                      variant="success"
+                      icon="check"
+                      loading={resolving === r.id}
+                      onClick={() => resolve(r)}
+                    >
+                      Mark resolved
                     </Button>
                   )}
                 </div>

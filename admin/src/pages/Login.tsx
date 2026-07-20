@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/store/auth";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Input } from "@/components/ui";
 
 export function Login() {
   const login = useAuth((s) => s.login);
@@ -30,36 +30,42 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="text-2xl font-bold text-brand">🎰 Bingo Admin</div>
-          <p className="mt-1 text-sm text-slate-400">Sign in to manage the platform</p>
-        </div>
-        <form onSubmit={submit} className="space-y-4">
+    <div className="flex min-h-screen items-center justify-center bg-ink px-4">
+      <Card className="w-full max-w-sm p-7">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand to-brandDark text-lg font-extrabold text-ink shadow-glow">
+            B
+          </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">Phone number</label>
-            <input
+            <div className="font-bold text-txt">EDL Bingo</div>
+            <div className="text-xs text-txt-3">Admin console</div>
+          </div>
+        </div>
+
+        <h1 className="mt-6 text-xl font-bold tracking-tight text-txt">Sign in</h1>
+
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs text-txt-3">Phone number</label>
+            <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               inputMode="tel"
               placeholder="e.g. 09XXXXXXXX"
-              className="w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
-            <input
+            <label className="mb-1 block text-xs text-txt-3">Password</label>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </div>
-          {error && <div className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Signing in…" : "Sign in"}
+          {error && <div className="text-sm text-danger">{error}</div>}
+          <Button type="submit" className="w-full" loading={busy}>
+            Sign in
           </Button>
         </form>
       </Card>

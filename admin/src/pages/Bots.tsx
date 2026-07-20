@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, type BotConfig } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import { Button, Card, Spinner, ErrorNote, Badge } from "@/components/ui";
+import { Button, Card, Input, Toggle, Spinner, ErrorNote, Badge, PageHeader } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm";
 import { date } from "@/lib/format";
 
 const ALL_TIERS = ["REGULAR", "VIP"] as const;
@@ -10,8 +11,8 @@ const ALL_TIERS = ["REGULAR", "VIP"] as const;
 export function Bots() {
   const { data, loading, error, reload } = useApi(() => api.botConfig(), []);
   const push = useToast((s) => s.push);
+  const confirm = useConfirm();
 
-  // Local editable copy of the policy, synced when the fetch resolves.
   const [form, setForm] = useState<BotConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -50,13 +51,15 @@ export function Bots() {
   };
 
   const seed = async () => {
+    if (
+      !(await confirm({
+        title: "Seed bot pool?",
+        message: "Funds bot wallets from house float (recorded as bot_funding). Safe to re-run.",
+        confirmLabel: "Seed & fund",
+      }))
+    )
+      return;
     const n = seedCount ? Number(seedCount) : undefined;
-    const ok = window.confirm(
-      `Seed${n ? ` ${n}` : ""} bot accounts and fund each wallet with house money?\n\n` +
-        `This injects real house float (recorded as bot_funding). Safe to run repeatedly — ` +
-        `existing bots are reused, not duplicated.`,
-    );
-    if (!ok) return;
     setSeeding(true);
     try {
       const res = await api.seedBots(n);
@@ -68,71 +71,66 @@ export function Bots() {
     }
   };
 
+  const label = "mb-1.5 block text-sm font-medium text-txt";
+  const hint = "mt-1.5 text-xs text-txt-3";
+
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">Filler bots</h1>
-        {form && (
-          <Badge tone={form.enabled ? "green" : "neutral"}>{form.enabled ? "Auto-fill ON" : "Auto-fill OFF"}</Badge>
-        )}
-      </div>
-
-      <p className="mb-4 max-w-2xl text-sm text-slate-400">
-        Filler bots are house-owned players that join games short on real players. They stake house
-        money into the real prize pool and can win (the pot returns to the house). Bots never join a
-        game that has zero real players.
-      </p>
+      <PageHeader
+        title="Filler bots"
+        subtitle="House players that top up under-filled games"
+        actions={
+          form && (
+            <Badge tone={form.enabled ? "green" : "neutral"}>
+              {form.enabled ? "Auto-fill on" : "Auto-fill off"}
+            </Badge>
+          )
+        }
+      />
 
       {loading && <Spinner />}
       {error && <ErrorNote message={error} onRetry={reload} />}
 
       {form && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {/* Auto-fill policy */}
-          <Card>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <Card className="p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">
               Auto-fill policy
             </h2>
 
-            <label className="mb-4 flex items-center justify-between gap-4">
-              <span className="text-sm">
-                <span className="font-medium text-slate-200">Enable auto-fill</span>
-                <span className="block text-xs text-slate-500">
-                  Background filler runs every few seconds while ON.
-                </span>
-              </span>
-              <input
-                type="checkbox"
+            <div className="mb-5">
+              <Toggle
                 checked={form.enabled}
-                onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-                className="h-5 w-5 accent-emerald-500"
+                onChange={(v) => setForm({ ...form, enabled: v })}
+                label={<span className="font-medium text-txt">Enable auto-fill</span>}
               />
-            </label>
+            </div>
 
-            <Field
-              label="Start adding bots once real players reach"
-              hint="Bots top a game up once it has at least this many real players (set 1 to fill as soon as one person joins). No upper limit — bots are always added regardless of how many real players join."
-            >
-              <input
+            <div className="mb-4">
+              <label className={label}>Start filling at</label>
+              <Input
                 type="number"
                 min={1}
                 value={form.min_real_players}
                 onChange={(e) => setForm({ ...form, min_real_players: Number(e.target.value) })}
-                className={inputCls}
               />
-            </Field>
+              <p className={hint}>Real players before bots join.</p>
+            </div>
 
-            <Field label="Bots per game" hint="Add bots until the game holds this many. Set as high as you want — capped only by free cards.">
-              <input
+            <div className="mb-4">
+              <label className={label}>Fill up to</label>
+              <Input
                 type="number"
                 min={0}
                 value={form.target_bots}
                 onChange={(e) => setForm({ ...form, target_bots: Number(e.target.value) })}
-                className={inputCls}
               />
-            </Field>
+              <p className={hint}>Total players per game.</p>
+            </div>
 
-            <Field label="Game tiers" hint="Which game types get bots.">
+            <div className="mb-5">
+              <label className={label}>Tiers</label>
               <div className="flex gap-2">
                 {ALL_TIERS.map((tier) => {
                   const on = tiers.includes(tier);
@@ -141,10 +139,10 @@ export function Bots() {
                       key={tier}
                       type="button"
                       onClick={() => toggleTier(tier)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                      className={`rounded-xl border px-3.5 py-1.5 text-sm font-semibold transition ${
                         on
                           ? "border-brand bg-brand text-ink"
-                          : "border-edge bg-panel2 text-slate-300 hover:bg-edge"
+                          : "border-edge bg-panel2 text-txt-2 hover:bg-edge"
                       }`}
                     >
                       {tier}
@@ -152,67 +150,36 @@ export function Bots() {
                   );
                 })}
               </div>
-            </Field>
+            </div>
 
-            <div className="mt-4 flex items-center gap-3 border-t border-edge pt-4">
-              <Button disabled={saving} onClick={save}>
-                {saving ? "Saving…" : "Save policy"}
+            <div className="flex items-center gap-3 border-t border-edgeSoft pt-4">
+              <Button icon="check" loading={saving} onClick={save}>
+                Save policy
               </Button>
-              <span className="text-xs text-slate-500">Last updated {date(form.updated_at)}</span>
+              <span className="text-xs text-txt-4">Updated {date(form.updated_at)}</span>
             </div>
           </Card>
 
           {/* Bot pool */}
-          <Card>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
-              Bot pool
-            </h2>
-            <p className="mb-4 text-sm text-slate-400">
-              Bots are auto-created and funded on server boot. Use this to (re)create the pool or top
-              up bot wallets manually — for example after changing the pool size.
-            </p>
-            <Field label="Count" hint="Leave blank to use the server's configured pool size.">
-              <input
-                type="number"
-                min={1}
-                placeholder="server default"
-                value={seedCount}
-                onChange={(e) => setSeedCount(e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-            <div className="mt-4 border-t border-edge pt-4">
-              <Button variant="ghost" disabled={seeding} onClick={seed}>
-                {seeding ? "Seeding…" : "Seed / fund bot pool"}
+          <Card className="p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">Bot pool</h2>
+            <label className={label}>Count</label>
+            <Input
+              type="number"
+              min={1}
+              placeholder="server default"
+              value={seedCount}
+              onChange={(e) => setSeedCount(e.target.value)}
+            />
+            <p className={hint}>Creates or tops up bot wallets from house float.</p>
+            <div className="mt-4 border-t border-edgeSoft pt-4">
+              <Button variant="ghost" icon="bots" loading={seeding} onClick={seed}>
+                Seed / fund pool
               </Button>
-              <p className="mt-2 text-xs text-amber-300/80">
-                ⚠ Injects house money into bot wallets (recorded as bot_funding).
-              </p>
             </div>
           </Card>
         </div>
       )}
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-3">
-      <label className="mb-1 block text-sm font-medium text-slate-200">{label}</label>
-      {children}
-      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </div>
   );
 }

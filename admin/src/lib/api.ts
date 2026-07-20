@@ -134,6 +134,16 @@ export interface Transaction {
 export type SupportCategory = "transaction" | "gameplay" | "other";
 export type SupportStatus = "open" | "resolved";
 
+export interface PromoCode {
+  code: string;
+  bonus_amount: number;
+  max_redemptions?: number | null;
+  redeemed_count: number;
+  expires_at?: string | null;
+  active: boolean;
+  created_at: string;
+}
+
 export interface SupportReport {
   id: string;
   user_id: string;
@@ -477,4 +487,17 @@ export const api = {
   },
   resolveReport: (id: string) =>
     request<{ message: string }>(`/admin/support/${segment(id)}/resolve`, { method: "POST" }),
+
+  // Promo codes
+  promoCodes: () => request<{ promos: PromoCode[] }>("/admin/promo-codes"),
+  createPromoCode: (input: {
+    code: string;
+    bonus_amount: number;
+    max_redemptions?: number | null;
+    expires_at?: string | null;
+  }) => request<{ promo: PromoCode }>("/admin/promo-codes", { method: "POST", body: JSON.stringify(input) }),
+  activatePromoCode: (code: string) =>
+    request<{ message: string }>(`/admin/promo-codes/${segment(code)}/activate`, { method: "POST" }),
+  deactivatePromoCode: (code: string) =>
+    request<{ message: string }>(`/admin/promo-codes/${segment(code)}/deactivate`, { method: "POST" }),
 };
