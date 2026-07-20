@@ -733,22 +733,46 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
             </div>
 
             <div className="mt-3">
-              <Field
-                label="Bonus expires after"
-                hint="How long a claimed bonus lasts. Leave blank to use the Policy default. A short window (e.g. 3 hours) drives urgency."
-              >
-                <div className="flex gap-2">
+              <Field label="Bonus expires after">
+                {/* One-tap presets cover the common choices; the custom row
+                    below is for anything else. A short window drives urgency. */}
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {EXPIRY_PRESETS.map((p) => {
+                    const selected =
+                      p.value === "" ? expiryBlank : !expiryBlank && expiryMinutes === p.minutes;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setExpiryValue(p.value);
+                          if (p.unit) setExpiryUnit(p.unit);
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                          selected
+                            ? "border-brand bg-brand/15 text-brand"
+                            : "border-edge bg-panel2 text-slate-300 hover:border-slate-500"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">or custom:</span>
                   <input
-                    className={`${campaignInputCls} flex-1`}
+                    className={`${campaignInputCls} w-24`}
                     type="number"
                     min={1}
                     step="1"
                     value={expiryValue}
                     onChange={(e) => setExpiryValue(e.target.value)}
-                    placeholder="default"
+                    placeholder="e.g. 3"
                   />
                   <select
-                    className={campaignInputCls}
+                    className={`${campaignInputCls} w-28`}
                     value={expiryUnit}
                     onChange={(e) => setExpiryUnit(e.target.value as "minutes" | "hours" | "days")}
                   >
@@ -756,6 +780,24 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
                     <option value="hours">hours</option>
                     <option value="days">days</option>
                   </select>
+                </div>
+
+                {/* Plain-language confirmation of the choice, so there is no
+                    guessing about what "3 / hours" actually means. */}
+                <div className="mt-2 text-xs text-slate-400">
+                  {expiryBlank ? (
+                    <>→ Uses the default bonus lifetime (Policy tab).</>
+                  ) : expiryMinutes && expiryMinutes >= 1 ? (
+                    <>
+                      → Bonus expires{" "}
+                      <strong className="text-slate-200">
+                        {expiryValue} {expiryUnit}
+                      </strong>{" "}
+                      after each player claims it.
+                    </>
+                  ) : (
+                    <span className="text-amber-300">→ Enter a whole number greater than 0.</span>
+                  )}
                 </div>
               </Field>
             </div>
@@ -924,6 +966,22 @@ function ClaimsTable({ campaignId }: { campaignId: string }) {
 
 const campaignInputCls =
   "w-full rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
+
+// One-tap expiry choices. `value: ""` is the "use the Policy default" chip;
+// the rest preset the custom number + unit. `minutes` is precomputed so the
+// selected-state check is a plain number comparison.
+const EXPIRY_PRESETS: {
+  label: string;
+  value: string;
+  unit?: "minutes" | "hours" | "days";
+  minutes?: number;
+}[] = [
+  { label: "1 hour", value: "1", unit: "hours", minutes: 60 },
+  { label: "3 hours", value: "3", unit: "hours", minutes: 180 },
+  { label: "12 hours", value: "12", unit: "hours", minutes: 720 },
+  { label: "1 day", value: "1", unit: "days", minutes: 1440 },
+  { label: "Default", value: "" },
+];
 
 /** Value + unit → minutes for the API. null when the value is not a positive integer. */
 function campaignExpiryMinutes(
