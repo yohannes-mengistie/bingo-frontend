@@ -245,6 +245,12 @@
       "not_eligible": "Deposit once to unlock the bonus",
       "refused": "You cannot claim this bonus",
       "failed": "Could not claim — please try again"
+    },
+    "useWithin": "Use within {{duration}} of claiming",
+    "dur": {
+      "minutes": "{{count}} min",
+      "hours": "{{count}} hr",
+      "days": "{{count}} days"
     }
   }
 }

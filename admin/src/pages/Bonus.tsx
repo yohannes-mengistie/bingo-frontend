@@ -574,6 +574,10 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
   const [slots, setSlots] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [broadcast, setBroadcast] = useState(true);
+  // Bonus lifetime as a value + unit. Blank value → send nothing, so the
+  // campaign falls back to the Policy expiry, exactly as before this existed.
+  const [expiryValue, setExpiryValue] = useState("");
+  const [expiryUnit, setExpiryUnit] = useState<"minutes" | "hours" | "days">("hours");
   const [busy, setBusy] = useState(false);
 
   const campaigns = data?.campaigns ?? [];
@@ -593,6 +597,11 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
   // the cent so slots * per-player can never exceed what was authorised.
   const perSlot = validNumbers ? Math.floor((amt / n) * 100) / 100 : 0;
 
+  // Blank expiry → undefined (use default). A non-empty, invalid value (0,
+  // negative, non-numeric) is caught on submit rather than silently dropped.
+  const expiryMinutes = campaignExpiryMinutes(expiryValue, expiryUnit);
+  const expiryBlank = expiryValue.trim() === "";
+
   const create = async () => {
     if (!validNumbers) {
       push("Enter an amount and a whole number of players", "error");
@@ -602,9 +611,17 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
       push(`${birr(amt)} across ${n} players is only ${birr(perSlot)} each`, "error");
       return;
     }
+    if (!expiryBlank && (expiryMinutes === null || expiryMinutes < 1)) {
+      push("Expiry must be a whole number greater than 0, or left blank", "error");
+      return;
+    }
+    const expiryText = expiryBlank
+      ? "the default bonus lifetime"
+      : `${expiryValue} ${expiryUnit}`;
     if (
       !window.confirm(
-        `Start today's bonus?\n\n${birr(amt)} for the first ${n} players — ${birr(perSlot)} each.` +
+        `Start today's bonus?\n\n${birr(amt)} for the first ${n} players — ${birr(perSlot)} each.\n` +
+          `Bonus expires after ${expiryText}.` +
           (broadcast ? `\n\nThis WILL Telegram every registered player.` : ""),
       )
     )
@@ -617,11 +634,13 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
         slots: n,
         announcement: announcement.trim(),
         broadcast,
+        expiry_minutes: expiryBlank ? undefined : (expiryMinutes as number),
       });
       push(broadcast ? "Campaign started and announced" : "Campaign started", "success");
       setAmount("");
       setSlots("");
       setAnnouncement("");
+      setExpiryValue("");
       reload();
       onChanged();
     } catch (e) {
@@ -714,6 +733,34 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
             </div>
 
             <div className="mt-3">
+              <Field
+                label="Bonus expires after"
+                hint="How long a claimed bonus lasts. Leave blank to use the Policy default. A short window (e.g. 3 hours) drives urgency."
+              >
+                <div className="flex gap-2">
+                  <input
+                    className={`${campaignInputCls} flex-1`}
+                    type="number"
+                    min={1}
+                    step="1"
+                    value={expiryValue}
+                    onChange={(e) => setExpiryValue(e.target.value)}
+                    placeholder="default"
+                  />
+                  <select
+                    className={campaignInputCls}
+                    value={expiryUnit}
+                    onChange={(e) => setExpiryUnit(e.target.value as "minutes" | "hours" | "days")}
+                  >
+                    <option value="minutes">minutes</option>
+                    <option value="hours">hours</option>
+                    <option value="days">days</option>
+                  </select>
+                </div>
+              </Field>
+            </div>
+
+            <div className="mt-3">
               <Field label="Announcement (optional)" hint="Left blank, a bilingual default is sent.">
                 <textarea
                   className={`${campaignInputCls} h-24 resize-none`}
@@ -757,6 +804,7 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
                   <th className="px-4 py-2">Started</th>
                   <th className="px-4 py-2">Pot</th>
                   <th className="px-4 py-2">Each</th>
+                  <th className="px-4 py-2">Expires</th>
                   <th className="px-4 py-2">Claimed</th>
                 </tr>
               </thead>
@@ -766,6 +814,7 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
                     <td className="px-4 py-2 text-slate-400">{date(c.created_at)}</td>
                     <td className="px-4 py-2">{birr(c.total_amount)}</td>
                     <td className="px-4 py-2">{birr(c.amount_per_slot)}</td>
+                    <td className="px-4 py-2 text-slate-400">{humanizeExpiry(c.expiry_minutes)}</td>
                     <td className="px-4 py-2">
                       {c.claimed_count} / {c.slots}
                     </td>
@@ -800,10 +849,11 @@ function ActiveCampaign({
         <span className="text-xs text-slate-400">started {date(campaign.created_at)}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-4 gap-2 text-center">
         <Stat label="Pot" value={birr(campaign.total_amount)} />
         <Stat label="Each" value={birr(campaign.amount_per_slot)} />
         <Stat label="Claimed" value={`${campaign.claimed_count}/${campaign.slots}`} />
+        <Stat label="Expires" value={humanizeExpiry(campaign.expiry_minutes)} />
       </div>
 
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-panel2">
@@ -874,6 +924,24 @@ function ClaimsTable({ campaignId }: { campaignId: string }) {
 
 const campaignInputCls =
   "w-full rounded-lg border border-edge bg-panel2 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-brand";
+
+/** Value + unit → minutes for the API. null when the value is not a positive integer. */
+function campaignExpiryMinutes(
+  value: string,
+  unit: "minutes" | "hours" | "days",
+): number | null {
+  const v = Number(value);
+  if (!Number.isInteger(v) || v <= 0) return null;
+  return unit === "days" ? v * 1440 : unit === "hours" ? v * 60 : v;
+}
+
+/** Minutes → a short label for a scoreboard or history row. "Default" when unset. */
+function humanizeExpiry(minutes?: number): string {
+  if (!minutes || minutes <= 0) return "Default";
+  if (minutes % 1440 === 0) return `${minutes / 1440}d`;
+  if (minutes % 60 === 0) return `${minutes / 60}h`;
+  return `${minutes}m`;
+}
 
 function Field({
   label,

@@ -163,6 +163,8 @@ export interface BonusCampaign {
   amount_per_slot: number;
   claimed_count: number;
   announcement: string;
+  /** How long a claimed bonus lasts, in minutes. Absent → the general default. */
+  expiry_minutes?: number;
   status: "active" | "ended";
   created_at: string;
   ended_at?: string;

@@ -234,6 +234,8 @@ export interface BonusCampaign {
   amount_per_slot: number;
   claimed_count: number;
   announcement: string;
+  /** How long a claimed bonus lasts, in minutes. Absent → the Policy default. */
+  expiry_minutes?: number;
   status: "active" | "ended";
   created_by?: string;
   created_at: string;
@@ -423,6 +425,8 @@ export const api = {
     slots: number;
     announcement?: string;
     broadcast?: boolean;
+    /** Bonus lifetime in minutes; omit to use the Policy default. */
+    expiry_minutes?: number;
   }) =>
     request<{ campaign: BonusCampaign }>("/admin/bonus/campaigns", {
       method: "POST",

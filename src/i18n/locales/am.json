@@ -245,6 +245,12 @@
       "not_eligible": "ቦነሱን ለመክፈት አንድ ጊዜ ያስገቡ",
       "refused": "ይህን ቦነስ መውሰድ አይችሉም",
       "failed": "መውሰድ አልተቻለም — እባክዎ እንደገና ይሞክሩ"
+    },
+    "useWithin": "ከወሰዱ በኋላ በ{{duration}} ውስጥ ይጠቀሙ",
+    "dur": {
+      "minutes": "{{count}} ደቂቃ",
+      "hours": "{{count}} ሰዓት",
+      "days": "{{count}} ቀን"
     }
   }
 }

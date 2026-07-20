@@ -37,6 +37,7 @@ export function BonusCampaign() {
 
   const left = Math.max(0, campaign.slots - campaign.claimed_count);
   const taken = campaign.slots - left;
+  const expiry = humanizeExpiry(campaign.expiry_minutes, t);
 
   const claim = async () => {
     setBusy(true);
@@ -98,6 +99,11 @@ export function BonusCampaign() {
                   total: campaign.slots,
                 })}
           </div>
+          {/* Urgency: a short-lived bonus is the whole reason for a per-campaign
+              expiry, so say it out loud when one is set. */}
+          {!soldOut && expiry && (
+            <div className="text-[11px] font-semibold">⏳ {t("bonus.useWithin", { duration: expiry })}</div>
+          )}
         </div>
 
         <button
@@ -125,6 +131,21 @@ export function BonusCampaign() {
       </div>
     </Shell>
   );
+}
+
+/**
+ * Turn a minute count into a short human duration in the player's language.
+ * Falls back through days → hours → minutes, showing whole units only, since
+ * campaign expiries are always set as a round number of one unit.
+ */
+function humanizeExpiry(
+  minutes: number | undefined,
+  t: (k: string, o?: Record<string, unknown>) => string,
+): string | null {
+  if (!minutes || minutes <= 0) return null;
+  if (minutes % 1440 === 0) return t("bonus.dur.days", { count: minutes / 1440 });
+  if (minutes % 60 === 0) return t("bonus.dur.hours", { count: minutes / 60 });
+  return t("bonus.dur.minutes", { count: minutes });
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
