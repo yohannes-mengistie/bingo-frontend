@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   api,
   type BonusCampaign,
+  type BonusCampaignClaim,
   type BonusConfig,
   type Broadcast,
   type UserWithWallet,
 } from "@/lib/api";
+import { openCampaignSocket } from "@/lib/campaignSocket";
 import { useApi } from "@/lib/useApi";
 import { Button, Card, Spinner, ErrorNote, Badge, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -583,12 +585,64 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
   const campaigns = data?.campaigns ?? [];
   const active = campaigns.find((c) => c.status === "active") ?? null;
 
-  // Live scoreboards go stale fast during a stampede, so poll while one runs.
+  // Live claim feed for the active campaign. `liveCount` overrides the loaded
+  // claimed_count as claims arrive; `liveClaims` is the scoreboard rows,
+  // seeded from REST and then prepended to over the socket.
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [liveClaims, setLiveClaims] = useState<BonusCampaignClaim[] | null>(null);
+  const [claimsError, setClaimsError] = useState<string | null>(null);
+
+  // Seed the scoreboard from REST whenever the active campaign changes, then
+  // the socket keeps it current. Without this seed a dashboard opened
+  // mid-campaign would show an empty board until the next claim.
+  const activeId = active?.id ?? null;
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(reload, 5000);
-    return () => clearInterval(id);
-  }, [active?.id, reload]);
+    if (!activeId) {
+      setLiveClaims(null);
+      setLiveCount(null);
+      return;
+    }
+    let cancelled = false;
+    setClaimsError(null);
+    api
+      .campaignClaims(activeId)
+      .then((r) => {
+        if (cancelled) return;
+        setLiveClaims(r.claims);
+        setLiveCount(r.claims.length);
+      })
+      .catch((e) => !cancelled && setClaimsError(e instanceof Error ? e.message : "Failed to load claims"));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId]);
+
+  // The real-time connection. Pushes claims the instant they land — no polling.
+  // A "claim" updates the count and prepends the row; created/ended change
+  // which campaign is active, so those trigger a full reload.
+  useEffect(() => {
+    const close = openCampaignSocket({
+      onEvent: (e) => {
+        if (e.event === "claim") {
+          setLiveCount(e.data.claimed_count);
+          setLiveClaims((prev) => {
+            const rows = prev ?? [];
+            // Guard against a duplicate if the seed and a frame race.
+            if (rows.some((c) => c.user_id === e.data.claim.user_id)) return rows;
+            return [e.data.claim, ...rows];
+          });
+        } else {
+          // created / ended: the set of campaigns changed.
+          reload();
+        }
+      },
+      // After a dropped-and-restored connection, reconcile from REST.
+      onReconnect: reload,
+    });
+    return close;
+  }, [reload]);
+
+  const displayCount = liveCount ?? active?.claimed_count ?? 0;
 
   const amt = Number(amount);
   const n = Number(slots);
@@ -674,7 +728,12 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
         <h2 className="mb-1 font-semibold">{active ? "Running now" : "Start today's bonus"}</h2>
 
         {active ? (
-          <ActiveCampaign campaign={active} onEnd={() => end(active.id)} busy={busy} />
+          <ActiveCampaign
+            campaign={active}
+            claimedCount={displayCount}
+            onEnd={() => end(active.id)}
+            busy={busy}
+          />
         ) : (
           <>
             <p className="mb-3 text-xs text-slate-400">
@@ -831,11 +890,17 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
       </Card>
 
       <Card className="p-0">
-        <div className="border-b border-edge px-4 py-3">
+        <div className="flex items-center justify-between border-b border-edge px-4 py-3">
           <h2 className="font-semibold">{active ? "Who claimed" : "Past campaigns"}</h2>
+          {active && (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+              Live
+            </span>
+          )}
         </div>
         {active ? (
-          <ClaimsTable campaignId={active.id} />
+          <ClaimsTable claims={liveClaims} error={claimsError} />
         ) : campaigns.length === 0 ? (
           <EmptyState message="No campaigns yet." />
         ) : (
@@ -873,15 +938,18 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
 
 function ActiveCampaign({
   campaign,
+  claimedCount,
   onEnd,
   busy,
 }: {
   campaign: BonusCampaign;
+  // Live count from the socket; falls back to the campaign's own value.
+  claimedCount: number;
   onEnd: () => void;
   busy: boolean;
 }) {
-  const left = Math.max(0, campaign.slots - campaign.claimed_count);
-  const pct = Math.round((campaign.claimed_count / campaign.slots) * 100);
+  const left = Math.max(0, campaign.slots - claimedCount);
+  const pct = Math.round((claimedCount / campaign.slots) * 100);
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -894,7 +962,7 @@ function ActiveCampaign({
       <div className="grid grid-cols-4 gap-2 text-center">
         <Stat label="Pot" value={birr(campaign.total_amount)} />
         <Stat label="Each" value={birr(campaign.amount_per_slot)} />
-        <Stat label="Claimed" value={`${campaign.claimed_count}/${campaign.slots}`} />
+        <Stat label="Claimed" value={`${claimedCount}/${campaign.slots}`} />
         <Stat label="Expires" value={humanizeExpiry(campaign.expiry_minutes)} />
       </div>
 
@@ -918,21 +986,25 @@ function ActiveCampaign({
   );
 }
 
-/** Who got in, in the order they got in. */
-function ClaimsTable({ campaignId }: { campaignId: string }) {
-  const { data, loading, error, reload } = useApi(
-    () => api.campaignClaims(campaignId),
-    [campaignId],
-  );
-  const claims = data?.claims ?? [];
-
-  if (loading) return <Spinner />;
+/**
+ * Who got in, in the order they got in. Presentational: the parent seeds it
+ * from REST and then prepends rows as claims arrive over the socket, so the
+ * board updates live without this component fetching anything.
+ */
+function ClaimsTable({
+  claims,
+  error,
+}: {
+  claims: BonusCampaignClaim[] | null;
+  error: string | null;
+}) {
   if (error)
     return (
       <div className="p-4">
-        <ErrorNote message={error} onRetry={reload} />
+        <ErrorNote message={error} />
       </div>
     );
+  if (claims === null) return <Spinner />;
   if (claims.length === 0) return <EmptyState message="Nobody has claimed yet." />;
 
   return (

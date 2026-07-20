@@ -4,6 +4,17 @@
 const BASE = (import.meta.env.VITE_API_BASE ?? "https://bingo-api-c6un.onrender.com").replace(/\/$/, "");
 const API = `${BASE}/api/v1`;
 
+/**
+ * WebSocket URL for a live admin feed, with the JWT on the query string — a
+ * browser cannot set an Authorization header on a WebSocket, so the token
+ * rides the URL and the server validates it there. http→ws, https→wss.
+ */
+export function wsURL(path: string): string {
+  const base = API.replace(/^http/, "ws");
+  const t = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${base}${path}${t}`;
+}
+
 const TOKEN_KEY = "bingo_admin_token";
 
 let token: string | null = localStorage.getItem(TOKEN_KEY);
