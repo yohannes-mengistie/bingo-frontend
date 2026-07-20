@@ -58,14 +58,9 @@ export function BonusCampaign() {
     }
   };
 
-  // Already claimed — a small confirmation so the player knows it worked.
-  if (data?.claimed) {
-    return (
-      <Shell>
-        <span className="font-display text-sm font-bold">✅ {t("bonus.claimedShort")}</span>
-      </Shell>
-    );
-  }
+  // Already claimed — show nothing. The claim confirmation is the toast at
+  // claim time; a lingering banner afterwards is just clutter on the play page.
+  if (data?.claimed) return null;
 
   // Only offer the button while a slot exists and the campaign is still active;
   // otherwise show nothing (no counts, no "finished" clutter).
