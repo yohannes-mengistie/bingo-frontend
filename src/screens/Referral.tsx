@@ -11,16 +11,18 @@ export function Referral() {
   const { t } = useTranslation();
   const code = useAuth((s) => s.user?.referal_code ?? "");
   const push = useToast((s) => s.push);
-  const bot = import.meta.env.VITE_BOT_USERNAME ?? "Habtam_bingobot";
+  const bot = import.meta.env.VITE_BOT_USERNAME ?? "EDL_Bingobot";
   const link = `https://t.me/${bot}?start=ref_${code}`;
 
   const copy = async () => {
     haptic.notify("success");
     try {
-      await navigator.clipboard.writeText(code);
+      // Copy the full invite link — that's what carries the referral code, and
+      // what a friend needs to tap for the reward to attribute.
+      await navigator.clipboard.writeText(link);
       push(t("common.copied"), "success");
     } catch {
-      push(code, "info");
+      push(link, "info");
     }
   };
 

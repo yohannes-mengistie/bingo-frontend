@@ -216,10 +216,10 @@
   },
   "referral": {
     "title": "Invite & earn",
-    "body": "Share your code. When friends join and play, you both shine.",
+    "body": "Invite friends with your link. When someone you invite makes their first deposit, you earn 15 birr — real cash.",
     "yourCode": "Your code",
     "shareBtn": "Share on Telegram",
-    "shareText": "Join me on Edl Bingo and let's win together! Use my code {{code}}:"
+    "shareText": "🎯 Join me on EDL Bingo! Tap my link to start playing:"
   },
   "leaderboard": {
     "title": "Leaderboard",
