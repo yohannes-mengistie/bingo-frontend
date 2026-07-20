@@ -722,208 +722,160 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
   if (loading) return <Spinner />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
 
+  // ---- Live scoreboard: a campaign is running ---------------------------
+  if (active) {
+    return <ActiveCampaign campaign={active} claimedCount={displayCount} claims={liveClaims} claimsError={claimsError} onEnd={() => end(active.id)} busy={busy} />;
+  }
+
+  // ---- Create form: no campaign running --------------------------------
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <h2 className="mb-1 font-semibold">{active ? "Running now" : "Start today's bonus"}</h2>
-
-        {active ? (
-          <ActiveCampaign
-            campaign={active}
-            claimedCount={displayCount}
-            onEnd={() => end(active.id)}
-            busy={busy}
-          />
-        ) : (
-          <>
-            <p className="mb-3 text-xs text-slate-400">
-              A pot split equally among the first N players who claim it. Only players who have
-              completed a deposit can claim, and each player can claim once.
-            </p>
-
-            {!enabled && (
-              <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-                Bonus granting is switched off in Policy — turn it on first or every claim will
-                fail.
-              </div>
-            )}
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Total amount (birr)">
-                <input
-                  className={campaignInputCls}
-                  type="number"
-                  min={1}
-                  step="1"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="1000"
-                />
-              </Field>
-              <Field label="Number of players">
-                <input
-                  className={campaignInputCls}
-                  type="number"
-                  min={1}
-                  step="1"
-                  value={slots}
-                  onChange={(e) => setSlots(e.target.value)}
-                  placeholder="10"
-                />
-              </Field>
-            </div>
-
-            {/* The number the player actually receives, shown before committing
-                — the split is the easiest thing to get wrong. */}
-            <div className="mt-3 rounded-lg border border-edge bg-panel2 px-3 py-2 text-sm">
-              {validNumbers ? (
-                <span className="text-slate-200">
-                  Each player gets <strong className="text-brand">{birr(perSlot)}</strong>
-                  {perSlot * n < amt && (
-                    <span className="text-slate-400">
-                      {" "}
-                      · {birr(amt - perSlot * n)} of the pot stays unspent (rounding)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-slate-500">Enter an amount and a player count</span>
-              )}
-            </div>
-
-            <div className="mt-3">
-              <Field label="Bonus expires after">
-                {/* One-tap presets cover the common choices; the custom row
-                    below is for anything else. A short window drives urgency. */}
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {EXPIRY_PRESETS.map((p) => {
-                    const selected =
-                      p.value === "" ? expiryBlank : !expiryBlank && expiryMinutes === p.minutes;
-                    return (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => {
-                          setExpiryValue(p.value);
-                          if (p.unit) setExpiryUnit(p.unit);
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                          selected
-                            ? "border-brand bg-brand/15 text-brand"
-                            : "border-edge bg-panel2 text-slate-300 hover:border-slate-500"
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">or custom:</span>
-                  <input
-                    className={`${campaignInputCls} w-24`}
-                    type="number"
-                    min={1}
-                    step="1"
-                    value={expiryValue}
-                    onChange={(e) => setExpiryValue(e.target.value)}
-                    placeholder="e.g. 3"
-                  />
-                  <select
-                    className={`${campaignInputCls} w-28`}
-                    value={expiryUnit}
-                    onChange={(e) => setExpiryUnit(e.target.value as "minutes" | "hours" | "days")}
-                  >
-                    <option value="minutes">minutes</option>
-                    <option value="hours">hours</option>
-                    <option value="days">days</option>
-                  </select>
-                </div>
-
-                {/* Plain-language confirmation of the choice, so there is no
-                    guessing about what "3 / hours" actually means. */}
-                <div className="mt-2 text-xs text-slate-400">
-                  {expiryBlank ? (
-                    <>→ Uses the default bonus lifetime (Policy tab).</>
-                  ) : expiryMinutes && expiryMinutes >= 1 ? (
-                    <>
-                      → Bonus expires{" "}
-                      <strong className="text-slate-200">
-                        {expiryValue} {expiryUnit}
-                      </strong>{" "}
-                      after each player claims it.
-                    </>
-                  ) : (
-                    <span className="text-amber-300">→ Enter a whole number greater than 0.</span>
-                  )}
-                </div>
-              </Field>
-            </div>
-
-            <div className="mt-3">
-              <Field label="Announcement (optional)" hint="Left blank, a bilingual default is sent.">
-                <textarea
-                  className={`${campaignInputCls} h-24 resize-none`}
-                  maxLength={1000}
-                  value={announcement}
-                  onChange={(e) => setAnnouncement(e.target.value)}
-                  placeholder="🎁 የዛሬ ቦነስ…"
-                />
-              </Field>
-            </div>
-
-            <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
-              <input
-                type="checkbox"
-                checked={broadcast}
-                onChange={(e) => setBroadcast(e.target.checked)}
-              />
-              Telegram every player when this starts
-            </label>
-
-            <Button className="mt-4 w-full" onClick={create} disabled={busy || !validNumbers}>
-              {busy ? "Starting…" : "Start campaign"}
-            </Button>
-          </>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_1fr]">
+      <div className="space-y-6">
+        {!enabled && (
+          <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Bonus granting is off in the Policy tab — turn it on first.
+          </div>
         )}
-      </Card>
 
-      <Card className="p-0">
-        <div className="flex items-center justify-between border-b border-edge px-4 py-3">
-          <h2 className="font-semibold">{active ? "Who claimed" : "Past campaigns"}</h2>
-          {active && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              Live
-            </span>
+        {/* Pot + players — the two numbers that define the campaign */}
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Total pot</div>
+            <div className="relative">
+              <input
+                className={`${campaignInputCls} pr-10 text-lg font-semibold`}
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="1000"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">birr</span>
+            </div>
+          </label>
+          <label className="block">
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Players</div>
+            <input
+              className={`${campaignInputCls} text-lg font-semibold`}
+              type="number"
+              min={1}
+              value={slots}
+              onChange={(e) => setSlots(e.target.value)}
+              placeholder="10"
+            />
+          </label>
+        </div>
+
+        {/* Live split, one quiet line */}
+        <div className="text-sm text-slate-400">
+          {validNumbers ? (
+            <>
+              Each gets <span className="font-semibold text-brand">{birr(perSlot)}</span>
+            </>
+          ) : (
+            <span className="text-slate-600">Enter a pot and player count</span>
           )}
         </div>
-        {active ? (
-          <ClaimsTable claims={liveClaims} error={claimsError} />
-        ) : campaigns.length === 0 ? (
+
+        {/* Expiry — presets, with a compact custom input inline */}
+        <div>
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Expires after</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {EXPIRY_PRESETS.map((p) => {
+              const selected = p.value === "" ? expiryBlank : !expiryBlank && expiryMinutes === p.minutes;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    setExpiryValue(p.value);
+                    if (p.unit) setExpiryUnit(p.unit);
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    selected ? "bg-brand text-ink" : "bg-panel2 text-slate-300 hover:bg-edge"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            <input
+              className={`${campaignInputCls} w-16`}
+              type="number"
+              min={1}
+              value={expiryValue}
+              onChange={(e) => setExpiryValue(e.target.value)}
+              placeholder="#"
+            />
+            <select
+              className={`${campaignInputCls} w-24`}
+              value={expiryUnit}
+              onChange={(e) => setExpiryUnit(e.target.value as "minutes" | "hours" | "days")}
+            >
+              <option value="minutes">min</option>
+              <option value="hours">hours</option>
+              <option value="days">days</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Announcement */}
+        <div>
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Message (optional)</div>
+          <textarea
+            className={`${campaignInputCls} h-20 resize-none`}
+            maxLength={1000}
+            value={announcement}
+            onChange={(e) => setAnnouncement(e.target.value)}
+            placeholder="Leave blank for the default bilingual message"
+          />
+        </div>
+
+        {/* Broadcast toggle */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={broadcast}
+          onClick={() => setBroadcast(!broadcast)}
+          className="flex w-full items-center justify-between text-sm text-slate-300"
+        >
+          <span>Notify all players on Telegram</span>
+          <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${broadcast ? "bg-brand" : "bg-edge"}`}>
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${broadcast ? "left-[22px]" : "left-0.5"}`} />
+          </span>
+        </button>
+
+        <Button className="w-full" onClick={create} disabled={busy || !validNumbers}>
+          {busy ? "Starting…" : "Start bonus"}
+        </Button>
+      </div>
+
+      {/* Past campaigns — a plain table, no card */}
+      <div>
+        <div className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">History</div>
+        {campaigns.length === 0 ? (
           <EmptyState message="No campaigns yet." />
         ) : (
-          <div className="max-h-[28rem] overflow-auto">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-edge text-left text-xs uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-4 py-2">Started</th>
-                  <th className="px-4 py-2">Pot</th>
-                  <th className="px-4 py-2">Each</th>
-                  <th className="px-4 py-2">Expires</th>
-                  <th className="px-4 py-2">Claimed</th>
+              <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-edge">
+                  <th className="py-2 pr-3 font-medium">Date</th>
+                  <th className="py-2 pr-3 font-medium">Pot</th>
+                  <th className="py-2 pr-3 font-medium">Each</th>
+                  <th className="py-2 pr-3 font-medium">Expiry</th>
+                  <th className="py-2 font-medium">Claimed</th>
                 </tr>
               </thead>
               <tbody>
                 {campaigns.map((c) => (
-                  <tr key={c.id} className="border-b border-edge/50">
-                    <td className="px-4 py-2 text-slate-400">{date(c.created_at)}</td>
-                    <td className="px-4 py-2">{birr(c.total_amount)}</td>
-                    <td className="px-4 py-2">{birr(c.amount_per_slot)}</td>
-                    <td className="px-4 py-2 text-slate-400">{humanizeExpiry(c.expiry_minutes)}</td>
-                    <td className="px-4 py-2">
-                      {c.claimed_count} / {c.slots}
+                  <tr key={c.id} className="border-b border-edge/40">
+                    <td className="py-2 pr-3 text-slate-400">{date(c.created_at)}</td>
+                    <td className="py-2 pr-3">{birr(c.total_amount)}</td>
+                    <td className="py-2 pr-3">{birr(c.amount_per_slot)}</td>
+                    <td className="py-2 pr-3 text-slate-400">{humanizeExpiry(c.expiry_minutes)}</td>
+                    <td className="py-2 tabular-nums">
+                      {c.claimed_count}/{c.slots}
                     </td>
                   </tr>
                 ))}
@@ -931,7 +883,7 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
@@ -939,49 +891,79 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
 function ActiveCampaign({
   campaign,
   claimedCount,
+  claims,
+  claimsError,
   onEnd,
   busy,
 }: {
   campaign: BonusCampaign;
   // Live count from the socket; falls back to the campaign's own value.
   claimedCount: number;
+  claims: BonusCampaignClaim[] | null;
+  claimsError: string | null;
   onEnd: () => void;
   busy: boolean;
 }) {
   const left = Math.max(0, campaign.slots - claimedCount);
-  const pct = Math.round((claimedCount / campaign.slots) * 100);
+  const pct = Math.min(100, Math.round((claimedCount / campaign.slots) * 100));
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_1fr]">
+      {/* Scoreboard + controls */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+            {left === 0 ? "Full" : "Live"}
+          </span>
+          <span className="text-slate-500">· started {date(campaign.created_at)}</span>
+        </div>
+
+        {/* Hero count */}
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-5xl font-bold tabular-nums text-slate-100">{claimedCount}</span>
+            <span className="text-2xl text-slate-500">/ {campaign.slots}</span>
+            <span className="ml-auto text-sm text-slate-400">
+              {left === 0 ? "all claimed" : `${left} left`}
+            </span>
+          </div>
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-panel2">
+            <div
+              className="h-full rounded-full bg-brand transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Compact facts */}
+        <div className="grid grid-cols-3 gap-3 border-t border-edge pt-5">
+          <Metric label="Pot" value={birr(campaign.total_amount)} />
+          <Metric label="Each" value={birr(campaign.amount_per_slot)} />
+          <Metric label="Expires" value={humanizeExpiry(campaign.expiry_minutes)} />
+        </div>
+
+        <Button variant="danger" className="w-full" onClick={onEnd} disabled={busy}>
+          {busy ? "Stopping…" : "Stop bonus"}
+        </Button>
+      </div>
+
+      {/* Live claims */}
+      <div>
+        <div className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+          Claims
+        </div>
+        <ClaimsTable claims={claims} error={claimsError} />
+      </div>
+    </div>
+  );
+}
+
+/** A compact label + value used across the scoreboard. */
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="mb-3 flex items-center gap-2">
-        <Badge tone={left === 0 ? "yellow" : "green"}>
-          {left === 0 ? "All slots claimed" : `${left} left`}
-        </Badge>
-        <span className="text-xs text-slate-400">started {date(campaign.created_at)}</span>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2 text-center">
-        <Stat label="Pot" value={birr(campaign.total_amount)} />
-        <Stat label="Each" value={birr(campaign.amount_per_slot)} />
-        <Stat label="Claimed" value={`${claimedCount}/${campaign.slots}`} />
-        <Stat label="Expires" value={humanizeExpiry(campaign.expiry_minutes)} />
-      </div>
-
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-panel2">
-        <div
-          className="h-full rounded-full bg-brand transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <p className="mt-3 text-xs text-slate-400">
-        {left === 0
-          ? "Every slot is gone. The campaign stays visible to players so latecomers see it sold out; starting the next one retires it."
-          : "Players are claiming now. Stopping early keeps every bonus already handed out."}
-      </p>
-
-      <Button variant="danger" className="mt-3 w-full" onClick={onEnd} disabled={busy}>
-        {busy ? "Working…" : "Stop campaign"}
-      </Button>
+      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="mt-0.5 font-semibold text-slate-100">{value}</div>
     </div>
   );
 }
@@ -1005,29 +987,29 @@ function ClaimsTable({
       </div>
     );
   if (claims === null) return <Spinner />;
-  if (claims.length === 0) return <EmptyState message="Nobody has claimed yet." />;
+  if (claims.length === 0) return <EmptyState message="Waiting for the first claim…" />;
 
   return (
-    <div className="max-h-[28rem] overflow-auto">
+    <div className="max-h-[30rem] overflow-auto">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 border-b border-edge bg-panel text-left text-xs uppercase tracking-wide text-slate-400">
-          <tr>
-            <th className="px-4 py-2">#</th>
-            <th className="px-4 py-2">Player</th>
-            <th className="px-4 py-2">Got</th>
-            <th className="px-4 py-2">When</th>
+        <thead className="sticky top-0 bg-ink text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-edge">
+            <th className="w-8 py-2 font-medium">#</th>
+            <th className="py-2 font-medium">Player</th>
+            <th className="py-2 pr-3 text-right font-medium">Got</th>
+            <th className="py-2 text-right font-medium">When</th>
           </tr>
         </thead>
         <tbody>
           {claims.map((c) => (
-            <tr key={c.user_id} className="border-b border-edge/50">
-              <td className="px-4 py-2 text-slate-500">{c.position}</td>
-              <td className="px-4 py-2">
+            <tr key={c.user_id} className="border-b border-edge/40">
+              <td className="py-2.5 tabular-nums text-slate-500">{c.position}</td>
+              <td className="py-2.5">
                 <div className="text-slate-200">{c.name || "—"}</div>
                 <div className="text-xs text-slate-500">{c.phone}</div>
               </td>
-              <td className="px-4 py-2">{birr(c.amount)}</td>
-              <td className="px-4 py-2 text-slate-400">{date(c.claimed_at)}</td>
+              <td className="py-2.5 pr-3 text-right font-medium text-brand">{birr(c.amount)}</td>
+              <td className="py-2.5 text-right text-slate-500">{date(c.claimed_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -1073,20 +1055,3 @@ function humanizeExpiry(minutes?: number): string {
   return `${minutes}m`;
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <div className="mb-1 text-xs font-medium text-slate-400">{label}</div>
-      {children}
-      {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
-    </label>
-  );
-}
