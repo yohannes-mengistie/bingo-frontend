@@ -252,9 +252,17 @@ export interface AdminGamePlayer {
   joined_at: string;
 }
 
+export interface GameWinner {
+  user_id: string;
+  winner_name: string;
+  card_id: number;
+  prize: number;
+}
+
 export interface GameDetail {
   game: Game;
   players: AdminGamePlayer[];
+  winners: GameWinner[];
 }
 
 export interface CancelGameResponse {

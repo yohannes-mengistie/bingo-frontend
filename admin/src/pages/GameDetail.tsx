@@ -20,7 +20,7 @@ import {
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm";
-import { birr, date, shortId, initials, fullName, statusTone } from "@/lib/format";
+import { birr, date, shortId, initials, fullName, readable, statusTone } from "@/lib/format";
 import { isCancellable } from "@/pages/Games";
 
 export function GameDetail() {
@@ -135,6 +135,34 @@ export function GameDetail() {
               <DateItem label="Finished" value={g.finished_at} />
             </dl>
           </Card>
+
+          {(data?.winners?.length ?? 0) > 0 && (
+            <Card>
+              <h2 className="mb-3 text-sm font-semibold text-txt">
+                🏆 Winner{data!.winners.length > 1 ? "s" : ""} ({data!.winners.length})
+              </h2>
+              <div className="space-y-2">
+                {data!.winners.map((w) => (
+                  <Link
+                    key={`${w.user_id}-${w.card_id}`}
+                    to={`/users/${w.user_id}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2 transition hover:border-success"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Avatar initials={initials(readable(w.winner_name))} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-txt">
+                          {readable(w.winner_name) || shortId(w.user_id)}
+                        </span>
+                        <span className="block text-xs text-txt-3">Card #{w.card_id}</span>
+                      </span>
+                    </span>
+                    <span className="font-bold tabular-nums text-success">{birr(w.prize)}</span>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <Card className="p-0">
             <div className="border-b border-edgeSoft p-4">
