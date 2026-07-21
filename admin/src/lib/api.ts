@@ -151,6 +151,34 @@ export interface AppSettings {
   updated_at: string;
 }
 
+// A referred player (subset of User) for the "invited players" list.
+export interface PlayerLite {
+  id: string;
+  telegram_id: number;
+  first_name: string;
+  last_name?: string | null;
+  phone_number: string;
+  created_at: string;
+}
+
+// One game a player took part in (for the profile game-history section).
+export interface GameHistoryEntry {
+  game: {
+    id: string;
+    game_type: string;
+    bet_amount: number;
+    state: string;
+    prize_pool: number;
+    finished_at?: string | null;
+    created_at?: string;
+  };
+  cards_held: number;
+  total_stake: number;
+  is_winner: boolean;
+  win_amount: number;
+  joined_at: string;
+}
+
 // Player-submitted problem reports ("Report a problem" in the Mini App).
 export type SupportCategory = "transaction" | "gameplay" | "other";
 export type SupportStatus = "open" | "resolved";
@@ -360,6 +388,14 @@ export const api = {
     request<{ transactions: Transaction[]; total: number }>(
       `/admin/users/${segment(id)}/transactions?limit=${limit}&offset=${offset}`,
     ),
+
+  // Everyone this player invited (each links to their profile).
+  userReferrals: (id: string) =>
+    request<{ users: PlayerLite[]; count: number }>(`/admin/users/${segment(id)}/referrals`),
+
+  // A player's game history (each links to the game detail).
+  userGames: (id: string, limit = 25) =>
+    request<{ games: GameHistoryEntry[] }>(`/admin/users/${segment(id)}/games?limit=${limit}`),
 
   setRole: (id: string, role: "user" | "admin") =>
     request<{ message: string }>(`/admin/users/${segment(id)}/role`, {

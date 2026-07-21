@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type UserGameStats } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import {
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm";
-import { birr, date, fullName, initials, statusTone } from "@/lib/format";
+import { birr, date, fullName, initials, shortId, statusTone } from "@/lib/format";
 
 export function UserDetail() {
   const { id = "" } = useParams();
@@ -281,15 +281,107 @@ export function UserDetail() {
               value={birr(u.wallet?.balance)}
             />
             {stats && <PlayerMoneyCard stats={stats} />}
+            <InvitedPlayers userId={id} />
           </div>
 
-          {/* -------------------------------------------- full-width history -- */}
-          <div className="lg:col-span-3">
+          {/* -------------------------------------------- full-width sections -- */}
+          <div className="space-y-4 lg:col-span-3">
             <TransactionHistory userId={id} />
+            <GamesPlayed userId={id} />
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+// InvitedPlayers lists everyone this player referred, each linking to their own
+// profile — so you can trace a referral chain.
+function InvitedPlayers({ userId }: { userId: string }) {
+  const { data, loading } = useApi(() => api.userReferrals(userId), [userId]);
+  const users = data?.users ?? [];
+  return (
+    <Card>
+      <h3 className="mb-3 text-sm font-semibold text-txt">Invited players ({users.length})</h3>
+      {loading && !data ? (
+        <Spinner />
+      ) : users.length === 0 ? (
+        <p className="text-sm text-txt-4">Hasn't invited anyone.</p>
+      ) : (
+        <ul className="space-y-2">
+          {users.map((u) => (
+            <li key={u.id}>
+              <Link
+                to={`/users/${u.id}`}
+                className="flex items-center justify-between gap-2 rounded-lg border border-edgeSoft bg-panel2 px-3 py-2 transition hover:border-brand"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-txt">
+                    {fullName(u.first_name, u.last_name) || u.phone_number}
+                  </span>
+                  <span className="block truncate text-xs text-txt-3">{u.phone_number}</span>
+                </span>
+                <span className="whitespace-nowrap text-xs text-txt-4">{date(u.created_at)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+// GamesPlayed is the player's game history — each row links to the game detail.
+function GamesPlayed({ userId }: { userId: string }) {
+  const { data, loading } = useApi(() => api.userGames(userId), [userId]);
+  const games = data?.games ?? [];
+  return (
+    <Card className="p-0">
+      <div className="border-b border-edgeSoft p-4">
+        <h3 className="text-sm font-semibold text-txt">Games played</h3>
+        <p className="mt-0.5 text-xs text-txt-3">Click a game to open its full detail.</p>
+      </div>
+      {loading && !data ? (
+        <div className="p-4">
+          <Spinner />
+        </div>
+      ) : games.length === 0 ? (
+        <EmptyState message="No games played." icon="games" />
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th className={thClass}>Game</th>
+              <th className={thClass}>Type</th>
+              <th className={`${thClass} text-right`}>Staked</th>
+              <th className={thClass}>Result</th>
+              <th className={`${thClass} text-right`}>Won</th>
+              <th className={thClass}>When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {games.map((g) => (
+              <tr key={g.game.id} className={trClass}>
+                <td className={tdClass}>
+                  <Link to={`/games/${g.game.id}`} className="font-mono text-xs text-brand hover:underline">
+                    {shortId(g.game.id)}
+                  </Link>
+                </td>
+                <td className={tdClass}>{g.game.game_type}</td>
+                <td className={`${tdClass} text-right tabular-nums`}>{birr(g.total_stake)}</td>
+                <td className={tdClass}>
+                  {g.is_winner ? <Badge tone="green">Won</Badge> : <span className="text-txt-4">—</span>}
+                </td>
+                <td className={`${tdClass} text-right tabular-nums ${g.is_winner ? "text-success" : "text-txt-4"}`}>
+                  {g.win_amount > 0 ? birr(g.win_amount) : "—"}
+                </td>
+                <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(g.joined_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </Card>
   );
 }
 
