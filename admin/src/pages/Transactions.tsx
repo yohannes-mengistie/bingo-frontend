@@ -95,6 +95,22 @@ export function Transactions() {
     }
   };
 
+  // Roll back a withdrawal: refund the genuine part to cash, the rest to bonus.
+  const rollback = async (id: string) => {
+    setBusyId(id);
+    try {
+      const res = await api.rejectWithdrawalToBonus(id);
+      const r = res.result;
+      push(`Rolled back — ${birr(r.real_refunded)} to balance, ${birr(r.bonus_granted)} to bonus`, "success");
+      reload();
+      setDetail(null);
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Rollback failed", "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const rows = data?.transactions ?? [];
 
   const filtered = useMemo(() => {
@@ -105,6 +121,7 @@ export function Transactions() {
       const hay = [
         u ? fullName(u.first_name, u.last_name) : "",
         u?.phone_number ?? "",
+        u ? String(u.telegram_id) : "",
         t.transaction_id ?? "",
         t.reference ?? "",
         t.transaction_type ?? "",
@@ -232,9 +249,15 @@ export function Transactions() {
                               onClick={() => act(t.id, api.approveWithdrawal, "Approve")}
                             />
                             <IconButton
+                              icon="refresh"
+                              title="Roll back → split refund to cash + bonus"
+                              loading={busyId === t.id}
+                              onClick={() => rollback(t.id)}
+                            />
+                            <IconButton
                               icon="x"
                               tone="red"
-                              title="Reject"
+                              title="Reject (full refund to cash)"
                               loading={busyId === t.id}
                               onClick={() => act(t.id, api.rejectWithdrawal, "Reject")}
                             />
@@ -296,6 +319,7 @@ export function Transactions() {
           act(id, fn, label);
           setDetail(null);
         }}
+        onRollback={rollback}
       />
     </div>
   );
@@ -307,12 +331,14 @@ function TransactionDrawer({
   busy,
   onClose,
   onAct,
+  onRollback,
 }: {
   tx: Transaction | null;
   user?: UserWithWallet;
   busy: boolean;
   onClose: () => void;
   onAct: (id: string, fn: (id: string) => Promise<unknown>, label: string) => void;
+  onRollback: (id: string) => void;
 }) {
   if (!tx) return null;
   const isIn = tx.type === "deposit" || tx.type === "transfer_in";
@@ -320,24 +346,29 @@ function TransactionDrawer({
 
   const footer =
     tx.status === "pending" ? (
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         {tx.type === "deposit" && (
-          <>
+          <div className="flex gap-2">
             <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveDeposit, "Approve")}>
               Approve
             </Button>
             <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectDeposit, "Reject")}>
               Reject
             </Button>
-          </>
+          </div>
         )}
         {tx.type === "withdraw" && (
           <>
-            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveWithdrawal, "Approve")}>
-              Approve
-            </Button>
-            <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectWithdrawal, "Reject")}>
-              Reject
+            <div className="flex gap-2">
+              <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveWithdrawal, "Approve")}>
+                Approve & pay
+              </Button>
+              <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectWithdrawal, "Reject")}>
+                Reject (all to cash)
+              </Button>
+            </div>
+            <Button variant="subtle" icon="refresh" loading={busy} className="w-full" onClick={() => onRollback(tx.id)}>
+              Roll back → genuine to cash, referral/bonus to bonus
             </Button>
           </>
         )}

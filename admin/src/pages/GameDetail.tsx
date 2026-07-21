@@ -20,7 +20,7 @@ import {
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm";
-import { birr, date, shortId, initials, statusTone } from "@/lib/format";
+import { birr, date, shortId, initials, fullName, statusTone } from "@/lib/format";
 import { isCancellable } from "@/pages/Games";
 
 export function GameDetail() {
@@ -162,9 +162,7 @@ export function GameDetail() {
                           className="flex items-center gap-2.5 font-medium text-txt hover:text-brand"
                         >
                           <Avatar initials={initials(p.first_name, p.last_name)} />
-                          <span>
-                            {p.first_name} {p.last_name ?? ""}
-                          </span>
+                          <span>{fullName(p.first_name, p.last_name) || p.phone_number}</span>
                         </Link>
                       </td>
                       <td className={`${tdClass} text-txt-2`}>

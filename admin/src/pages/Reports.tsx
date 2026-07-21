@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type SupportCategory, type SupportReport, type SupportStatus } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
@@ -12,6 +12,7 @@ import {
   ErrorNote,
   EmptyState,
   PageHeader,
+  Pagination,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { date, fullName, shortId, statusTone } from "@/lib/format";
@@ -36,11 +37,15 @@ export function Reports() {
   const push = useToast((s) => s.push);
 
   const active = TABS.find((t) => t.key === tab)!;
+  const PAGE = 50;
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [tab]);
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.reports(active.status, 200, 0),
-    [tab],
+    () => api.reports(active.status, PAGE, page * PAGE),
+    [tab, page],
     12000,
   );
+  const total = data?.count ?? 0;
 
   async function resolve(r: SupportReport) {
     setResolving(r.id);
@@ -126,6 +131,11 @@ export function Reports() {
               </Card>
             );
           })}
+          {total > PAGE && (
+            <Card className="p-0">
+              <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={reports.length} />
+            </Card>
+          )}
         </div>
       )}
     </div>

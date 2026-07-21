@@ -19,6 +19,7 @@ import {
   ErrorNote,
   EmptyState,
   PageHeader,
+  Pagination,
   Drawer,
   DetailRow,
 } from "@/components/ui";
@@ -53,14 +54,22 @@ export function Games() {
 
   const stateFilter: GameState | undefined = tab === "all" || tab === "active" ? undefined : tab;
 
+  const PAGE = 50;
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [tab]); // reset to first page when the tab changes
+
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.games({ state: stateFilter, limit: 100 }),
-    [tab],
+    () => api.games({ state: stateFilter, limit: PAGE, offset: page * PAGE }),
+    [tab, page],
     6000,
   );
 
   let rows: Game[] = data?.games ?? [];
   if (tab === "active") rows = rows.filter((g) => isCancellable(g.state));
+  // The "active" tab filters the current page client-side, so paging it is
+  // meaningless (and live games are few); page the state/all tabs only.
+  const paged = tab !== "active";
+  const total = data?.total ?? 0;
 
   const cancel = async (g: Game) => {
     if (
@@ -163,6 +172,9 @@ export function Games() {
               ))}
             </tbody>
           </Table>
+        )}
+        {paged && total > PAGE && (
+          <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={rows.length} />
         )}
       </Card>
 

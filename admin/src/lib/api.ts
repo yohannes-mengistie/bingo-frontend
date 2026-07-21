@@ -143,6 +143,7 @@ export interface UserGameStats {
   total_bonus: number;
   real_balance: number;
   bonus_balance: number;
+  referred_count: number;
 }
 
 export interface AppSettings {
@@ -354,6 +355,12 @@ export const api = {
   userGameStats: (id: string) =>
     request<{ stats: UserGameStats }>(`/admin/users/${segment(id)}/game-stats`),
 
+  // A player's full transaction history (paginated) for the detail view.
+  userTransactions: (id: string, limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[]; total: number }>(
+      `/admin/users/${segment(id)}/transactions?limit=${limit}&offset=${offset}`,
+    ),
+
   setRole: (id: string, role: "user" | "admin") =>
     request<{ message: string }>(`/admin/users/${segment(id)}/role`, {
       method: "POST",
@@ -438,6 +445,13 @@ export const api = {
     request<{ message: string }>(`/admin/transactions/${segment(id)}/reject-withdrawal`, {
       method: "POST",
     }),
+  // Roll back a withdrawal, splitting the refund: genuine (deposit/winnings)
+  // portion → cash, the rest → play-only bonus.
+  rejectWithdrawalToBonus: (id: string) =>
+    request<{ message: string; result: { amount: number; real_refunded: number; bonus_granted: number } }>(
+      `/admin/transactions/${segment(id)}/reject-to-bonus`,
+      { method: "POST" },
+    ),
   cancelTransaction: (id: string) =>
     request<{ message: string }>(`/admin/transactions/${segment(id)}/cancel`, { method: "POST" }),
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, type UserGameStats } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import {
   Avatar,
@@ -11,8 +11,15 @@ import {
   StatCard,
   StatusBadge,
   Skeleton,
+  Spinner,
   ErrorNote,
   PageHeader,
+  Table,
+  thClass,
+  tdClass,
+  trClass,
+  Pagination,
+  EmptyState,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm";
@@ -22,6 +29,8 @@ export function UserDetail() {
   const { id = "" } = useParams();
   const nav = useNavigate();
   const { data, loading, error, reload } = useApi(() => api.userDetail(id), [id]);
+  const { data: statsData } = useApi(() => api.userGameStats(id), [id]);
+  const stats = statsData?.stats;
   const push = useToast((s) => s.push);
   const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -271,9 +280,141 @@ export function UserDetail() {
               label="Wallet balance"
               value={birr(u.wallet?.balance)}
             />
+            {stats && <PlayerMoneyCard stats={stats} />}
+          </div>
+
+          {/* -------------------------------------------- full-width history -- */}
+          <div className="lg:col-span-3">
+            <TransactionHistory userId={id} />
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+// PlayerMoneyCard shows a player's play record + where their balance came from,
+// so an admin reviewing them can tell a real winner from a farmed/bonus account.
+function PlayerMoneyCard({ stats }: { stats: UserGameStats }) {
+  return (
+    <Card>
+      <h3 className="mb-3 text-sm font-semibold text-txt">Play &amp; money record</h3>
+      <div className="grid grid-cols-2 gap-2 text-center">
+        <Mini label="Games played" value={String(stats.games_played)} />
+        <Mini label="Games won" value={String(stats.games_won)} good={stats.games_won > 0} />
+      </div>
+      <div className="mt-3 space-y-1.5 border-t border-edgeSoft pt-3 text-sm">
+        <Line label="Deposited (real cash)" value={stats.total_deposited} tone={stats.total_deposited > 0 ? "green" : "muted"} />
+        <Line label="Bonus / referral (play-only)" value={stats.total_bonus} tone={stats.total_bonus > 0 ? "warning" : "muted"} />
+        <Line label="Won by playing" value={stats.total_won} />
+        <Line label="Staked" value={stats.total_staked} />
+        <Line label="Already withdrawn" value={stats.total_withdrawn} />
+      </div>
+      <div className="mt-2 flex items-center justify-between border-t border-edgeSoft pt-2 text-sm">
+        <span className="text-txt-2">Balance now</span>
+        <span className="tabular-nums">
+          <span className="font-semibold text-txt">{birr(stats.real_balance)}</span>
+          <span className="text-txt-4"> cash</span>
+          {stats.bonus_balance > 0 && <span className="text-warning"> · {birr(stats.bonus_balance)} bonus</span>}
+        </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs">
+        <span className="text-txt-3">Players invited</span>
+        <span className="font-medium text-txt-2">{stats.referred_count}</span>
+      </div>
+      <div className="mt-3 text-center">
+        {stats.total_deposited === 0 && stats.total_won === 0 ? (
+          <Badge tone="red">⚠ Balance is bonus/referral only — no deposits or wins</Badge>
+        ) : stats.games_won === 0 ? (
+          <Badge tone="red">⚠ Never won a game</Badge>
+        ) : (
+          <Badge tone="green">✓ Real player — genuine deposits/wins</Badge>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// TransactionHistory is the player's full ledger — deposits, withdrawals, bets,
+// winnings, bonuses and referral rewards — paginated.
+function TransactionHistory({ userId }: { userId: string }) {
+  const PAGE = 20;
+  const [page, setPage] = useState(0);
+  const { data, loading } = useApi(() => api.userTransactions(userId, PAGE, page * PAGE), [userId, page]);
+  const rows = data?.transactions ?? [];
+  const total = data?.total ?? 0;
+
+  return (
+    <Card className="p-0">
+      <div className="border-b border-edgeSoft p-4">
+        <h3 className="text-sm font-semibold text-txt">Transaction history</h3>
+        <p className="mt-0.5 text-xs text-txt-3">Every money movement — deposits, withdrawals, winnings, bonuses & referral rewards.</p>
+      </div>
+      {loading && !data ? (
+        <div className="p-4">
+          <Spinner />
+        </div>
+      ) : rows.length === 0 ? (
+        <EmptyState message="No transactions yet." icon="transactions" />
+      ) : (
+        <>
+          <Table>
+            <thead>
+              <tr>
+                <th className={thClass}>Type</th>
+                <th className={`${thClass} text-right`}>Amount</th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Reference</th>
+                <th className={thClass}>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((t) => {
+                const isIn = t.type === "deposit" || t.type === "transfer_in";
+                return (
+                  <tr key={t.id} className={trClass}>
+                    <td className={tdClass}>
+                      <StatusBadge value={t.category ?? t.type} tone={statusTone(t.category ?? t.type)} />
+                    </td>
+                    <td className={`${tdClass} text-right font-semibold tabular-nums ${isIn ? "text-success" : "text-txt"}`}>
+                      {isIn ? "+" : "−"}
+                      {birr(t.amount)}
+                    </td>
+                    <td className={tdClass}>
+                      <StatusBadge value={t.status} tone={statusTone(t.status)} />
+                    </td>
+                    <td className={`${tdClass} font-mono text-xs text-txt-3`}>
+                      {t.transaction_id || t.reference || "—"}
+                    </td>
+                    <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(t.created_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+          <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={rows.length} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+function Mini({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <div className="rounded-xl border border-edgeSoft bg-panel2 p-2.5">
+      <div className={`text-lg font-bold tabular-nums ${good ? "text-success" : "text-txt"}`}>{value}</div>
+      <div className="text-[11px] text-txt-4">{label}</div>
+    </div>
+  );
+}
+
+function Line({ label, value, tone }: { label: string; value: number; tone?: "green" | "warning" | "muted" }) {
+  const color =
+    tone === "green" ? "text-success" : tone === "warning" ? "text-warning" : tone === "muted" ? "text-txt-4" : "text-txt";
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-txt-3">{label}</span>
+      <span className={`tabular-nums font-medium ${color}`}>{birr(value)}</span>
     </div>
   );
 }

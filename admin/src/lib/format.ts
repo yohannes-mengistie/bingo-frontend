@@ -28,8 +28,28 @@ export function shortId(id: string | undefined): string {
   return id.length > 10 ? `${id.slice(0, 8)}…` : id;
 }
 
+/**
+ * Make a Telegram display name human-readable. Players set names in "fancy"
+ * Unicode (𝐄𝐍𝐎𝐂𝐇, 𝔭𝔯𝔦𝔫𝔠𝔢, ℕ𝕒𝕥𝕚𝕟𝕒𝕖𝕝) and pile on emoji — unreadable in an
+ * admin table. NFKC folds those styled letters back to plain ASCII while leaving
+ * real scripts (incl. Amharic) untouched; then we drop emoji/pictographs,
+ * variation selectors and zero-width junk, and collapse whitespace.
+ */
+export function readable(s?: string | null): string {
+  if (!s) return "";
+  return s
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF\uFE00-\uFE0F]/g, "") // zero-width + variation selectors
+    .replace(
+      /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}\u{20D0}-\u{20FF}]/gu,
+      "",
+    ) // emoji, pictographs, arrows, flags, combining symbols
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function fullName(first?: string, last?: string | null): string {
-  return `${first ?? ""} ${last ?? ""}`.trim();
+  return readable(`${first ?? ""} ${last ?? ""}`.trim());
 }
 
 /** Compact "3s / 5m / 2h / 4d ago" for freshness indicators and recent rows. */
@@ -50,8 +70,8 @@ export function ago(s: string | number | undefined): string {
 
 /** Two-letter initials for an avatar chip. */
 export function initials(first?: string, last?: string | null): string {
-  const f = (first ?? "").trim();
-  const l = (last ?? "").trim();
+  const f = readable(first);
+  const l = readable(last);
   const a = f[0] ?? "";
   const b = l[0] ?? f[1] ?? "";
   return (a + b).toUpperCase() || "?";
