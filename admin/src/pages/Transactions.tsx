@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Transaction, type UserWithWallet } from "@/lib/api";
+import { api, type Transaction, type UserGameStats, type UserWithWallet } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import {
   Card,
@@ -16,6 +16,7 @@ import {
   Tabs,
   SearchInput,
   Skeleton,
+  Spinner,
   ErrorNote,
   EmptyState,
   PageHeader,
@@ -28,27 +29,46 @@ import { birr, date, fullName, initials, shortId, statusTone } from "@/lib/forma
 type TabKey =
   | "pendingDeposits"
   | "pendingWithdrawals"
+  | "winners"
   | "all"
   | "completedDeposits"
   | "completedWithdrawals"
   | "transfers"
   | "failed";
 
-const TABS: { key: TabKey; label: string; fetch: () => Promise<{ transactions: Transaction[] }> }[] = [
-  { key: "pendingDeposits", label: "Pending deposits", fetch: api.pendingDeposits },
-  { key: "pendingWithdrawals", label: "Pending withdrawals", fetch: api.pendingWithdrawals },
-  { key: "all", label: "All", fetch: () => api.transactions(100, 0) },
-  { key: "completedDeposits", label: "Completed deposits", fetch: api.completedDeposits },
-  { key: "completedWithdrawals", label: "Completed withdrawals", fetch: api.completedWithdrawals },
-  { key: "transfers", label: "Transfers", fetch: api.transfers },
-  { key: "failed", label: "Failed", fetch: api.failed },
+const PAGE_SIZE = 50;
+
+// Paginated tabs fetch (limit, offset) and return a grand `total` so we can page
+// through large data; the others return a single fixed list.
+const TABS: {
+  key: TabKey;
+  label: string;
+  paginated?: boolean;
+  fetch: (limit: number, offset: number) => Promise<{ transactions: Transaction[]; total?: number }>;
+}[] = [
+  { key: "pendingDeposits", label: "Pending deposits", fetch: () => api.pendingDeposits() },
+  { key: "pendingWithdrawals", label: "Pending withdrawals", fetch: () => api.pendingWithdrawals() },
+  { key: "winners", label: "Winners", paginated: true, fetch: (l, o) => api.winners(l, o) },
+  { key: "all", label: "All", paginated: true, fetch: (l, o) => api.transactions(l, o) },
+  { key: "completedDeposits", label: "Completed deposits", fetch: () => api.completedDeposits() },
+  { key: "completedWithdrawals", label: "Completed withdrawals", fetch: () => api.completedWithdrawals() },
+  { key: "transfers", label: "Transfers", fetch: () => api.transfers() },
+  { key: "failed", label: "Failed", fetch: () => api.failed() },
 ];
 
 export function Transactions() {
   const [tab, setTab] = useState<TabKey>("pendingDeposits");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
   const active = TABS.find((t) => t.key === tab)!;
-  const { data, loading, error, reload, updatedAt } = usePolling(() => active.fetch(), [tab], 8000);
+  // Reset to the first page whenever the tab changes.
+  useEffect(() => setPage(0), [tab]);
+  const { data, loading, error, reload, updatedAt } = usePolling(
+    () => active.fetch(PAGE_SIZE, page * PAGE_SIZE),
+    [tab, page],
+    8000,
+  );
+  const total = data?.total;
   const push = useToast((s) => s.push);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction | null>(null);
@@ -239,6 +259,32 @@ export function Transactions() {
             </tbody>
           </Table>
         )}
+
+        {active.paginated && total !== undefined && total > PAGE_SIZE && !q && (
+          <div className="flex items-center justify-between gap-3 border-t border-edgeSoft p-4 text-sm text-txt-3">
+            <span>
+              Showing <span className="text-txt">{page * PAGE_SIZE + 1}</span>–
+              <span className="text-txt">{Math.min((page + 1) * PAGE_SIZE, total)}</span> of{" "}
+              <span className="text-txt">{total}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" icon="chevronLeft" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                Prev
+              </Button>
+              <span className="tabular-nums">
+                Page {page + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+              </span>
+              <Button
+                variant="ghost"
+                icon="chevronRight"
+                disabled={(page + 1) * PAGE_SIZE >= total}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <TransactionDrawer
@@ -317,6 +363,9 @@ function TransactionDrawer({
         </div>
       </div>
 
+      {/* For a withdrawal, show whether this player is a genuine winner before paying. */}
+      {tx.type === "withdraw" && <PlayerWinBackground userId={tx.user_id} />}
+
       <DetailRow label="Player">
         <Link to={`/users/${tx.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
           <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
@@ -335,5 +384,67 @@ function TransactionDrawer({
       <DetailRow label="Created">{date(tx.created_at)}</DetailRow>
       <DetailRow label="Transaction ID" mono>{tx.id}</DetailRow>
     </Drawer>
+  );
+}
+
+// PlayerWinBackground shows a player's lifetime play record inside the withdrawal
+// drawer, so an admin can tell at a glance whether the money being withdrawn was
+// actually won — or belongs to a farmed / bonus-only account that never played.
+function PlayerWinBackground({ userId }: { userId: string }) {
+  const [stats, setStats] = useState<UserGameStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setFailed(false);
+    api
+      .userGameStats(userId)
+      .then((r) => alive && setStats(r.stats))
+      .catch(() => alive && setFailed(true))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  return (
+    <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-txt-4">
+        Player background — did they really win?
+      </div>
+      {loading ? (
+        <Spinner />
+      ) : failed ? (
+        <div className="text-sm text-txt-3">Couldn't load play history.</div>
+      ) : stats ? (
+        <>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="Games played" value={String(stats.games_played)} />
+            <MiniStat label="Games won" value={String(stats.games_won)} highlight={stats.games_won > 0} />
+            <MiniStat label="Total won" value={birr(stats.total_won)} />
+          </div>
+          <div className="mt-3 text-center">
+            {stats.games_won === 0 ? (
+              <Badge tone="red">⚠ Never won a game — verify before paying</Badge>
+            ) : (
+              <span className="text-xs text-txt-3">
+                Staked {birr(stats.total_staked)} · net {birr(stats.total_won - stats.total_staked)}
+              </span>
+            )}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="rounded-xl border border-edgeSoft bg-panel p-2.5">
+      <div className={`text-lg font-bold tabular-nums ${highlight ? "text-success" : "text-txt"}`}>{value}</div>
+      <div className="text-[11px] text-txt-4">{label}</div>
+    </div>
   );
 }

@@ -130,6 +130,14 @@ export interface Transaction {
   created_at: string;
 }
 
+// A player's lifetime play record (admin withdrawal review).
+export interface UserGameStats {
+  games_played: number;
+  games_won: number;
+  total_won: number;
+  total_staked: number;
+}
+
 // Player-submitted problem reports ("Report a problem" in the Mini App).
 export type SupportCategory = "transaction" | "gameplay" | "other";
 export type SupportStatus = "open" | "resolved";
@@ -329,6 +337,11 @@ export const api = {
 
   userDetail: (id: string) => request<{ user: UserWithWallet }>(`/admin/users/${segment(id)}`),
 
+  // A player's lifetime play record — used to verify a withdrawal is from a real
+  // winner, not a farmed/bonus-only account.
+  userGameStats: (id: string) =>
+    request<{ stats: UserGameStats }>(`/admin/users/${segment(id)}/game-stats`),
+
   setRole: (id: string, role: "user" | "admin") =>
     request<{ message: string }>(`/admin/users/${segment(id)}/role`, {
       method: "POST",
@@ -354,11 +367,18 @@ export const api = {
       body: JSON.stringify({ amount, reason }),
     }),
 
-  // Transactions — all admin list endpoints return { transactions, count }.
+  // Transactions. The paginated lists (all, winners) also return `total` — the
+  // grand count — so the UI can page through large data instead of truncating.
   transactions: (limit = 50, offset = 0) => {
     const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    return request<{ transactions: Transaction[]; count: number }>(
+    return request<{ transactions: Transaction[]; count: number; total: number }>(
       `/admin/transactions?${q.toString()}`,
+    );
+  },
+  winners: (limit = 50, offset = 0) => {
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return request<{ transactions: Transaction[]; count: number; total: number }>(
+      `/admin/transactions/winners?${q.toString()}`,
     );
   },
   pendingDeposits: () => request<{ transactions: Transaction[] }>("/admin/transactions/pending/deposits"),
