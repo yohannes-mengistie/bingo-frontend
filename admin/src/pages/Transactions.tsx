@@ -46,12 +46,12 @@ const TABS: {
   paginated?: boolean;
   fetch: (limit: number, offset: number) => Promise<{ transactions: Transaction[]; total?: number }>;
 }[] = [
-  { key: "pendingDeposits", label: "Pending deposits", fetch: () => api.pendingDeposits() },
-  { key: "pendingWithdrawals", label: "Pending withdrawals", fetch: () => api.pendingWithdrawals() },
+  { key: "pendingDeposits", label: "Pending deposits", paginated: true, fetch: (l, o) => api.pendingDeposits(l, o) },
+  { key: "pendingWithdrawals", label: "Pending withdrawals", paginated: true, fetch: (l, o) => api.pendingWithdrawals(l, o) },
   { key: "winners", label: "Winners", paginated: true, fetch: (l, o) => api.winners(l, o) },
   { key: "all", label: "All", paginated: true, fetch: (l, o) => api.transactions(l, o) },
-  { key: "completedDeposits", label: "Completed deposits", fetch: () => api.completedDeposits() },
-  { key: "completedWithdrawals", label: "Completed withdrawals", fetch: () => api.completedWithdrawals() },
+  { key: "completedDeposits", label: "Completed deposits", paginated: true, fetch: (l, o) => api.completedDeposits(l, o) },
+  { key: "completedWithdrawals", label: "Completed withdrawals", paginated: true, fetch: (l, o) => api.completedWithdrawals(l, o) },
   { key: "transfers", label: "Transfers", fetch: () => api.transfers() },
   { key: "failed", label: "Failed", fetch: () => api.failed() },
 ];
@@ -420,22 +420,60 @@ function PlayerWinBackground({ userId }: { userId: string }) {
         <div className="text-sm text-txt-3">Couldn't load play history.</div>
       ) : stats ? (
         <>
+          {/* Play record */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <MiniStat label="Games played" value={String(stats.games_played)} />
             <MiniStat label="Games won" value={String(stats.games_won)} highlight={stats.games_won > 0} />
-            <MiniStat label="Total won" value={birr(stats.total_won)} />
+            <MiniStat label="Won by playing" value={birr(stats.total_won)} highlight={stats.total_won > 0} />
           </div>
+
+          {/* Where the money came from — so you can tell a real winner from a
+              bonus/referral-funded account. */}
+          <div className="mt-3 border-t border-edgeSoft pt-3">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-txt-4">
+              Where the money came from
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <MoneyRow label="Deposited (real cash in)" value={stats.total_deposited} tone={stats.total_deposited > 0 ? "green" : "muted"} />
+              <MoneyRow label="Bonus / referral (play-only)" value={stats.total_bonus} tone={stats.total_bonus > 0 ? "gold" : "muted"} />
+              <MoneyRow label="Won by playing" value={stats.total_won} />
+              <MoneyRow label="Already withdrawn" value={stats.total_withdrawn} />
+              <div className="mt-2 flex items-center justify-between border-t border-edgeSoft pt-2">
+                <span className="text-txt-2">Balance now</span>
+                <span className="tabular-nums">
+                  <span className="font-semibold text-txt">{birr(stats.real_balance)}</span>
+                  <span className="text-txt-4"> cash</span>
+                  {stats.bonus_balance > 0 && (
+                    <span className="text-warning"> · {birr(stats.bonus_balance)} bonus</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Verdict line */}
           <div className="mt-3 text-center">
-            {stats.games_won === 0 ? (
-              <Badge tone="red">⚠ Never won a game — verify before paying</Badge>
+            {stats.total_deposited === 0 && stats.total_won === 0 ? (
+              <Badge tone="red">⚠ No deposits and no wins — balance is bonus/referral only. Verify before paying.</Badge>
+            ) : stats.games_won === 0 ? (
+              <Badge tone="red">⚠ Never won a game — check the source above before paying.</Badge>
             ) : (
-              <span className="text-xs text-txt-3">
-                Staked {birr(stats.total_staked)} · net {birr(stats.total_won - stats.total_staked)}
-              </span>
+              <Badge tone="green">✓ Real player — has genuine deposits/wins.</Badge>
             )}
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function MoneyRow({ label, value, tone }: { label: string; value: number; tone?: "green" | "gold" | "muted" }) {
+  const color =
+    tone === "green" ? "text-success" : tone === "gold" ? "text-warning" : tone === "muted" ? "text-txt-4" : "text-txt";
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-txt-3">{label}</span>
+      <span className={`tabular-nums font-medium ${color}`}>{birr(value)}</span>
     </div>
   );
 }

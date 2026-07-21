@@ -24,6 +24,7 @@ const groups: { heading: string; items: NavItem[] }[] = [
       { to: "/promo", label: "Promo codes", icon: "promo" },
       { to: "/reports", label: "Reports", icon: "reports" },
       { to: "/staff", label: "Staff", icon: "staff" },
+      { to: "/settings", label: "Settings", icon: "coins" },
     ],
   },
 ];

@@ -130,12 +130,24 @@ export interface Transaction {
   created_at: string;
 }
 
-// A player's lifetime play record (admin withdrawal review).
+// A player's lifetime play + money record (admin withdrawal review). The money
+// fields show the SOURCE of the balance so an admin can tell a real winner from
+// someone whose balance came from bonuses/referrals they never earned.
 export interface UserGameStats {
   games_played: number;
   games_won: number;
   total_won: number;
   total_staked: number;
+  total_deposited: number;
+  total_withdrawn: number;
+  total_bonus: number;
+  real_balance: number;
+  bonus_balance: number;
+}
+
+export interface AppSettings {
+  min_deposit: number;
+  updated_at: string;
 }
 
 // Player-submitted problem reports ("Report a problem" in the Mini App).
@@ -381,12 +393,34 @@ export const api = {
       `/admin/transactions/winners?${q.toString()}`,
     );
   },
-  pendingDeposits: () => request<{ transactions: Transaction[] }>("/admin/transactions/pending/deposits"),
-  pendingWithdrawals: () => request<{ transactions: Transaction[] }>("/admin/transactions/pending/withdrawals"),
-  completedDeposits: () => request<{ transactions: Transaction[] }>("/admin/transactions/completed/deposits"),
-  completedWithdrawals: () => request<{ transactions: Transaction[] }>("/admin/transactions/completed/withdrawals"),
+  // Pending/completed deposit & withdrawal lists are paginated (they return a
+  // grand `total`), so large queues page instead of getting cut off.
+  pendingDeposits: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[]; total: number }>(
+      `/admin/transactions/pending/deposits?limit=${limit}&offset=${offset}`,
+    ),
+  pendingWithdrawals: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[]; total: number }>(
+      `/admin/transactions/pending/withdrawals?limit=${limit}&offset=${offset}`,
+    ),
+  completedDeposits: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[]; total: number }>(
+      `/admin/transactions/completed/deposits?limit=${limit}&offset=${offset}`,
+    ),
+  completedWithdrawals: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[]; total: number }>(
+      `/admin/transactions/completed/withdrawals?limit=${limit}&offset=${offset}`,
+    ),
   failed: () => request<{ transactions: Transaction[] }>("/admin/transactions/failed"),
   transfers: () => request<{ transactions: Transaction[] }>("/admin/transactions/transfers"),
+
+  // App settings (minimum deposit, …).
+  getSettings: () => request<{ settings: AppSettings }>("/admin/settings"),
+  updateSettings: (patch: Partial<AppSettings>) =>
+    request<{ settings: AppSettings }>("/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
 
   approveDeposit: (id: string) =>
     request<{ message: string }>(`/admin/transactions/${segment(id)}/approve-deposit`, {
