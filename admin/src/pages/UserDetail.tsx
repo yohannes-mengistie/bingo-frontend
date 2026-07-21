@@ -308,12 +308,14 @@ function InvitedPlayers({ userId }: { userId: string }) {
       ) : users.length === 0 ? (
         <p className="text-sm text-txt-4">Hasn't invited anyone.</p>
       ) : (
-        <ul className="space-y-2">
+        // Bounded height with internal scroll, so a big referral list scrolls
+        // inside the card instead of stretching the whole page down.
+        <ul className="max-h-64 space-y-2 overflow-y-auto pr-1">
           {users.map((u) => (
             <li key={u.id}>
               <Link
                 to={`/users/${u.id}`}
-                className="flex items-center justify-between gap-2 rounded-lg border border-edgeSoft bg-panel2 px-3 py-2 transition hover:border-brand"
+                className="flex items-center justify-between gap-2 rounded-lg border border-edgeSoft bg-panel2 px-3 py-1.5 transition hover:border-brand"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-txt">
@@ -321,7 +323,6 @@ function InvitedPlayers({ userId }: { userId: string }) {
                   </span>
                   <span className="block truncate text-xs text-txt-3">{u.phone_number}</span>
                 </span>
-                <span className="whitespace-nowrap text-xs text-txt-4">{date(u.created_at)}</span>
               </Link>
             </li>
           ))}
