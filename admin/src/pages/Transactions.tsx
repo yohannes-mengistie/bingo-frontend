@@ -73,9 +73,10 @@ export function Transactions() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction | null>(null);
 
-  // Fetch users once to resolve user_id → name/phone for the Player column.
-  // Loaded separately so a slow/failed user fetch never blocks the tx table.
-  const { data: usersData } = usePolling(() => api.users(1000, 0), [], 8000);
+  // Resolve user_id → name/phone for the Player column. Fetch ALL players (not a
+  // capped page) so no row falls back to a raw id, refreshed slowly since names
+  // rarely change. Loaded separately so a slow user fetch never blocks the table.
+  const { data: usersData } = usePolling(() => api.users(100000, 0), [], 60000);
   const userMap = useMemo(() => {
     const m = new Map<string, UserWithWallet>();
     for (const u of usersData?.users ?? []) m.set(u.id, u);
@@ -183,7 +184,7 @@ export function Transactions() {
                         <Avatar initials={u ? initials(u.first_name, u.last_name) : "?"} />
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-txt">
-                            {name || shortId(t.user_id)}
+                            {name || u?.phone_number || shortId(t.user_id)}
                           </span>
                           <span className="block truncate text-xs text-txt-3">
                             {u?.phone_number || <span className="text-txt-4">Unknown</span>}
@@ -400,7 +401,7 @@ function TransactionDrawer({
       <DetailRow label="Player">
         <Link to={`/users/${tx.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
           <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
-          {name || shortId(tx.user_id)}
+          {name || user?.phone_number || shortId(tx.user_id)}
         </Link>
       </DetailRow>
       {user?.phone_number && <DetailRow label="Phone" mono>{user.phone_number}</DetailRow>}
