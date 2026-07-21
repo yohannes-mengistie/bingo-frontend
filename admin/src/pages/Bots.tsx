@@ -111,11 +111,14 @@ export function Bots() {
               <label className={label}>Start filling at</label>
               <Input
                 type="number"
-                min={1}
+                min={0}
                 value={form.min_real_players}
                 onChange={(e) => setForm({ ...form, min_real_players: Number(e.target.value) })}
               />
-              <p className={hint}>Real players before bots join.</p>
+              <p className={hint}>
+                Real players before bots join. Set to <strong>0</strong> to let bots run games with
+                no real players yet (keeps the lobby looking alive to attract visitors).
+              </p>
             </div>
 
             <div className="mb-4">
