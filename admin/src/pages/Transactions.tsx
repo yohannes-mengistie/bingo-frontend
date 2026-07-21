@@ -247,22 +247,16 @@ export function Transactions() {
                             <IconButton
                               icon="check"
                               tone="green"
-                              title="Approve"
+                              title="Approve & pay"
                               loading={busyId === t.id}
                               onClick={() => act(t.id, api.approveWithdrawal, "Approve")}
                             />
                             <IconButton
-                              icon="refresh"
-                              title="Roll back → split refund to cash + bonus"
-                              loading={busyId === t.id}
-                              onClick={() => rollback(t.id)}
-                            />
-                            <IconButton
                               icon="x"
                               tone="red"
-                              title="Reject (full refund to cash)"
+                              title="Reject → genuine returns to cash, referral/bonus returns to bonus"
                               loading={busyId === t.id}
-                              onClick={() => act(t.id, api.rejectWithdrawal, "Reject")}
+                              onClick={() => rollback(t.id)}
                             />
                           </>
                         )}
@@ -362,19 +356,14 @@ function TransactionDrawer({
           </div>
         )}
         {tx.type === "withdraw" && (
-          <>
-            <div className="flex gap-2">
-              <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveWithdrawal, "Approve")}>
-                Approve & pay
-              </Button>
-              <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectWithdrawal, "Reject")}>
-                Reject (all to cash)
-              </Button>
-            </div>
-            <Button variant="subtle" icon="refresh" loading={busy} className="w-full" onClick={() => onRollback(tx.id)}>
-              Roll back → genuine to cash, referral/bonus to bonus
+          <div className="flex gap-2">
+            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveWithdrawal, "Approve")}>
+              Approve & pay
             </Button>
-          </>
+            <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onRollback(tx.id)}>
+              Reject &amp; refund
+            </Button>
+          </div>
         )}
         {tx.type !== "deposit" && tx.type !== "withdraw" && (
           <Button variant="danger" icon="stop" loading={busy} className="w-full" onClick={() => onAct(tx.id, api.cancelTransaction, "Cancel")}>

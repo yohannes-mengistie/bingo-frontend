@@ -277,8 +277,14 @@ export function UserDetail() {
             <StatCard
               icon="wallet"
               tone="green"
-              label="Wallet balance"
+              label="Withdrawable balance"
               value={birr(u.wallet?.balance)}
+            />
+            <StatCard
+              icon="coins"
+              tone="gold"
+              label="Bonus balance (play-only)"
+              value={birr(stats?.bonus_balance ?? 0)}
             />
             {stats && <PlayerMoneyCard stats={stats} />}
             <InvitedPlayers userId={id} />
