@@ -287,13 +287,15 @@ export function UserDetail() {
               value={birr(stats?.bonus_balance ?? 0)}
             />
             {stats && <PlayerMoneyCard stats={stats} />}
-            <InvitedPlayers userId={id} />
           </div>
 
-          {/* -------------------------------------------- full-width sections -- */}
-          <div className="space-y-4 lg:col-span-3">
+          {/* -------------------- full-width data cards — each scrolls inside -- */}
+          <div className="grid gap-4 lg:col-span-3 lg:grid-cols-2">
             <TransactionHistory userId={id} />
             <GamesPlayed userId={id} />
+            <div className="lg:col-span-2">
+              <InvitedPlayers userId={id} />
+            </div>
           </div>
         </div>
       ) : null}
@@ -355,6 +357,7 @@ function GamesPlayed({ userId }: { userId: string }) {
       ) : games.length === 0 ? (
         <EmptyState message="No games played." icon="games" />
       ) : (
+        <div className="max-h-80 overflow-y-auto">
         <Table>
           <thead>
             <tr>
@@ -387,6 +390,7 @@ function GamesPlayed({ userId }: { userId: string }) {
             ))}
           </tbody>
         </Table>
+        </div>
       )}
     </Card>
   );
@@ -457,6 +461,7 @@ function TransactionHistory({ userId }: { userId: string }) {
         <EmptyState message="No transactions yet." icon="transactions" />
       ) : (
         <>
+          <div className="max-h-80 overflow-y-auto">
           <Table>
             <thead>
               <tr>
@@ -491,6 +496,7 @@ function TransactionHistory({ userId }: { userId: string }) {
               })}
             </tbody>
           </Table>
+          </div>
           <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={rows.length} />
         </>
       )}
