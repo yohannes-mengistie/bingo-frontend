@@ -155,6 +155,14 @@ export interface AppSettings {
   updated_at: string;
 }
 
+// Drill-down behind the dashboard house-cut figure.
+export interface HouseCutDetail {
+  total_house_cut: number;
+  real_player_pnl: number;
+  by_tier: { tier: string; games: number; house_cut: number }[];
+  by_day: { day: string; games: number; house_cut: number }[];
+}
+
 // A referred player (subset of User) for the "invited players" list.
 export interface PlayerLite {
   id: string;
@@ -374,6 +382,7 @@ export const api = {
     }),
 
   dashboard: () => request<DashboardStats>("/admin/stats/dashboard"),
+  houseCutDetail: () => request<{ detail: HouseCutDetail }>("/admin/dashboard/house-cut"),
 
   users: (limit = 50, offset = 0) => {
     const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });

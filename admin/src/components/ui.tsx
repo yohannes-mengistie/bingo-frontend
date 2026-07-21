@@ -4,9 +4,17 @@ import { ago as agoFmt, type Tone } from "@/lib/format";
 
 /* ---------------------------------------------------------------- Card ---- */
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className = "",
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className={`rounded-2xl border border-edgeSoft bg-panel ${className || "p-4"}`}>
+    <div className={`rounded-2xl border border-edgeSoft bg-panel ${className || "p-4"}`} onClick={onClick}>
       {children}
     </div>
   );
@@ -206,12 +214,14 @@ export function StatCard({
   label,
   value,
   sub,
+  onClick,
 }: {
   icon: IconName;
   tone?: "gold" | "green" | "blue" | "red";
   label: string;
   value: ReactNode;
   sub?: ReactNode;
+  onClick?: () => void;
 }) {
   const tones = {
     gold: "bg-brand/12 text-brand",
@@ -220,7 +230,10 @@ export function StatCard({
     red: "bg-danger/12 text-danger",
   };
   return (
-    <Card className="p-4">
+    <Card
+      className={`p-4 ${onClick ? "cursor-pointer transition hover:border-brand" : ""}`}
+      onClick={onClick}
+    >
       <div className={`mb-3 grid h-9 w-9 place-items-center rounded-xl ${tones[tone]}`}>
         <Icon name={icon} size={18} />
       </div>
