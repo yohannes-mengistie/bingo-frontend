@@ -128,6 +128,10 @@ export interface Transaction {
   transaction_id?: string | null;
   reference?: string | null;
   created_at: string;
+  // Populated by admin list endpoints (joined from users), so each row knows who
+  // it belongs to without loading every user.
+  player_name?: string | null;
+  player_phone?: string | null;
 }
 
 // A player's lifetime play + money record (admin withdrawal review). The money

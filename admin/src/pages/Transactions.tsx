@@ -24,7 +24,7 @@ import {
   DetailRow,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { birr, date, fullName, initials, shortId, statusTone } from "@/lib/format";
+import { birr, date, fullName, initials, readable, shortId, statusTone } from "@/lib/format";
 
 type TabKey =
   | "pendingDeposits"
@@ -73,10 +73,9 @@ export function Transactions() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction | null>(null);
 
-  // Resolve user_id → name/phone for the Player column. Fetch ALL players (not a
-  // capped page) so no row falls back to a raw id, refreshed slowly since names
-  // rarely change. Loaded separately so a slow user fetch never blocks the table.
-  const { data: usersData } = usePolling(() => api.users(100000, 0), [], 60000);
+  // Secondary user map — only a FALLBACK now that each transaction row carries
+  // its own player_name/player_phone from the backend. Kept small + slow.
+  const { data: usersData } = usePolling(() => api.users(1000, 0), [], 60000);
   const userMap = useMemo(() => {
     const m = new Map<string, UserWithWallet>();
     for (const u of usersData?.users ?? []) m.set(u.id, u);
@@ -120,8 +119,8 @@ export function Transactions() {
     return rows.filter((t) => {
       const u = userMap.get(t.user_id);
       const hay = [
-        u ? fullName(u.first_name, u.last_name) : "",
-        u?.phone_number ?? "",
+        readable(t.player_name) || (u ? fullName(u.first_name, u.last_name) : ""),
+        t.player_phone ?? u?.phone_number ?? "",
         u ? String(u.telegram_id) : "",
         t.transaction_id ?? "",
         t.reference ?? "",
@@ -174,20 +173,23 @@ export function Transactions() {
             <tbody>
               {filtered.map((t) => {
                 const u = userMap.get(t.user_id);
-                const name = u ? fullName(u.first_name, u.last_name) : "";
+                // Prefer the name the backend joined onto the row; fall back to
+                // the user map, then phone. Never show a raw id as the name.
+                const name = readable(t.player_name) || (u ? fullName(u.first_name, u.last_name) : "");
+                const phone = t.player_phone || u?.phone_number;
                 const typeValue = t.category ?? t.type;
                 const payId = t.transaction_id ?? t.reference;
                 return (
                   <tr key={t.id} className={trClass}>
                     <td className={tdClass}>
                       <Link to={`/users/${t.user_id}`} className="flex items-center gap-2.5">
-                        <Avatar initials={u ? initials(u.first_name, u.last_name) : "?"} />
+                        <Avatar initials={name ? initials(name) : "?"} />
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-txt">
-                            {name || u?.phone_number || shortId(t.user_id)}
+                            {name || phone || shortId(t.user_id)}
                           </span>
                           <span className="block truncate text-xs text-txt-3">
-                            {u?.phone_number || <span className="text-txt-4">Unknown</span>}
+                            {phone || <span className="text-txt-4">Unknown</span>}
                           </span>
                         </span>
                       </Link>
@@ -343,7 +345,8 @@ function TransactionDrawer({
 }) {
   if (!tx) return null;
   const isIn = tx.type === "deposit" || tx.type === "transfer_in";
-  const name = user ? fullName(user.first_name, user.last_name) : "";
+  const name = readable(tx.player_name) || (user ? fullName(user.first_name, user.last_name) : "");
+  const phone = tx.player_phone || user?.phone_number;
 
   const footer =
     tx.status === "pending" ? (
@@ -401,10 +404,10 @@ function TransactionDrawer({
       <DetailRow label="Player">
         <Link to={`/users/${tx.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
           <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
-          {name || user?.phone_number || shortId(tx.user_id)}
+          {name || phone || shortId(tx.user_id)}
         </Link>
       </DetailRow>
-      {user?.phone_number && <DetailRow label="Phone" mono>{user.phone_number}</DetailRow>}
+      {phone && <DetailRow label="Phone" mono>{phone}</DetailRow>}
       <DetailRow label="Direction">
         <Badge tone={isIn ? "green" : "neutral"}>{isIn ? "Money in" : "Money out"}</Badge>
       </DetailRow>
