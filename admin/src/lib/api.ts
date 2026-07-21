@@ -152,6 +152,8 @@ export interface UserGameStats {
 
 export interface AppSettings {
   min_deposit: number;
+  referral_enabled: boolean;
+  referral_amount: number;
   updated_at: string;
 }
 

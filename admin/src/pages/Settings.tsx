@@ -1,29 +1,38 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type AppSettings } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import { Button, Card, Input, Spinner, ErrorNote, PageHeader } from "@/components/ui";
+import { Button, Card, Input, Toggle, Spinner, ErrorNote, Badge, PageHeader } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { date } from "@/lib/format";
 
 export function Settings() {
   const { data, loading, error, reload } = useApi(() => api.getSettings(), []);
   const push = useToast((s) => s.push);
-  const [minDeposit, setMinDeposit] = useState("");
+  const [form, setForm] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (data) setMinDeposit(String(data.settings.min_deposit));
+    if (data) setForm(data.settings);
   }, [data]);
 
   const save = async () => {
-    const v = Number(minDeposit);
-    if (!Number.isFinite(v) || v < 0) {
-      push("Enter a valid amount (0 or more)", "error");
+    if (!form) return;
+    if (!Number.isFinite(form.min_deposit) || form.min_deposit < 0) {
+      push("Enter a valid minimum deposit", "error");
+      return;
+    }
+    if (!Number.isFinite(form.referral_amount) || form.referral_amount < 0) {
+      push("Enter a valid referral amount", "error");
       return;
     }
     setSaving(true);
     try {
-      await api.updateSettings({ min_deposit: v });
+      const res = await api.updateSettings({
+        min_deposit: form.min_deposit,
+        referral_enabled: form.referral_enabled,
+        referral_amount: form.referral_amount,
+      });
+      setForm(res.settings);
       push("Settings saved", "success");
       reload();
     } catch (e) {
@@ -40,22 +49,65 @@ export function Settings() {
     <div>
       <PageHeader title="Settings" subtitle="Payment & platform settings" />
 
-      {loading && <Spinner />}
-      {error && <ErrorNote message={error} onRetry={reload} />}
+      {loading && !data && <Spinner />}
+      {error && !data && <ErrorNote message={error} onRetry={reload} />}
 
-      {data && (
-        <Card className="max-w-md p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">Deposits</h2>
-          <label className={label}>Minimum deposit (birr)</label>
-          <Input type="number" min={0} value={minDeposit} onChange={(e) => setMinDeposit(e.target.value)} />
-          <p className={hint}>Players cannot deposit less than this. Applies to new deposits immediately.</p>
-          <div className="mt-4 flex items-center gap-3 border-t border-edgeSoft pt-4">
-            <Button icon="check" loading={saving} onClick={save}>
-              Save
-            </Button>
-            <span className="text-xs text-txt-4">Updated {date(data.settings.updated_at)}</span>
+      {form && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* Deposits */}
+          <Card className="p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">Deposits</h2>
+            <label className={label}>Minimum deposit (birr)</label>
+            <Input
+              type="number"
+              min={0}
+              value={form.min_deposit}
+              onChange={(e) => setForm({ ...form, min_deposit: Number(e.target.value) })}
+            />
+            <p className={hint}>Players cannot deposit less than this. Applies to new deposits immediately.</p>
+          </Card>
+
+          {/* Referral reward */}
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Referral reward</h2>
+              <Badge tone={form.referral_enabled ? "green" : "neutral"}>
+                {form.referral_enabled ? "On" : "Off"}
+              </Badge>
+            </div>
+
+            <div className="mb-5">
+              <Toggle
+                checked={form.referral_enabled}
+                onChange={(v) => setForm({ ...form, referral_enabled: v })}
+                label={<span className="font-medium text-txt">Give a reward when an invited player signs up</span>}
+              />
+              <p className={hint}>
+                Turn this off to stop paying referral rewards entirely — invites are still recorded, but no bonus is
+                granted while it's off.
+              </p>
+            </div>
+
+            <label className={label}>Reward amount (play-only bonus, birr)</label>
+            <Input
+              type="number"
+              min={0}
+              value={form.referral_amount}
+              disabled={!form.referral_enabled}
+              onChange={(e) => setForm({ ...form, referral_amount: Number(e.target.value) })}
+            />
+            <p className={hint}>Granted as bonus the referrer plays with — never withdrawable cash.</p>
+          </Card>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-3">
+              <Button icon="check" loading={saving} onClick={save}>
+                Save settings
+              </Button>
+              <span className="text-xs text-txt-4">Updated {date(data!.settings.updated_at)}</span>
+            </div>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
