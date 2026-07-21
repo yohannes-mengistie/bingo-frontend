@@ -10,8 +10,9 @@ import {
 import { openCampaignSocket } from "@/lib/campaignSocket";
 import { useApi } from "@/lib/useApi";
 import { Button, Card, Spinner, ErrorNote, Badge, EmptyState } from "@/components/ui";
+import { useConfirm } from "@/components/confirm";
 import { useToast } from "@/components/toast";
-import { birr, date } from "@/lib/format";
+import { birr, date, fullName, readable } from "@/lib/format";
 
 const PAGE = 200;
 type Tab = "campaign" | "grant" | "policy" | "broadcast";
@@ -142,7 +143,7 @@ function GrantPanel({
     const term = q.trim().toLowerCase();
     if (!term) return players;
     return players.filter((u) => {
-      const name = `${u.first_name} ${u.last_name ?? ""}`.toLowerCase();
+      const name = fullName(u.first_name, u.last_name).toLowerCase();
       return (
         name.includes(term) ||
         u.phone_number?.toLowerCase().includes(term) ||
@@ -317,7 +318,7 @@ function GrantPanel({
                       </td>
                       <td className="px-3 py-2">
                         <span className="font-medium text-slate-200">
-                          {u.first_name} {u.last_name ?? ""}
+                          {fullName(u.first_name, u.last_name) || u.phone_number}
                         </span>
                         {u.banned && (
                           <span className="ml-2">
@@ -571,6 +572,7 @@ function BroadcastPanel({
  */
 function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: () => void }) {
   const push = useToast((s) => s.push);
+  const confirm = useConfirm();
   const { data, loading, error, reload } = useApi(() => api.campaigns(25), []);
   const [amount, setAmount] = useState("");
   const [slots, setSlots] = useState("");
@@ -673,11 +675,14 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
       ? "the default bonus lifetime"
       : `${expiryValue} ${expiryUnit}`;
     if (
-      !window.confirm(
-        `Start today's bonus?\n\n${birr(amt)} for the first ${n} players — ${birr(perSlot)} each.\n` +
-          `Bonus expires after ${expiryText}.` +
-          (broadcast ? `\n\nThis WILL Telegram every registered player.` : ""),
-      )
+      !(await confirm({
+        title: "Start today's bonus?",
+        message:
+          `${birr(amt)} for the first ${n} players — ${birr(perSlot)} each. Bonus expires after ${expiryText}.` +
+          (broadcast ? " This WILL Telegram every registered player." : ""),
+        confirmLabel: "Start campaign",
+        danger: broadcast,
+      }))
     )
       return;
 
@@ -705,7 +710,14 @@ function CampaignPanel({ enabled, onChanged }: { enabled: boolean; onChanged: ()
   };
 
   const end = async (id: string) => {
-    if (!window.confirm("Stop this campaign? Players who already claimed keep their bonus."))
+    if (
+      !(await confirm({
+        title: "Stop this campaign?",
+        message: "Players who already claimed keep their bonus.",
+        confirmLabel: "Stop campaign",
+        danger: true,
+      }))
+    )
       return;
     setBusy(true);
     try {
@@ -1005,7 +1017,7 @@ function ClaimsTable({
             <tr key={c.user_id} className="border-b border-edge/40">
               <td className="py-2.5 tabular-nums text-slate-500">{c.position}</td>
               <td className="py-2.5">
-                <div className="text-slate-200">{c.name || "—"}</div>
+                <div className="text-slate-200">{readable(c.name) || "—"}</div>
                 <div className="text-xs text-slate-500">{c.phone}</div>
               </td>
               <td className="py-2.5 pr-3 text-right font-medium text-brand">{birr(c.amount)}</td>
