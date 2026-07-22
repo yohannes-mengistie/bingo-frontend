@@ -305,6 +305,8 @@ export interface BotConfig {
   min_real_players: number; // only fill games with fewer real players than this
   target_bots: number; // add bots until the game holds this many
   tiers: string; // comma-separated game types, e.g. "REGULAR,VIP"
+  win_rate: number; // probability (0-1) that bots win co-winner situations
+  bot_always_win: boolean; // force bots to win every co-winner pot
   updated_at: string;
 }
 
@@ -538,7 +540,14 @@ export const api = {
 
   // Filler bots
   botConfig: () => request<BotConfig>("/admin/bots/config"),
-  updateBotConfig: (patch: Partial<Pick<BotConfig, "enabled" | "min_real_players" | "target_bots" | "tiers">>) =>
+  updateBotConfig: (
+    patch: Partial<
+      Pick<
+        BotConfig,
+        "enabled" | "min_real_players" | "target_bots" | "tiers" | "win_rate" | "bot_always_win"
+      >
+    >,
+  ) =>
     request<BotConfig>("/admin/bots/config", { method: "PUT", body: JSON.stringify(patch) }),
   seedBots: (count?: number) =>
     request<{ message: string }>("/admin/bots/seed", {
