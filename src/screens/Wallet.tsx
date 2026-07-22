@@ -176,8 +176,16 @@ function ActionSheet({
     queryFn: api.me,
     enabled: action === "withdraw",
   });
+  // Operator-configured minimum deposit (from the public /status endpoint), so
+  // the form shows and enforces the current figure instead of a hardcoded one.
+  const statusQ = useQuery({ queryKey: ["status"], queryFn: api.status, staleTime: 60_000 });
+  const minDeposit = statusQ.data?.min_deposit ?? 50;
   const [account, setAccount] = useState<string | null>(null);
   const withdrawTo = account ?? meQ.data?.phone_number ?? "";
+
+  // A typed deposit amount below the minimum: block submit and show a hint.
+  const depositBelowMin =
+    action === "deposit" && amount.trim() !== "" && (parseFloat(amount) || 0) < minDeposit;
 
   const reset = () => {
     setAmount("");
@@ -189,6 +197,10 @@ function ActionSheet({
   const submit = async () => {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return;
+    if (action === "deposit" && amt < minDeposit) {
+      push(t("wallet.errMinDeposit", { min: minDeposit }), "error");
+      return;
+    }
     setBusy(true);
     try {
       if (action === "deposit") {
@@ -260,13 +272,18 @@ function ActionSheet({
             </p>
           </div>
 
-          <input
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={t("wallet.amountPlaceholder")}
-            className={inputCls}
-          />
+          <div>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={t("wallet.amountPlaceholder")}
+              className={inputCls}
+            />
+            <p className={`mt-1.5 text-xs ${depositBelowMin ? "text-red-400" : "text-ink-muted"}`}>
+              {t("wallet.minDepositHint", { min: minDeposit })}
+            </p>
+          </div>
           <input
             value={txId}
             onChange={(e) => setTxId(e.target.value)}
@@ -278,7 +295,7 @@ function ActionSheet({
             variant="gold"
             fullWidth
             loading={busy}
-            disabled={!amount.trim() || !txId.trim()}
+            disabled={!amount.trim() || !txId.trim() || depositBelowMin}
             onClick={submit}
           >
             📥 {busy ? t("wallet.submitting") : t("wallet.submitDeposit")}
@@ -376,6 +393,10 @@ function localizeWalletError(
   if (m.includes("insufficient balance")) return t("wallet.errInsufficient");
   if (m.includes("at least one completed deposit")) return t("wallet.errNeedDeposit");
   if (m.includes("minimum withdrawal")) return t("wallet.errMinWithdraw", { min: 50 });
+  {
+    const md = m.match(/minimum deposit is (\d+)/);
+    if (md) return t("wallet.errMinDeposit", { min: md[1] });
+  }
   if (m.includes("telebirr number") || m.includes("valid ethiopian"))
     return t("wallet.errBadNumber");
   return msg;

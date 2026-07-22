@@ -97,9 +97,13 @@ export const api = {
   // Polled to decide whether to show the maintenance screen. Fails soft to
   // "live" so a status blip never locks players out of a working app.
   status: () =>
-    request<{ maintenance: boolean; message: string }>("GET", "/api/v1/status").catch(() => ({
+    request<{ maintenance: boolean; message: string; min_deposit: number }>(
+      "GET",
+      "/api/v1/status",
+    ).catch(() => ({
       maintenance: false,
       message: "",
+      min_deposit: 50,
     })),
 
   // ---- Auth ----
