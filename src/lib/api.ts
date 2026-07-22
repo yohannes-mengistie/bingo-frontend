@@ -93,6 +93,15 @@ function safeJson(text: string): any {
 export const api = {
   base: API_BASE,
 
+  // ---- App status (public, no auth) ----
+  // Polled to decide whether to show the maintenance screen. Fails soft to
+  // "live" so a status blip never locks players out of a working app.
+  status: () =>
+    request<{ maintenance: boolean; message: string }>("GET", "/api/v1/status").catch(() => ({
+      maintenance: false,
+      message: "",
+    })),
+
   // ---- Auth ----
   telegramLogin: (initData: string) =>
     request<LoginResponse>("POST", "/api/v1/auth/telegram", {

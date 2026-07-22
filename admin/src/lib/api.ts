@@ -154,6 +154,8 @@ export interface AppSettings {
   min_deposit: number;
   referral_enabled: boolean;
   referral_amount: number;
+  maintenance_mode: boolean;
+  maintenance_message: string;
   updated_at: string;
 }
 

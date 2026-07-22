@@ -3,6 +3,10 @@
     "name": "Edl Bingo",
     "tagline": "Play. Win. Shine."
   },
+  "maintenance": {
+    "title": "We'll be right back",
+    "body": "Edl Bingo is under quick maintenance. Please check back in a little while."
+  },
   "common": {
     "play": "Play",
     "practice": "Practice",

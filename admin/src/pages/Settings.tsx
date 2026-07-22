@@ -31,6 +31,8 @@ export function Settings() {
         min_deposit: form.min_deposit,
         referral_enabled: form.referral_enabled,
         referral_amount: form.referral_amount,
+        maintenance_mode: form.maintenance_mode,
+        maintenance_message: form.maintenance_message,
       });
       setForm(res.settings);
       push("Settings saved", "success");
@@ -54,6 +56,40 @@ export function Settings() {
 
       {form && (
         <div className="grid gap-4 lg:grid-cols-2">
+          {/* Maintenance mode — full width, most prominent */}
+          <Card className={`p-5 lg:col-span-2 ${form.maintenance_mode ? "ring-2 ring-warning/60" : ""}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Maintenance mode</h2>
+              <Badge tone={form.maintenance_mode ? "yellow" : "green"}>
+                {form.maintenance_mode ? "Under maintenance" : "Live"}
+              </Badge>
+            </div>
+
+            <Toggle
+              checked={form.maintenance_mode}
+              onChange={(v) => setForm({ ...form, maintenance_mode: v })}
+              label={
+                <span className="font-medium text-txt">
+                  Put the player app into maintenance (stop players from playing)
+                </span>
+              }
+            />
+            <p className={hint}>
+              When on, players see a “we’ll be right back” screen and cannot join games, deposit, withdraw, or transfer.
+              The admin dashboard and the API stay fully up, so you can keep reviewing. New games and existing balances
+              are untouched.
+            </p>
+
+            <label className={`${label} mt-5`}>Message shown to players (optional)</label>
+            <Input
+              value={form.maintenance_message}
+              maxLength={200}
+              placeholder="We’re doing quick maintenance and will be back soon."
+              onChange={(e) => setForm({ ...form, maintenance_message: e.target.value })}
+            />
+            <p className={hint}>Leave blank to show a default message.</p>
+          </Card>
+
           {/* Deposits */}
           <Card className="p-5">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">Deposits</h2>

@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { useAuth } from "@/store/authStore";
 import { useWallet } from "@/store/walletStore";
+import { api } from "@/lib/api";
 import { ToastHost } from "@/components/ui/Toast";
 import { Splash } from "@/screens/Splash";
+import { Maintenance } from "@/screens/Maintenance";
 import { NotRegistered } from "@/screens/NotRegistered";
 import { CardSelect } from "@/screens/CardSelect";
 import { Report } from "@/screens/Report";
@@ -18,6 +20,28 @@ import { LiveGameSync } from "@/components/layout/LiveGameSync";
 export default function App() {
   const { status, authenticate, user } = useAuth();
   const refreshWallet = useWallet((s) => s.refresh);
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string }>({
+    on: false,
+    message: "",
+  });
+
+  // Poll maintenance status on mount and every 30s, so the app both drops into
+  // and recovers from maintenance without the player reloading. Fails soft (the
+  // api.status helper resolves to "live" on any error), so it never wrongly locks
+  // players out.
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const s = await api.status();
+      if (alive) setMaintenance({ on: s.maintenance, message: s.message });
+    };
+    check();
+    const id = setInterval(check, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
 
   // Authenticate once on mount.
   useEffect(() => {
@@ -44,6 +68,17 @@ export default function App() {
       window.removeEventListener("focus", onActive);
     };
   }, [status, refreshWallet]);
+
+  // Maintenance takes priority over everything — no lobby, wallet, or game while
+  // it's on. The backend also rejects player mutations with 503 as a backstop.
+  if (maintenance.on) {
+    return (
+      <>
+        <ToastHost />
+        <Maintenance message={maintenance.message} />
+      </>
+    );
+  }
 
   return (
     <>
