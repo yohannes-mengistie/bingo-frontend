@@ -97,13 +97,19 @@ export const api = {
   // Polled to decide whether to show the maintenance screen. Fails soft to
   // "live" so a status blip never locks players out of a working app.
   status: () =>
-    request<{ maintenance: boolean; message: string; min_deposit: number }>(
-      "GET",
-      "/api/v1/status",
-    ).catch(() => ({
+    request<{
+      maintenance: boolean;
+      message: string;
+      min_deposit: number;
+      // Per-method deposit availability, keyed by PaymentMethod. A method the
+      // admin has switched off (e.g. broken verification) is hidden from the
+      // deposit picker. Absent/true → available.
+      deposit_methods?: Partial<Record<PaymentMethod, boolean>>;
+    }>("GET", "/api/v1/status").catch(() => ({
       maintenance: false,
       message: "",
       min_deposit: 50,
+      deposit_methods: undefined,
     })),
 
   // ---- Auth ----

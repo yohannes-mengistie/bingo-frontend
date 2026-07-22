@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { ScreenShell } from "@/components/layout/ScreenShell";
@@ -183,6 +183,22 @@ function ActionSheet({
   const [account, setAccount] = useState<string | null>(null);
   const withdrawTo = account ?? meQ.data?.phone_number ?? "";
 
+  // Deposit methods the admin currently accepts. A method switched off server-side
+  // (e.g. its verification broke) is dropped so players can't pay into a dead
+  // channel. Withdrawals are unaffected — they always offer every configured method.
+  const depositMethods = PAYMENT_METHODS.filter(
+    (m) => statusQ.data?.deposit_methods?.[m] !== false,
+  );
+  const noDepositMethods = action === "deposit" && depositMethods.length === 0;
+
+  // If the selected method isn't available for deposit (or the list changed),
+  // fall back to the first available one so the form always reflects a real choice.
+  useEffect(() => {
+    if (action === "deposit" && depositMethods.length > 0 && !depositMethods.includes(method)) {
+      setMethod(depositMethods[0]);
+    }
+  }, [action, depositMethods, method]);
+
   // A typed deposit amount below the minimum: block submit and show a hint.
   const depositBelowMin =
     action === "deposit" && amount.trim() !== "" && (parseFloat(amount) || 0) < minDeposit;
@@ -239,9 +255,11 @@ function ActionSheet({
       onClose={onClose}
       title={action ? t(`wallet.${action}`) : ""}
     >
-      {action === "deposit" ? (
+      {action === "deposit" && noDepositMethods ? (
+        <p className="py-8 text-center text-sm text-ink-faint">{t("wallet.depositUnavailable")}</p>
+      ) : action === "deposit" ? (
         <div className="flex flex-col gap-4">
-          <MethodPicker method={method} onChange={setMethod} />
+          <MethodPicker method={method} methods={depositMethods} onChange={setMethod} />
 
           {/* The house account to pay — big and copyable. */}
           <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-4 text-center">
@@ -315,7 +333,7 @@ function ActionSheet({
           {action === "withdraw" && (
             <>
               <Field label={t("wallet.accountType")}>
-                <MethodPicker method={method} onChange={setMethod} />
+                <MethodPicker method={method} methods={PAYMENT_METHODS} onChange={setMethod} />
               </Field>
               <Field label={t("wallet.withdrawTo")} hint={t("wallet.withdrawToHint")}>
                 <input
@@ -352,18 +370,22 @@ function ActionSheet({
 }
 
 // Segmented picker for the payment method. Hidden entirely while only one
-// method is configured — no point showing a single-choice control.
+// method is available — no point showing a single-choice control. The caller
+// passes the method list so deposits can offer only the currently-enabled
+// channels while withdrawals keep offering every configured one.
 function MethodPicker({
   method,
+  methods,
   onChange,
 }: {
   method: PaymentMethod;
+  methods: PaymentMethod[];
   onChange: (m: PaymentMethod) => void;
 }) {
-  if (PAYMENT_METHODS.length <= 1) return null;
+  if (methods.length <= 1) return null;
   return (
     <div className="grid auto-cols-fr grid-flow-col gap-2">
-      {PAYMENT_METHODS.map((m) => (
+      {methods.map((m) => (
         <button
           key={m}
           onClick={() => onChange(m)}

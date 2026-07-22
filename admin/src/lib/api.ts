@@ -156,6 +156,11 @@ export interface AppSettings {
   referral_amount: number;
   maintenance_mode: boolean;
   maintenance_message: string;
+  // Per-method deposit switches. Turn a channel off to stop players depositing
+  // with it (e.g. when its verification breaks) without touching withdrawals.
+  deposit_telebirr_enabled: boolean;
+  deposit_cbebirr_enabled: boolean;
+  deposit_mpesa_enabled: boolean;
   updated_at: string;
 }
 

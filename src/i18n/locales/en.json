@@ -175,6 +175,7 @@
     "minDepositHint": "Minimum deposit is {{min}} birr.",
     "txnRefPlaceholder": "Txn Ref / Details",
     "submitDeposit": "Submit deposit",
+    "depositUnavailable": "Deposits are temporarily unavailable. Please check back soon.",
     "errDailyLimit": "Daily withdrawal limit reached — up to {{max}} birr per day.",
     "errMinRemaining": "You must keep at least {{min}} birr in your account.",
     "errInsufficient": "Not enough balance.",

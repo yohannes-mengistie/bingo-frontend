@@ -33,6 +33,9 @@ export function Settings() {
         referral_amount: form.referral_amount,
         maintenance_mode: form.maintenance_mode,
         maintenance_message: form.maintenance_message,
+        deposit_telebirr_enabled: form.deposit_telebirr_enabled,
+        deposit_cbebirr_enabled: form.deposit_cbebirr_enabled,
+        deposit_mpesa_enabled: form.deposit_mpesa_enabled,
       });
       setForm(res.settings);
       push("Settings saved", "success");
@@ -102,6 +105,41 @@ export function Settings() {
             />
             <p className={hint}>Players cannot deposit less than this. Applies to new deposits immediately.</p>
           </Card>
+
+          {/* Deposit methods — per-channel on/off */}
+          {(() => {
+            const methods: { key: keyof AppSettings; label: string }[] = [
+              { key: "deposit_telebirr_enabled", label: "Telebirr" },
+              { key: "deposit_cbebirr_enabled", label: "CBE Birr" },
+              { key: "deposit_mpesa_enabled", label: "M-Pesa" },
+            ];
+            const offCount = methods.filter((m) => !form[m.key]).length;
+            return (
+              <Card className={`p-5 ${offCount > 0 ? "ring-2 ring-warning/60" : ""}`}>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Deposit methods</h2>
+                  <Badge tone={offCount > 0 ? "yellow" : "green"}>
+                    {offCount > 0 ? `${offCount} off` : "All on"}
+                  </Badge>
+                </div>
+                <div className="space-y-4">
+                  {methods.map((m) => (
+                    <Toggle
+                      key={m.key}
+                      checked={Boolean(form[m.key])}
+                      onChange={(v) => setForm({ ...form, [m.key]: v })}
+                      label={<span className="font-medium text-txt">Accept {m.label} deposits</span>}
+                    />
+                  ))}
+                </div>
+                <p className={hint}>
+                  Turn a method off the moment its payment verification breaks — players can no longer deposit with it
+                  (it disappears from the app and bot), so nobody pays into a channel whose receipts can't be confirmed.
+                  Withdrawals are unaffected, so no one's balance is trapped. Applies immediately.
+                </p>
+              </Card>
+            );
+          })()}
 
           {/* Referral reward */}
           <Card className="p-5">

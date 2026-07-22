@@ -175,6 +175,7 @@
     "minDepositHint": "ዝቅተኛው የማስገቢያ መጠን {{min}} ብር ነው።",
     "txnRefPlaceholder": "የመልዕክት/ትራንዛክሽን ቁጥር (Txn Ref)",
     "submitDeposit": "ገቢ አረጋግጥ",
+    "depositUnavailable": "ገቢ ማድረግ ለጊዜው አይቻልም። እባክዎ ቆየት ብለው ይሞክሩ።",
     "errDailyLimit": "የቀኑ የማውጣት ገደብ ደርሷል — በቀን እስከ {{max}} ብር ብቻ።",
     "errMinRemaining": "በሂሳብዎ ውስጥ ቢያንስ {{min}} ብር ማስቀረት አለብዎት።",
     "errInsufficient": "በቂ ሂሳብ የለዎትም።",
