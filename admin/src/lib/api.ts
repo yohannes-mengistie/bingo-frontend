@@ -310,6 +310,31 @@ export interface BotConfig {
   updated_at: string;
 }
 
+// One external payment-verifier lookup, for the verification audit page. Lets an
+// admin see exactly what the verifier returned for a disputed receipt.
+export type VerificationOutcome = "verified" | "rejected" | "unavailable";
+
+export interface VerificationLog {
+  id: string;
+  user_id?: string | null;
+  method: string;
+  reference: string;
+  outcome: VerificationOutcome;
+  reason: string;
+  amount?: number | null;
+  raw_response: string;
+  created_at: string;
+}
+
+export interface AdminEventLog {
+  id: string;
+  level: "warning" | "info" | "error" | string;
+  source: string;
+  message: string;
+  game_id?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
 
 // ---- Bonus wallet (play-only money) ----
 
@@ -402,6 +427,14 @@ export const api = {
 
   dashboard: () => request<DashboardStats>("/admin/stats/dashboard"),
   houseCutDetail: () => request<{ detail: HouseCutDetail }>("/admin/dashboard/house-cut"),
+  adminLogs: (opts: { level?: string; source?: string; limit?: number; offset?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.level) q.set("level", opts.level);
+    if (opts.source) q.set("source", opts.source);
+    q.set("limit", String(opts.limit ?? 50));
+    q.set("offset", String(opts.offset ?? 0));
+    return request<{ logs: AdminEventLog[]; total: number; count: number }>(`/admin/logs?${q.toString()}`);
+  },
 
   users: (limit = 50, offset = 0) => {
     const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
@@ -497,10 +530,25 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  approveDeposit: (id: string) =>
-    request<{ message: string }>(`/admin/transactions/${segment(id)}/approve-deposit`, {
-      method: "POST",
-    }),
+  // approveDeposit refuses a receipt the verifier definitively REJECTED (HTTP 409)
+  // unless force=true — for an admin who has confirmed the payment out-of-band.
+  approveDeposit: (id: string, force = false) =>
+    request<{ message: string }>(
+      `/admin/transactions/${segment(id)}/approve-deposit${force ? "?force=true" : ""}`,
+      { method: "POST" },
+    ),
+
+  // Payment-verifier audit trail. Filter by ?reference to pull every lookup for a
+  // disputed receipt; the raw provider response and verdict are on each row.
+  verificationLogs: (opts: { reference?: string; limit?: number; offset?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.reference) q.set("reference", opts.reference);
+    q.set("limit", String(opts.limit ?? 50));
+    q.set("offset", String(opts.offset ?? 0));
+    return request<{ logs: VerificationLog[]; total: number }>(
+      `/admin/transactions/verification-logs?${q.toString()}`,
+    );
+  },
   rejectDeposit: (id: string) =>
     request<{ message: string }>(`/admin/transactions/${segment(id)}/reject-deposit`, {
       method: "POST",

@@ -13,6 +13,7 @@ import { Bots } from "@/pages/Bots";
 import { Bonus } from "@/pages/Bonus";
 import { PromoCodes } from "@/pages/PromoCodes";
 import { Reports } from "@/pages/Reports";
+import { VerificationLogs } from "@/pages/VerificationLogs";
 import { Settings } from "@/pages/Settings";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/bonus" element={<Bonus />} />
         <Route path="/promo" element={<PromoCodes />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/verification" element={<VerificationLogs />} />
         <Route path="/staff" element={<Staff />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Transaction, type UserGameStats, type UserWithWallet } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type Transaction,
+  type UserGameStats,
+  type UserWithWallet,
+  type VerificationLog,
+  type VerificationOutcome,
+} from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useConfirm } from "@/components/confirm";
 import {
   Card,
   Table,
@@ -70,6 +79,7 @@ export function Transactions() {
   );
   const total = data?.total;
   const push = useToast((s) => s.push);
+  const confirm = useConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction | null>(null);
 
@@ -90,6 +100,40 @@ export function Transactions() {
       reload();
     } catch (e) {
       push(e instanceof Error ? e.message : `${label} failed`, "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Approve a deposit. The backend refuses (HTTP 409) a receipt the verifier
+  // definitively REJECTED; we surface the reason and let the admin force it only
+  // after an explicit confirmation, so a bogus receipt is never credited blindly.
+  const approveDeposit = async (id: string) => {
+    setBusyId(id);
+    try {
+      await api.approveDeposit(id);
+      push("Deposit approved", "success");
+      reload();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const ok = await confirm({
+          title: "Verifier rejected this receipt",
+          message: `${e.message}. Only force-approve if you have confirmed the payment reached the house account yourself.`,
+          confirmLabel: "Force approve",
+          danger: true,
+        });
+        if (ok) {
+          try {
+            await api.approveDeposit(id, true);
+            push("Deposit force-approved", "success");
+            reload();
+          } catch (e2) {
+            push(e2 instanceof Error ? e2.message : "Approve failed", "error");
+          }
+        }
+      } else {
+        push(e instanceof Error ? e.message : "Approve failed", "error");
+      }
     } finally {
       setBusyId(null);
     }
@@ -231,7 +275,7 @@ export function Transactions() {
                               tone="green"
                               title="Approve"
                               loading={busyId === t.id}
-                              onClick={() => act(t.id, api.approveDeposit, "Approve")}
+                              onClick={() => approveDeposit(t.id)}
                             />
                             <IconButton
                               icon="x"
@@ -316,6 +360,10 @@ export function Transactions() {
           act(id, fn, label);
           setDetail(null);
         }}
+        onApproveDeposit={(id) => {
+          approveDeposit(id);
+          setDetail(null);
+        }}
         onRollback={rollback}
       />
     </div>
@@ -328,6 +376,7 @@ function TransactionDrawer({
   busy,
   onClose,
   onAct,
+  onApproveDeposit,
   onRollback,
 }: {
   tx: Transaction | null;
@@ -335,6 +384,7 @@ function TransactionDrawer({
   busy: boolean;
   onClose: () => void;
   onAct: (id: string, fn: (id: string) => Promise<unknown>, label: string) => void;
+  onApproveDeposit: (id: string) => void;
   onRollback: (id: string) => void;
 }) {
   if (!tx) return null;
@@ -347,7 +397,7 @@ function TransactionDrawer({
       <div className="flex flex-col gap-2">
         {tx.type === "deposit" && (
           <div className="flex gap-2">
-            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.approveDeposit, "Approve")}>
+            <Button variant="success" icon="check" loading={busy} className="flex-1" onClick={() => onApproveDeposit(tx.id)}>
               Approve
             </Button>
             <Button variant="danger" icon="x" loading={busy} className="flex-1" onClick={() => onAct(tx.id, api.rejectDeposit, "Reject")}>
@@ -387,6 +437,9 @@ function TransactionDrawer({
         </div>
       </div>
 
+      {/* For a deposit, show the verifier's stored verdict so approval is informed. */}
+      {tx.type === "deposit" && tx.transaction_id && <DepositVerdict reference={tx.transaction_id} />}
+
       {/* For a withdrawal, show whether this player is a genuine winner before paying. */}
       {tx.type === "withdraw" && <PlayerWinBackground userId={tx.user_id} />}
 
@@ -408,6 +461,67 @@ function TransactionDrawer({
       <DetailRow label="Created">{date(tx.created_at)}</DetailRow>
       <DetailRow label="Transaction ID" mono>{tx.id}</DetailRow>
     </Drawer>
+  );
+}
+
+function verdictTone(o: VerificationOutcome): "green" | "red" | "gold" {
+  return o === "verified" ? "green" : o === "rejected" ? "red" : "gold";
+}
+
+// DepositVerdict shows the verifier's stored verdict for a deposit's receipt
+// inside the drawer, so an admin approving a pending deposit sees whether the
+// verifier verified it, rejected it, or couldn't judge it — before crediting.
+function DepositVerdict({ reference }: { reference: string }) {
+  const [log, setLog] = useState<VerificationLog | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setFailed(false);
+    api
+      .verificationLogs({ reference, limit: 1 })
+      .then((r) => alive && setLog(r.logs[0] ?? null))
+      .catch(() => alive && setFailed(true))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [reference]);
+
+  return (
+    <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-txt-4">
+        Verifier verdict for this receipt
+      </div>
+      {loading ? (
+        <Spinner />
+      ) : failed ? (
+        <div className="text-sm text-txt-3">Couldn't load the verifier verdict.</div>
+      ) : !log ? (
+        <div className="text-sm text-txt-3">
+          No verifier lookup on record for this receipt. Confirm the payment manually before approving.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <Badge tone={verdictTone(log.outcome)}>
+              {log.outcome === "verified" ? "Verified" : log.outcome === "rejected" ? "Rejected" : "Unverified"}
+            </Badge>
+            {log.amount != null && <span className="tabular-nums text-sm text-txt-2">{birr(log.amount)}</span>}
+          </div>
+          {log.reason && log.reason !== "ok" && (
+            <div className="mt-2 text-sm text-txt-3">{log.reason}</div>
+          )}
+          {log.outcome === "rejected" && (
+            <div className="mt-2 text-xs text-danger">
+              The verifier rejected this receipt — approving needs an explicit force-confirm.
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

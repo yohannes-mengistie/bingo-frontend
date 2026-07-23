@@ -22,6 +22,7 @@ const groups: { heading: string; items: NavItem[] }[] = [
       { to: "/bots", label: "Filler bots", icon: "bots" },
       { to: "/bonus", label: "Bonus", icon: "bonus" },
       { to: "/promo", label: "Promo codes", icon: "promo" },
+      { to: "/verification", label: "Verification", icon: "shield" },
       { to: "/reports", label: "Reports", icon: "reports" },
       { to: "/staff", label: "Staff", icon: "staff" },
       { to: "/settings", label: "Settings", icon: "coins" },
