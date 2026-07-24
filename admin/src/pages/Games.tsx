@@ -9,6 +9,7 @@ import {
   tdClass,
   trClass,
   Tabs,
+  SearchInput,
   StatusBadge,
   IconButton,
   Button,
@@ -51,25 +52,38 @@ export function Games() {
   const push = useToast((s) => s.push);
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const searching = q.trim().length > 0;
 
   const stateFilter: GameState | undefined = tab === "all" || tab === "active" ? undefined : tab;
 
   const PAGE = 50;
   const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [tab]); // reset to first page when the tab changes
+  useEffect(() => setPage(0), [tab, q]); // reset to first page when the tab changes
 
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.games({ state: stateFilter, limit: PAGE, offset: page * PAGE }),
-    [tab, page],
+    () =>
+      api.games({
+        state: stateFilter,
+        limit: searching || tab === "active" ? 10000 : PAGE,
+        offset: searching || tab === "active" ? 0 : page * PAGE,
+      }),
+    [tab, page, searching],
     6000,
   );
 
   let rows: Game[] = data?.games ?? [];
   if (tab === "active") rows = rows.filter((g) => isCancellable(g.state));
-  // The "active" tab filters the current page client-side, so paging it is
-  // meaningless (and live games are few); page the state/all tabs only.
-  const paged = tab !== "active";
+  const term = q.trim().toLowerCase();
+  if (term) {
+    rows = rows.filter((g) =>
+      [g.id, g.game_type, g.state, g.bet_amount].join(" ").toLowerCase().includes(term),
+    );
+  }
+  const visible = searching ? rows.slice(page * PAGE, (page + 1) * PAGE) : rows;
+  const paged = tab !== "active" || searching;
   const total = data?.total ?? 0;
+  const resultTotal = searching ? rows.length : total;
 
   const cancel = async (g: Game) => {
     if (
@@ -100,14 +114,15 @@ export function Games() {
     <div>
       <PageHeader
         title="Games"
-        subtitle="Live and historical rounds"
+        subtitle="Round monitoring"
         updatedAt={updatedAt}
         onReload={reload}
       />
 
       <Card className="p-0">
-        <div className="border-b border-edgeSoft p-4">
+        <div className="flex flex-wrap items-center gap-3 border-b border-edgeSoft p-4">
           <Tabs tabs={TABS} active={tab} onChange={setTab} />
+          <SearchInput value={q} onChange={setQ} placeholder="Search games…" className="w-full sm:ml-auto sm:w-72" />
         </div>
 
         {loading && !data ? (
@@ -116,7 +131,7 @@ export function Games() {
           <div className="p-4">
             <ErrorNote message={error} onRetry={reload} />
           </div>
-        ) : rows.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState message="No games here." icon="games" />
         ) : (
           <Table>
@@ -132,7 +147,7 @@ export function Games() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((g) => (
+              {visible.map((g) => (
                 <tr key={g.id} className={trClass}>
                   <td className={tdClass}>
                     <button
@@ -173,8 +188,8 @@ export function Games() {
             </tbody>
           </Table>
         )}
-        {paged && total > PAGE && (
-          <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={rows.length} />
+        {paged && resultTotal > 0 && (
+          <Pagination page={page} pageSize={PAGE} total={resultTotal} onPage={setPage} shown={visible.length} />
         )}
       </Card>
 

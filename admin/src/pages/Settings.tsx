@@ -52,7 +52,7 @@ export function Settings() {
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Payment & platform settings" />
+      <PageHeader title="Settings" subtitle="Platform controls" />
 
       {loading && !data && <Spinner />}
       {error && !data && <ErrorNote message={error} onRetry={reload} />}

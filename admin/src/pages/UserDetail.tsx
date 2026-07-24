@@ -105,7 +105,7 @@ export function UserDetail() {
     <div>
       <PageHeader
         title={name}
-        subtitle="Player profile & actions"
+        subtitle="Player account"
         actions={
           <Button variant="subtle" icon="chevronLeft" onClick={() => nav("/users")}>
             Back

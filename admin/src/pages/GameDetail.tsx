@@ -99,7 +99,7 @@ export function GameDetail() {
 
       <PageHeader
         title={g ? `${g.game_type} · ${shortId(g.id)}` : "Game"}
-        subtitle="Round detail"
+        subtitle="Round overview"
       />
 
       {loading && !data ? (

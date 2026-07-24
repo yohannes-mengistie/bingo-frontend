@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type VerificationLog, type VerificationOutcome, type UserWithWallet } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   Card,
   Table,
@@ -14,6 +15,7 @@ import {
   Button,
   Avatar,
   SearchInput,
+  Pagination,
   Skeleton,
   ErrorNote,
   EmptyState,
@@ -46,12 +48,12 @@ function prettyRaw(raw: string): string {
 }
 
 export function VerificationLogs() {
-  // The reference filter is applied server-side (substring match). Kept separate
-  // from the input so we only refetch when the admin submits, not per keystroke.
   const [query, setQuery] = useState("");
-  const [reference, setReference] = useState("");
+  const reference = useDebouncedValue(query.trim(), 350);
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<VerificationLog | null>(null);
+
+  useEffect(() => setPage(0), [reference]);
 
   const { data, loading, error, reload, updatedAt } = usePolling(
     () => api.verificationLogs({ reference, limit: PAGE_SIZE, offset: page * PAGE_SIZE }),
@@ -70,48 +72,28 @@ export function VerificationLogs() {
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;
 
-  const applySearch = () => {
-    setPage(0);
-    setReference(query.trim());
-  };
-
   return (
     <div>
       <PageHeader
         title="Verification logs"
-        subtitle="Every external payment-verifier lookup — the raw response and verdict per receipt"
+        subtitle="Payment verification history"
         updatedAt={updatedAt}
         onReload={reload}
       />
 
       <Card className="p-0">
-        <div className="flex flex-wrap items-center gap-3 border-b border-edgeSoft p-4">
-          <div className="text-sm text-txt-3">
-            Investigate a disputed deposit — paste the receipt number to see what the verifier returned.
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                applySearch();
-              }}
-            >
-              <SearchInput value={query} onChange={setQuery} placeholder="Search by receipt reference…" />
-            </form>
-            {reference && (
-              <Button
-                variant="ghost"
-                icon="x"
-                onClick={() => {
-                  setQuery("");
-                  setReference("");
-                  setPage(0);
-                }}
-              >
-                Clear
-              </Button>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-edgeSoft p-4">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search receipt reference…"
+            className="w-full sm:w-80"
+          />
+          {query && (
+            <Button variant="subtle" icon="x" onClick={() => setQuery("")}>
+              Clear
+            </Button>
+          )}
         </div>
 
         {loading && !data ? (
@@ -183,30 +165,8 @@ export function VerificationLogs() {
           </Table>
         )}
 
-        {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between gap-3 border-t border-edgeSoft p-4 text-sm text-txt-3">
-            <span>
-              Showing <span className="text-txt">{page * PAGE_SIZE + 1}</span>–
-              <span className="text-txt">{Math.min((page + 1) * PAGE_SIZE, total)}</span> of{" "}
-              <span className="text-txt">{total}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" icon="chevronLeft" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                Prev
-              </Button>
-              <span className="tabular-nums">
-                Page {page + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}
-              </span>
-              <Button
-                variant="ghost"
-                icon="chevronRight"
-                disabled={(page + 1) * PAGE_SIZE >= total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {total > 0 && (
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} shown={logs.length} onPage={setPage} />
         )}
       </Card>
 
@@ -234,12 +194,12 @@ function VerificationDrawer({
       </div>
 
       {log.outcome === "rejected" && (
-        <div className="mb-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           The verifier rejected this receipt. Do not credit it unless you have confirmed the payment yourself.
         </div>
       )}
       {log.outcome === "unavailable" && (
-        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
           The verifier could not judge this receipt (it went to manual review). Confirm the payment before approving.
         </div>
       )}
@@ -262,7 +222,7 @@ function VerificationDrawer({
 
       <div className="mt-4">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-txt-4">Raw provider response</div>
-        <pre className="max-h-96 overflow-auto rounded-xl border border-edgeSoft bg-panel2 p-3 font-mono text-[12px] leading-relaxed text-txt-2">
+        <pre className="max-h-96 overflow-auto rounded-lg border border-edgeSoft bg-panel2 p-3 font-mono text-[12px] leading-relaxed text-txt-2">
           {prettyRaw(log.raw_response) || <span className="text-txt-4">No body captured.</span>}
         </pre>
       </div>

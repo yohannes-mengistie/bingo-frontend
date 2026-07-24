@@ -13,6 +13,7 @@ import {
   EmptyState,
   PageHeader,
   Pagination,
+  SearchInput,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { date, fullName, shortId, statusTone } from "@/lib/format";
@@ -34,15 +35,17 @@ const CATEGORY_META: Record<SupportCategory, { label: string; tone: string }> = 
 export function Reports() {
   const [tab, setTab] = useState<TabKey>("open");
   const [resolving, setResolving] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const searching = q.trim().length > 0;
   const push = useToast((s) => s.push);
 
   const active = TABS.find((t) => t.key === tab)!;
   const PAGE = 50;
   const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [tab]);
+  useEffect(() => setPage(0), [tab, q]);
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.reports(active.status, PAGE, page * PAGE),
-    [tab, page],
+    () => api.reports(active.status, searching ? 10000 : PAGE, searching ? 0 : page * PAGE),
+    [tab, page, searching],
     12000,
   );
   const total = data?.count ?? 0;
@@ -61,19 +64,40 @@ export function Reports() {
   }
 
   const reports = data?.reports ?? [];
+  const term = q.trim().toLowerCase();
+  const filtered = term
+    ? reports.filter((report) =>
+        [
+          report.message,
+          report.category,
+          report.status,
+          report.reporter_first_name,
+          report.reporter_last_name,
+          report.reporter_phone,
+          report.game_id,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term),
+      )
+    : reports;
+  const visible = searching ? filtered.slice(page * PAGE, (page + 1) * PAGE) : filtered;
+  const resultTotal = searching ? filtered.length : total;
   const link = "text-txt-3 transition hover:text-brand";
 
   return (
     <div>
       <PageHeader
         title="Reports"
-        subtitle="Player problem reports"
+        subtitle="Player support"
         updatedAt={updatedAt}
         onReload={reload}
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Tabs tabs={TABS} active={tab} onChange={setTab} />
+        <SearchInput value={q} onChange={setQ} placeholder="Search reports…" className="w-full sm:ml-auto sm:w-72" />
       </div>
 
       {loading && !data ? (
@@ -82,13 +106,13 @@ export function Reports() {
         </Card>
       ) : error && !data ? (
         <ErrorNote message={error} onRetry={reload} />
-      ) : reports.length === 0 ? (
+      ) : visible.length === 0 ? (
         <Card className="p-0">
           <EmptyState message={tab === "open" ? "No open reports — all clear." : "No reports here."} icon="reports" />
         </Card>
       ) : (
         <div className="space-y-3">
-          {reports.map((r) => {
+          {visible.map((r) => {
             const cat = CATEGORY_META[r.category] ?? CATEGORY_META.other;
             return (
               <Card key={r.id} className="space-y-3 p-4">
@@ -131,9 +155,9 @@ export function Reports() {
               </Card>
             );
           })}
-          {total > PAGE && (
+          {resultTotal > 0 && (
             <Card className="p-0">
-              <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={reports.length} />
+              <Pagination page={page} pageSize={PAGE} total={resultTotal} onPage={setPage} shown={visible.length} />
             </Card>
           )}
         </div>

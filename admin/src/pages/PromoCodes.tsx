@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type PromoCode } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import {
@@ -16,6 +16,8 @@ import {
   ErrorNote,
   EmptyState,
   PageHeader,
+  SearchInput,
+  Pagination,
 } from "@/components/ui";
 import { birr, date } from "@/lib/format";
 import { useToast } from "@/components/toast";
@@ -27,8 +29,20 @@ export function PromoCodes() {
   const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
 
   const codes = data?.promos ?? [];
+  const term = q.trim().toLowerCase();
+  const filtered = term
+    ? codes.filter((promo) =>
+        [promo.code, promo.active ? "active" : "inactive"].join(" ").toLowerCase().includes(term),
+      )
+    : codes;
+  const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+  useEffect(() => setPage(0), [q]);
 
   const toggle = async (p: PromoCode) => {
     const turningOff = p.active;
@@ -59,7 +73,7 @@ export function PromoCodes() {
     <div>
       <PageHeader
         title="Promo codes"
-        subtitle="Redeemable bonus codes credited to a player's cash wallet"
+        subtitle="Redemption codes"
         updatedAt={updatedAt}
         onReload={reload}
         actions={
@@ -72,13 +86,16 @@ export function PromoCodes() {
       {showForm && <CreateForm onDone={() => { setShowForm(false); reload(); }} />}
 
       <Card className="p-0">
+        <div className="border-b border-edgeSoft p-4">
+          <SearchInput value={q} onChange={setQ} placeholder="Search promo codes…" className="w-full sm:w-80" />
+        </div>
         {loading && !data ? (
           <Skeleton />
         ) : error && !data ? (
           <div className="p-4">
             <ErrorNote message={error} onRetry={reload} />
           </div>
-        ) : codes.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState message="No promo codes yet. Create one to get started." icon="promo" />
         ) : (
           <Table>
@@ -93,7 +110,7 @@ export function PromoCodes() {
               </tr>
             </thead>
             <tbody>
-              {codes.map((p) => (
+              {visible.map((p) => (
                 <tr key={p.code} className={trClass}>
                   <td className={tdClass}>
                     <span className="font-mono text-sm font-semibold tracking-wide text-txt">{p.code}</span>
@@ -127,6 +144,9 @@ export function PromoCodes() {
               ))}
             </tbody>
           </Table>
+        )}
+        {filtered.length > 0 && (
+          <Pagination page={page} pageSize={pageSize} total={filtered.length} shown={visible.length} onPage={setPage} />
         )}
       </Card>
     </div>

@@ -113,7 +113,7 @@ export function Bots() {
     <div>
       <PageHeader
         title="Filler bots"
-        subtitle="House players that top up under-filled games"
+        subtitle="Game capacity"
         actions={
           form && (
             <Badge tone={form.enabled ? "green" : "neutral"}>

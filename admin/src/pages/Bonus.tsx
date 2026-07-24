@@ -9,12 +9,13 @@ import {
 } from "@/lib/api";
 import { openCampaignSocket } from "@/lib/campaignSocket";
 import { useApi } from "@/lib/useApi";
-import { Button, Card, Spinner, ErrorNote, Badge, EmptyState } from "@/components/ui";
+import { Button, Card, Spinner, ErrorNote, Badge, EmptyState, SearchInput, Pagination } from "@/components/ui";
 import { useConfirm } from "@/components/confirm";
 import { useToast } from "@/components/toast";
 import { birr, date, fullName, readable } from "@/lib/format";
 
-const PAGE = 200;
+const PLAYER_FETCH_LIMIT = 10000;
+const PLAYER_PAGE_SIZE = 50;
 type Tab = "campaign" | "grant" | "policy" | "broadcast";
 
 /**
@@ -85,7 +86,7 @@ export function Bonus() {
 
       {tab === "campaign" && <CampaignPanel enabled={form.enabled} onChanged={refreshStats} />}
       {tab === "grant" && (
-        <GrantPanel expiryDays={form.expiry_days} enabled={form.enabled} onGranted={refreshStats} />
+        <GrantPanel enabled={form.enabled} onGranted={refreshStats} />
       )}
       {tab === "policy" && (
         <PolicyPanel form={form} setForm={setForm} saving={saving} setSaving={setSaving} reload={reload} />
@@ -110,17 +111,16 @@ function Stat({ label, value }: { label: string; value: string }) {
  * fails or — worse — silently pays the wrong player.
  */
 function GrantPanel({
-  expiryDays,
   enabled,
   onGranted,
 }: {
-  expiryDays: number;
   enabled: boolean;
   onGranted: () => void;
 }) {
   const push = useToast((s) => s.push);
-  const { data, loading, error, reload } = useApi(() => api.users(PAGE, 0), []);
+  const { data, loading, error, reload } = useApi(() => api.users(PLAYER_FETCH_LIMIT, 0), []);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -135,10 +135,6 @@ function GrantPanel({
     [data],
   );
 
-  // The list is paged; anyone beyond it cannot be selected. Surfaced below
-  // rather than left implicit.
-  const truncated = (data?.count ?? 0) > players.length;
-
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return players;
@@ -152,14 +148,17 @@ function GrantPanel({
     });
   }, [players, q]);
 
+  const visible = filtered.slice(page * PLAYER_PAGE_SIZE, (page + 1) * PLAYER_PAGE_SIZE);
+  useEffect(() => setPage(0), [q]);
+
   // "Select all" applies to what is CURRENTLY VISIBLE, not the whole database.
   // Selecting rows a search has hidden is how an operator accidentally pays
   // everyone while believing they targeted a few.
-  const allVisibleSelected = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
+  const allVisibleSelected = visible.length > 0 && visible.every((u) => selected.has(u.id));
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allVisibleSelected) filtered.forEach((u) => next.delete(u.id));
-    else filtered.forEach((u) => next.add(u.id));
+    if (allVisibleSelected) visible.forEach((u) => next.delete(u.id));
+    else visible.forEach((u) => next.add(u.id));
     setSelected(next);
   };
   const toggleOne = (id: string) => {
@@ -243,10 +242,6 @@ function GrantPanel({
               : `Grant to ${selected.size} selected`}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Each player is notified on Telegram immediately. Their bonus expires in {expiryDays} day
-          {expiryDays === 1 ? "" : "s"} and can buy cards but never be withdrawn.
-        </p>
       </Card>
 
       <Card className="p-0">
@@ -256,7 +251,7 @@ function GrantPanel({
               <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} />
               {allVisibleSelected ? "Unselect all" : "Select all"}
               <span className="text-slate-500">
-                ({filtered.length} shown{q.trim() ? ", filtered" : ""})
+                ({visible.length} shown{q.trim() ? ", filtered" : ""})
               </span>
             </label>
             {selected.size > 0 && (
@@ -268,20 +263,14 @@ function GrantPanel({
               </button>
             )}
           </div>
-          <input
+          <SearchInput
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Search name, phone, Telegram ID…"
-            className={`${inputCls} w-full sm:w-72`}
+            className="w-full sm:w-72"
           />
         </div>
 
-        {truncated && (
-          <div className="border-b border-edge bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-            Showing the first {players.length} of {data?.count} players — “Select all” covers only
-            these. Search to reach the rest.
-          </div>
-        )}
 
         {loading && <Spinner />}
         {error && (
@@ -289,8 +278,8 @@ function GrantPanel({
             <ErrorNote message={error} onRetry={reload} />
           </div>
         )}
-        {!loading && !error && filtered.length === 0 && <EmptyState message="No players found." />}
-        {!loading && !error && filtered.length > 0 && (
+        {!loading && !error && visible.length === 0 && <EmptyState message="No players found." />}
+        {!loading && !error && visible.length > 0 && (
           <div className="max-h-[28rem] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-panel">
@@ -303,7 +292,7 @@ function GrantPanel({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((u: UserWithWallet) => {
+                {visible.map((u: UserWithWallet) => {
                   const on = selected.has(u.id);
                   return (
                     <tr
@@ -335,6 +324,15 @@ function GrantPanel({
               </tbody>
             </table>
           </div>
+        )}
+        {filtered.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={PLAYER_PAGE_SIZE}
+            total={filtered.length}
+            shown={visible.length}
+            onPage={setPage}
+          />
         )}
       </Card>
     </div>

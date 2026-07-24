@@ -24,6 +24,7 @@ import {
   Avatar,
   Tabs,
   SearchInput,
+  Pagination,
   Skeleton,
   Spinner,
   ErrorNote,
@@ -61,20 +62,21 @@ const TABS: {
   { key: "all", label: "All", paginated: true, fetch: (l, o) => api.transactions(l, o) },
   { key: "completedDeposits", label: "Completed deposits", paginated: true, fetch: (l, o) => api.completedDeposits(l, o) },
   { key: "completedWithdrawals", label: "Completed withdrawals", paginated: true, fetch: (l, o) => api.completedWithdrawals(l, o) },
-  { key: "transfers", label: "Transfers", fetch: () => api.transfers() },
-  { key: "failed", label: "Failed", fetch: () => api.failed() },
+  { key: "transfers", label: "Transfers", paginated: true, fetch: (l, o) => api.transfers(l, o) },
+  { key: "failed", label: "Failed", paginated: true, fetch: (l, o) => api.failed(l, o) },
 ];
 
 export function Transactions() {
   const [tab, setTab] = useState<TabKey>("pendingDeposits");
   const [q, setQ] = useState("");
+  const searching = q.trim().length > 0;
   const [page, setPage] = useState(0);
   const active = TABS.find((t) => t.key === tab)!;
   // Reset to the first page whenever the tab changes.
-  useEffect(() => setPage(0), [tab]);
+  useEffect(() => setPage(0), [tab, q]);
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => active.fetch(PAGE_SIZE, page * PAGE_SIZE),
-    [tab, page],
+    () => active.fetch(searching ? 10000 : PAGE_SIZE, searching ? 0 : page * PAGE_SIZE),
+    [tab, page, searching],
     8000,
   );
   const total = data?.total;
@@ -85,7 +87,7 @@ export function Transactions() {
 
   // Secondary user map — only a FALLBACK now that each transaction row carries
   // its own player_name/player_phone from the backend. Kept small + slow.
-  const { data: usersData } = usePolling(() => api.users(1000, 0), [], 60000);
+  const { data: usersData } = usePolling(() => api.users(searching ? 10000 : 1000, 0), [searching], 60000);
   const userMap = useMemo(() => {
     const m = new Map<string, UserWithWallet>();
     for (const u of usersData?.users ?? []) m.set(u.id, u);
@@ -176,11 +178,14 @@ export function Transactions() {
     });
   }, [rows, q, userMap]);
 
+  const visible = searching ? filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : filtered;
+  const resultTotal = searching ? filtered.length : total;
+
   return (
     <div>
       <PageHeader
         title="Transactions"
-        subtitle="Deposits, withdrawals, transfers & approvals"
+        subtitle="Money movement"
         updatedAt={updatedAt}
         onReload={reload}
       />
@@ -199,7 +204,7 @@ export function Transactions() {
           <div className="p-4">
             <ErrorNote message={error} onRetry={reload} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState message={q ? "No transactions match your search." : "No transactions here."} icon="transactions" />
         ) : (
           <Table>
@@ -215,7 +220,7 @@ export function Transactions() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t) => {
+              {visible.map((t) => {
                 const u = userMap.get(t.user_id);
                 // Prefer the name the backend joined onto the row; fall back to
                 // the user map, then phone. Never show a raw id as the name.
@@ -324,30 +329,14 @@ export function Transactions() {
           </Table>
         )}
 
-        {active.paginated && total !== undefined && total > PAGE_SIZE && !q && (
-          <div className="flex items-center justify-between gap-3 border-t border-edgeSoft p-4 text-sm text-txt-3">
-            <span>
-              Showing <span className="text-txt">{page * PAGE_SIZE + 1}</span>–
-              <span className="text-txt">{Math.min((page + 1) * PAGE_SIZE, total)}</span> of{" "}
-              <span className="text-txt">{total}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" icon="chevronLeft" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                Prev
-              </Button>
-              <span className="tabular-nums">
-                Page {page + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}
-              </span>
-              <Button
-                variant="ghost"
-                icon="chevronRight"
-                disabled={(page + 1) * PAGE_SIZE >= total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {active.paginated && ((resultTotal !== undefined && resultTotal > 0) || page > 0 || visible.length === PAGE_SIZE) && (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={resultTotal}
+            shown={visible.length}
+            onPage={setPage}
+          />
         )}
       </Card>
 
@@ -426,7 +415,7 @@ function TransactionDrawer({
   return (
     <Drawer open title="Transaction" subtitle={date(tx.created_at)} onClose={onClose} footer={footer}>
       {/* Amount hero */}
-      <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4 text-center">
+      <div className="mb-4 rounded-lg border border-edgeSoft bg-panel2 p-4 text-center">
         <div className={`text-3xl font-bold tabular-nums ${isIn ? "text-success" : "text-txt"}`}>
           {isIn ? "+" : "−"}
           {birr(tx.amount)}
@@ -491,7 +480,7 @@ function DepositVerdict({ reference }: { reference: string }) {
   }, [reference]);
 
   return (
-    <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4">
+    <div className="mb-4 rounded-lg border border-edgeSoft bg-panel2 p-4">
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-txt-4">
         Verifier verdict for this receipt
       </div>
@@ -548,7 +537,7 @@ function PlayerWinBackground({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <div className="mb-4 rounded-2xl border border-edgeSoft bg-panel2 p-4">
+    <div className="mb-4 rounded-lg border border-edgeSoft bg-panel2 p-4">
       <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-txt-4">
         Player background — did they really win?
       </div>

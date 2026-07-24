@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
@@ -26,12 +26,15 @@ const PAGE = 50;
 export function Users() {
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
+  const searching = q.trim().length > 0;
   const navigate = useNavigate();
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.users(PAGE, offset),
-    [offset],
+    () => api.users(searching ? 10000 : PAGE, searching ? 0 : offset),
+    [offset, searching],
     10000,
   );
+
+  useEffect(() => setOffset(0), [q]);
 
   const filtered = useMemo(() => {
     const users = data?.users ?? [];
@@ -49,12 +52,14 @@ export function Users() {
   }, [data, q]);
 
   const total = data?.count ?? 0;
+  const visible = searching ? filtered.slice(offset, offset + PAGE) : filtered;
+  const resultTotal = searching ? filtered.length : total;
 
   return (
     <div>
       <PageHeader
         title="Users"
-        subtitle="Registered real players"
+        subtitle="Player accounts"
         updatedAt={updatedAt}
         onReload={reload}
       />
@@ -80,7 +85,7 @@ export function Users() {
           <div className="p-4">
             <ErrorNote message={error} onRetry={reload} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState message="No users found." icon="users" />
         ) : (
           <Table>
@@ -97,7 +102,7 @@ export function Users() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => (
+              {visible.map((u) => (
                 <tr
                   key={u.id}
                   onClick={() => navigate(`/users/${u.id}`)}
@@ -134,12 +139,12 @@ export function Users() {
           </Table>
         )}
 
-        {total > 0 && !q && (
+        {resultTotal > 0 && (
           <Pagination
             page={Math.floor(offset / PAGE)}
             pageSize={PAGE}
-            total={total}
-            shown={filtered.length}
+            total={resultTotal}
+            shown={visible.length}
             onPage={(p) => setOffset(p * PAGE)}
           />
         )}

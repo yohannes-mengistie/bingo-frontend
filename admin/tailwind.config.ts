@@ -5,33 +5,30 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Warm navy-black neutrals: body → panels → raised surfaces.
-        ink: "#090b12",
-        panel: "#11131c",
-        panel2: "#171a26",
-        panel3: "#1d2130",
-        edge: "#262b3b",
-        edgeSoft: "#1e2230",
-        // Gold identity — primary actions and active nav only.
-        brand: "#f5b301",
-        brandDark: "#a87f0a",
-        // Semantic — status colors, never used as the accent.
-        success: "#34d399",
-        danger: "#f87171",
-        warning: "#fbbf24",
-        info: "#60a5fa",
-        // Text ramp.
-        txt: "#e8ecf6",
-        "txt-2": "#aab3c8",
-        "txt-3": "#6b7488",
-        "txt-4": "#454c5e",
+        ink: "#f4f6f8",
+        panel: "#ffffff",
+        panel2: "#f7f8fa",
+        panel3: "#edf1f3",
+        edge: "#d7dce2",
+        edgeSoft: "#e8ebef",
+        brand: "#0f766e",
+        brandDark: "#115e59",
+        success: "#15803d",
+        danger: "#c2413b",
+        warning: "#a16207",
+        info: "#2563eb",
+        txt: "#17212f",
+        "txt-2": "#455265",
+        "txt-3": "#6d7888",
+        "txt-4": "#98a1ad",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
-        glow: "0 4px 16px -4px rgba(245,179,1,0.45)",
+        glow: "0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 22px rgba(15, 118, 110, 0.12)",
+        panel: "0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px rgba(15, 23, 42, 0.04)",
       },
     },
   },

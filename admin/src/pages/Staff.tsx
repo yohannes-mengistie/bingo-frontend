@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
@@ -15,6 +15,8 @@ import {
   ErrorNote,
   EmptyState,
   PageHeader,
+  SearchInput,
+  Pagination,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm";
@@ -22,13 +24,26 @@ import { birr, date, fullName, initials } from "@/lib/format";
 
 export function Staff() {
   // No dedicated "admins" endpoint, so pull a large page and filter to admins.
-  const { data, loading, error, reload, updatedAt } = usePolling(() => api.users(200, 0), [], 15000);
+  const { data, loading, error, reload, updatedAt } = usePolling(() => api.users(10000, 0), [], 15000);
   const push = useToast((s) => s.push);
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
 
-  const admins = (data?.users ?? []).filter((u) => u.role === "admin");
+  const term = q.trim().toLowerCase();
+  const admins = (data?.users ?? []).filter((u) => {
+    if (u.role !== "admin") return false;
+    if (!term) return true;
+    return `${u.first_name} ${u.last_name ?? ""} ${u.phone_number ?? ""} ${u.telegram_id}`
+      .toLowerCase()
+      .includes(term);
+  });
+  const visible = admins.slice(page * pageSize, (page + 1) * pageSize);
+
+  useEffect(() => setPage(0), [q]);
 
   const demote = async (id: string) => {
     if (
@@ -56,19 +71,22 @@ export function Staff() {
     <div>
       <PageHeader
         title="Staff"
-        subtitle="Administrators with dashboard access"
+        subtitle="Dashboard access"
         updatedAt={updatedAt}
         onReload={reload}
       />
 
       <Card className="p-0">
+        <div className="border-b border-edgeSoft p-4">
+          <SearchInput value={q} onChange={setQ} placeholder="Search staff…" className="w-full sm:w-80" />
+        </div>
         {loading && !data ? (
           <Skeleton />
         ) : error && !data ? (
           <div className="p-4">
             <ErrorNote message={error} onRetry={reload} />
           </div>
-        ) : admins.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState message="No admins found." icon="staff" />
         ) : (
           <Table>
@@ -83,7 +101,7 @@ export function Staff() {
               </tr>
             </thead>
             <tbody>
-              {admins.map((u) => (
+              {visible.map((u) => (
                 <tr key={u.id} className={trClass}>
                   <td className={tdClass}>
                     <div className="flex items-center gap-3">
@@ -123,12 +141,11 @@ export function Staff() {
             </tbody>
           </Table>
         )}
+        {admins.length > 0 && (
+          <Pagination page={page} pageSize={pageSize} total={admins.length} shown={visible.length} onPage={setPage} />
+        )}
       </Card>
 
-      <p className="mt-3 text-xs text-txt-4">
-        Showing admins from the first 200 users. To promote a new admin, open a user from the Users page and use
-        “Promote to admin”.
-      </p>
     </div>
   );
 }

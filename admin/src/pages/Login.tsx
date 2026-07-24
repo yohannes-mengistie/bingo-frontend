@@ -33,16 +33,16 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-ink px-4">
       <Card className="w-full max-w-sm p-7">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand to-brandDark text-lg font-extrabold text-ink shadow-glow">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-brand text-lg font-extrabold text-white shadow-glow">
             B
           </div>
           <div>
             <div className="font-bold text-txt">EDL Bingo</div>
-            <div className="text-xs text-txt-3">Admin console</div>
+            <div className="text-xs text-txt-3">Operations</div>
           </div>
         </div>
 
-        <h1 className="mt-6 text-xl font-bold tracking-tight text-txt">Sign in</h1>
+        <h1 className="mt-6 text-xl font-bold text-txt">Sign in</h1>
 
         <form onSubmit={submit} className="mt-5 space-y-4">
           <div>

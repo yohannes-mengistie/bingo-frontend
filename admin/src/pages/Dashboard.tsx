@@ -13,7 +13,7 @@ export function Dashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="A live snapshot of your operation"
+        subtitle="Operational overview"
         updatedAt={updatedAt}
         onReload={reload}
       />
@@ -69,9 +69,7 @@ export function Dashboard() {
               </div>
             </div>
             <p className="max-w-md text-xs leading-relaxed text-txt-3">
-              Real stakes minus real winnings, with bots excluded. Positive means the house is
-              ahead; negative means real cash was paid out beyond stakes — exposure from
-              bot-inflated pools.
+              Net real-player result after stakes and winnings; bots excluded.
             </p>
           </Card>
 

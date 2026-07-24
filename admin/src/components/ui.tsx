@@ -14,7 +14,7 @@ export function Card({
   onClick?: () => void;
 }) {
   return (
-    <div className={`rounded-2xl border border-edgeSoft bg-panel ${className || "p-4"}`} onClick={onClick}>
+    <div className={`rounded-lg border border-edge bg-panel shadow-panel ${className || "p-4"}`} onClick={onClick}>
       {children}
     </div>
   );
@@ -24,8 +24,8 @@ export function Card({
 
 type Variant = "primary" | "ghost" | "danger" | "success" | "subtle";
 const variants: Record<Variant, string> = {
-  primary: "bg-brand text-ink hover:brightness-105 shadow-glow",
-  ghost: "bg-panel2 text-txt-2 hover:bg-edge border border-edge",
+  primary: "bg-brand text-white hover:bg-brandDark shadow-sm",
+  ghost: "bg-panel text-txt-2 hover:bg-panel2 border border-edge",
   subtle: "bg-transparent text-txt-2 hover:bg-panel2 border border-transparent",
   danger: "bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25",
   success: "bg-success/15 text-success border border-success/30 hover:bg-success/25",
@@ -47,7 +47,7 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
       {...rest}
     >
       {loading ? (
@@ -83,7 +83,7 @@ export function IconButton({
     <button
       title={title}
       disabled={loading || rest.disabled}
-      className={`grid h-8 w-8 place-items-center rounded-lg border border-edge bg-panel2 text-txt-2 transition disabled:opacity-40 ${tones[tone]} ${className}`}
+      className={`grid h-8 w-8 place-items-center rounded-lg border border-edge bg-panel text-txt-2 transition disabled:opacity-40 ${tones[tone]} ${className}`}
       {...rest}
     >
       {loading ? (
@@ -104,7 +104,7 @@ const badgeTones: Record<Tone | "purple", string> = {
   red: "bg-danger/12 text-danger border-danger/25",
   blue: "bg-info/12 text-info border-info/25",
   gold: "bg-brand/12 text-brand border-brand/25",
-  purple: "bg-fuchsia-500/12 text-fuchsia-300 border-fuchsia-500/25",
+  purple: "bg-fuchsia-500/12 text-fuchsia-700 border-fuchsia-500/25",
 };
 
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: string }) {
@@ -120,7 +120,7 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
 export function StatusBadge({ value, tone }: { value: string; tone: Tone }) {
   const cls = badgeTones[tone] ?? badgeTones.neutral;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {value}
     </span>
@@ -140,7 +140,7 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
       <span>{message}</span>
       {onRetry && (
         <button onClick={onRetry} className="shrink-0 font-semibold underline">
@@ -155,7 +155,7 @@ export function EmptyState({ message, icon }: { message: string; icon?: IconName
   return (
     <div className="flex flex-col items-center gap-3 py-14 text-center">
       {icon && (
-        <div className="grid h-11 w-11 place-items-center rounded-xl bg-panel2 text-txt-3">
+        <div className="grid h-11 w-11 place-items-center rounded-md bg-panel2 text-txt-3">
           <Icon name={icon} size={20} />
         </div>
       )}
@@ -169,7 +169,7 @@ export function Skeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="space-y-2 p-4">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-9 animate-pulse rounded-lg bg-panel2" style={{ opacity: 1 - i * 0.08 }} />
+        <div key={i} className="h-9 animate-pulse rounded-md bg-panel2" style={{ opacity: 1 - i * 0.08 }} />
       ))}
     </div>
   );
@@ -234,7 +234,7 @@ export function StatCard({
       className={`p-4 ${onClick ? "cursor-pointer transition hover:border-brand" : ""}`}
       onClick={onClick}
     >
-      <div className={`mb-3 grid h-9 w-9 place-items-center rounded-xl ${tones[tone]}`}>
+      <div className={`mb-3 grid h-9 w-9 place-items-center rounded-lg ${tones[tone]}`}>
         <Icon name={icon} size={18} />
       </div>
       <div className="text-xs font-medium text-txt-3">{label}</div>
@@ -260,10 +260,10 @@ export function PageHeader({
   onReload?: () => void;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-txt">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-txt-3">{subtitle}</p>}
+        <h1 className="text-2xl font-bold text-txt">{title}</h1>
+        {subtitle && <p className="mt-1 text-[13px] text-txt-3">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2">
         {actions}
@@ -279,7 +279,7 @@ export function LiveIndicator({ updatedAt, onReload }: { updatedAt: number | nul
     <button
       onClick={onReload}
       title="Auto-refreshing · click to refresh now"
-      className="flex items-center gap-2 rounded-full border border-edgeSoft bg-panel px-3 py-1.5 text-xs text-txt-3 transition hover:border-edge hover:text-txt-2"
+      className="flex items-center gap-2 rounded-lg border border-edge bg-panel px-3 py-1.5 text-xs text-txt-3 transition hover:border-edge hover:text-txt-2"
     >
       <span className="relative flex h-2 w-2">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
@@ -311,16 +311,16 @@ export function Drawer({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[55]">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-edge bg-panel shadow-2xl">
+      <div className="absolute inset-0 bg-txt/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-y-0 right-0 flex w-full max-w-lg flex-col border-l border-edge bg-panel shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-edgeSoft p-5">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-txt">{title}</h2>
-            {subtitle && <div className="mt-0.5 text-sm text-txt-3">{subtitle}</div>}
+            <h2 className="text-base font-bold text-txt">{title}</h2>
+            {subtitle && <div className="mt-1 text-[13px] text-txt-3">{subtitle}</div>}
           </div>
           <button
             onClick={onClose}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-edge bg-panel2 text-txt-2 transition hover:text-txt"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-edge bg-panel text-txt-2 transition hover:text-txt"
           >
             <Icon name="x" size={16} />
           </button>
@@ -350,22 +350,22 @@ export function DetailRow({ label, children, mono }: { label: string; children: 
 /** A scrollable, sticky-header table inside a card. Pass thead/tbody as children. */
 export function Table({ children, maxH = "60vh" }: { children: ReactNode; maxH?: string }) {
   return (
-    <div className="overflow-auto" style={{ maxHeight: maxH }}>
+    <div className="overflow-auto overscroll-contain" style={{ maxHeight: maxH }}>
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   );
 }
 
 export const thClass =
-  "sticky top-0 z-[1] bg-panel px-4 py-3 text-left text-[10.5px] font-semibold uppercase tracking-wider text-txt-4 border-b border-edgeSoft";
+  "sticky top-0 z-[1] bg-panel2 px-4 py-3 text-left text-[10px] font-bold uppercase text-txt-3 border-b border-edge";
 export const tdClass = "px-4 py-3 border-b border-edgeSoft align-middle";
-export const trClass = "transition hover:bg-panel2";
+export const trClass = "transition hover:bg-brand/[0.035]";
 
 /** Avatar chip with initials. */
 export function Avatar({ initials, size = 30 }: { initials: string; size?: number }) {
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-full bg-panel3 font-bold text-txt-2"
+      className="grid shrink-0 place-items-center rounded-lg bg-brand/10 font-bold text-txt-2"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       {initials}
@@ -385,13 +385,13 @@ export function Tabs<T extends string>({
   onChange: (k: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex w-fit flex-wrap gap-1 rounded-lg border border-edge bg-panel2 p-1">
       {tabs.map((t) => (
         <button
           key={t.key}
           onClick={() => onChange(t.key)}
-          className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
-            active === t.key ? "bg-panel3 text-txt" : "text-txt-3 hover:bg-panel2 hover:text-txt-2"
+          className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+            active === t.key ? "bg-panel text-brand shadow-sm" : "text-txt-3 hover:bg-panel2 hover:text-txt-2"
           }`}
         >
           {t.label}
@@ -420,10 +420,12 @@ export function SearchInput({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-2 rounded-xl border border-edge bg-panel2 px-3 py-2 ${className}`}>
+    <div className={`flex min-h-10 items-center gap-2 rounded-lg border border-edge bg-panel px-3 py-2 shadow-sm transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10 ${className}`}>
       <Icon name="search" size={15} className="text-txt-3" />
       <input
         value={value}
+        type="search"
+        aria-label={placeholder}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full bg-transparent text-[13px] text-txt outline-none placeholder:text-txt-4"
@@ -436,7 +438,7 @@ export function SearchInput({
 export function Input({ className = "", ...rest }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`w-full rounded-xl border border-edge bg-panel2 px-3 py-2 text-sm text-txt outline-none transition focus:border-brand placeholder:text-txt-4 ${className}`}
+      className={`w-full rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-txt outline-none transition focus:border-brand placeholder:text-txt-4 ${className}`}
       {...rest}
     />
   );
@@ -461,7 +463,7 @@ export function Pagination({
   const to = page * pageSize + shown;
   const hasMore = total !== undefined ? to < total : shown === pageSize;
   return (
-    <div className="flex items-center justify-between border-t border-edgeSoft px-4 py-3 text-[13px] text-txt-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edgeSoft px-4 py-3 text-[13px] text-txt-3">
       <span>
         {total !== undefined ? (
           <>

@@ -519,8 +519,10 @@ export const api = {
     request<{ transactions: Transaction[]; total: number }>(
       `/admin/transactions/completed/withdrawals?limit=${limit}&offset=${offset}`,
     ),
-  failed: () => request<{ transactions: Transaction[] }>("/admin/transactions/failed"),
-  transfers: () => request<{ transactions: Transaction[] }>("/admin/transactions/transfers"),
+  failed: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[] }>(`/admin/transactions/failed?limit=${limit}&offset=${offset}`),
+  transfers: (limit = 50, offset = 0) =>
+    request<{ transactions: Transaction[] }>(`/admin/transactions/transfers?limit=${limit}&offset=${offset}`),
 
   // App settings (minimum deposit, …).
   getSettings: () => request<{ settings: AppSettings }>("/admin/settings"),
