@@ -154,8 +154,8 @@ export interface AppSettings {
   min_deposit: number;
   referral_enabled: boolean;
   referral_amount: number;
-  join_bonus_enabled: boolean;
-  join_bonus_amount: number;
+  deposit_bonus_enabled: boolean;
+  deposit_bonus_amount: number;
   maintenance_mode: boolean;
   maintenance_message: string;
   // Per-method deposit switches. Turn a channel off to stop players depositing

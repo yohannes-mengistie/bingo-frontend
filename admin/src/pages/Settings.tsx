@@ -25,8 +25,8 @@ export function Settings() {
       push("Enter a valid referral amount", "error");
       return;
     }
-    if (!Number.isFinite(form.join_bonus_amount) || form.join_bonus_amount < 0) {
-      push("Enter a valid join bonus amount", "error");
+    if (!Number.isFinite(form.deposit_bonus_amount) || form.deposit_bonus_amount < 0) {
+      push("Enter a valid deposit bonus amount", "error");
       return;
     }
     setSaving(true);
@@ -35,8 +35,8 @@ export function Settings() {
         min_deposit: form.min_deposit,
         referral_enabled: form.referral_enabled,
         referral_amount: form.referral_amount,
-        join_bonus_enabled: form.join_bonus_enabled,
-        join_bonus_amount: form.join_bonus_amount,
+        deposit_bonus_enabled: form.deposit_bonus_enabled,
+        deposit_bonus_amount: form.deposit_bonus_amount,
         maintenance_mode: form.maintenance_mode,
         maintenance_message: form.maintenance_message,
         deposit_telebirr_enabled: form.deposit_telebirr_enabled,
@@ -181,21 +181,21 @@ export function Settings() {
 
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Paid game join bonus</h2>
-              <Badge tone={form.join_bonus_enabled ? "green" : "neutral"}>
-                {form.join_bonus_enabled ? "On" : "Off"}
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Telebirr / CBE Birr deposit bonus</h2>
+              <Badge tone={form.deposit_bonus_enabled ? "green" : "neutral"}>
+                {form.deposit_bonus_enabled ? "On" : "Off"}
               </Badge>
             </div>
 
             <div className="mb-5">
               <Toggle
-                checked={form.join_bonus_enabled}
-                onChange={(v) => setForm({ ...form, join_bonus_enabled: v })}
-                label={<span className="font-medium text-txt">Reward players after they pay to join a game</span>}
+                checked={form.deposit_bonus_enabled}
+                onChange={(v) => setForm({ ...form, deposit_bonus_enabled: v })}
+                label={<span className="font-medium text-txt">Reward successful Telebirr and CBE Birr deposits</span>}
               />
               <p className={hint}>
-                Awarded once per real player per game, not per card. Reservations, retries, and rejoining cannot create
-                extra rewards. House bots are excluded.
+                Added once for each successfully completed deposit. Pending, rejected, duplicate, and M-Pesa deposits do not create
+                a reward.
               </p>
             </div>
 
@@ -204,13 +204,12 @@ export function Settings() {
               type="number"
               min={0}
               step="0.01"
-              value={form.join_bonus_amount}
-              disabled={!form.join_bonus_enabled}
-              onChange={(e) => setForm({ ...form, join_bonus_amount: Number(e.target.value) })}
+              value={form.deposit_bonus_amount}
+              disabled={!form.deposit_bonus_enabled}
+              onChange={(e) => setForm({ ...form, deposit_bonus_amount: Number(e.target.value) })}
             />
             <p className={hint}>
-              Added only after the stake is paid, so it can fund a later game but never the game that earned it.
-              The main Bonus policy must also be enabled.
+              Added only after payment verification or manual approval. The deposited cash stays withdrawable; this reward goes to the play-only bonus account.
             </p>
           </Card>
 
