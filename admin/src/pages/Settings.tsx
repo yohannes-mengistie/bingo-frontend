@@ -25,8 +25,8 @@ export function Settings() {
       push("Enter a valid referral amount", "error");
       return;
     }
-    if (!Number.isFinite(form.deposit_bonus_amount) || form.deposit_bonus_amount < 0) {
-      push("Enter a valid deposit bonus amount", "error");
+    if (!Number.isFinite(form.deposit_bonus_percentage) || form.deposit_bonus_percentage < 0 || form.deposit_bonus_percentage > 100) {
+      push("Enter a deposit bonus percentage between 0 and 100", "error");
       return;
     }
     setSaving(true);
@@ -36,7 +36,7 @@ export function Settings() {
         referral_enabled: form.referral_enabled,
         referral_amount: form.referral_amount,
         deposit_bonus_enabled: form.deposit_bonus_enabled,
-        deposit_bonus_amount: form.deposit_bonus_amount,
+        deposit_bonus_percentage: form.deposit_bonus_percentage,
         maintenance_mode: form.maintenance_mode,
         maintenance_message: form.maintenance_message,
         deposit_telebirr_enabled: form.deposit_telebirr_enabled,
@@ -199,17 +199,18 @@ export function Settings() {
               </p>
             </div>
 
-            <label className={label}>Reward amount (play-only bonus, birr)</label>
+            <label className={label}>Bonus percentage of deposit</label>
             <Input
               type="number"
               min={0}
-              step="0.01"
-              value={form.deposit_bonus_amount}
+              max={100}
+              step="1"
+              value={form.deposit_bonus_percentage}
               disabled={!form.deposit_bonus_enabled}
-              onChange={(e) => setForm({ ...form, deposit_bonus_amount: Number(e.target.value) })}
+              onChange={(e) => setForm({ ...form, deposit_bonus_percentage: Number(e.target.value) })}
             />
             <p className={hint}>
-              Added only after payment verification or manual approval. The deposited cash stays withdrawable; this reward goes to the play-only bonus account.
+              For example, at {form.deposit_bonus_percentage}%, a 100 birr deposit gives {form.deposit_bonus_percentage} birr bonus. Added only after verification or manual approval; deposited cash stays withdrawable and the reward is play-only.
             </p>
           </Card>
 

@@ -155,7 +155,7 @@ export interface AppSettings {
   referral_enabled: boolean;
   referral_amount: number;
   deposit_bonus_enabled: boolean;
-  deposit_bonus_amount: number;
+  deposit_bonus_percentage: number;
   maintenance_mode: boolean;
   maintenance_message: string;
   // Per-method deposit switches. Turn a channel off to stop players depositing
@@ -274,6 +274,12 @@ export interface GameDetail {
   game: Game;
   players: AdminGamePlayer[];
   winners: GameWinner[];
+  funding: {
+    total_players: number;
+    wallet_players: number;
+    bonus_players: number;
+    mixed_players: number;
+  };
 }
 
 export interface CancelGameResponse {
@@ -294,12 +300,6 @@ export interface DashboardStats {
   // real-player stakes − winnings (bots excluded). Negative = the house has paid
   // real players more than they staked (real cash exposure from bot-inflated pools).
   real_player_game_pnl: number;
-  active_player_funding: {
-    total_players: number;
-    cash_players: number;
-    bonus_players: number;
-    mixed_players: number;
-  };
 }
 
 export interface LoginResponse {

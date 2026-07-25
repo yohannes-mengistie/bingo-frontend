@@ -34,6 +34,7 @@ export function GameDetail() {
 
   const g = data?.game;
   const players = data?.players ?? [];
+  const funding = data?.funding ?? { total_players: 0, wallet_players: 0, bonus_players: 0, mixed_players: 0 };
   const canFill = g?.state === "WAITING" || g?.state === "COUNTDOWN";
 
   const addBots = async () => {
@@ -134,6 +135,20 @@ export function GameDetail() {
               <DateItem label="Started" value={g.started_at} />
               <DateItem label="Finished" value={g.finished_at} />
             </dl>
+          </Card>
+
+          <Card>
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-txt">Player funding source</h2>
+              <p className="mt-1 text-xs text-txt-3">Distinct real players with paid cards in this game. Bots and unpaid reservations are excluded.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <FundingItem label="Paid players" value={funding.total_players} tone="text-txt" />
+              <FundingItem label="Withdrawable wallet" value={funding.wallet_players} tone="text-success" />
+              <FundingItem label="Bonus account" value={funding.bonus_players} tone="text-warning" />
+              <FundingItem label="Used both" value={funding.mixed_players} tone="text-brand" />
+            </div>
+            <p className="mt-3 text-xs text-txt-4">Wallet and bonus counts overlap when the same player bought cards from both sources.</p>
           </Card>
 
           {(data?.winners?.length ?? 0) > 0 && (
@@ -264,6 +279,15 @@ function DateItem({ label, value }: { label: string; value?: string | null }) {
       <dd className="mt-1 text-sm text-txt-2">
         {value ? date(value) : <span className="text-txt-4">—</span>}
       </dd>
+    </div>
+  );
+}
+
+function FundingItem({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className="rounded-xl border border-edgeSoft bg-panel2 p-3 text-center">
+      <div className="text-xs text-txt-4">{label}</div>
+      <div className={`mt-1 text-2xl font-bold tabular-nums ${tone}`}>{value}</div>
     </div>
   );
 }
