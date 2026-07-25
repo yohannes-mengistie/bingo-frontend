@@ -73,6 +73,32 @@ export function Dashboard() {
             </p>
           </Card>
 
+          <Card className="mt-4 p-5">
+            <div className="mb-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-txt-4">Live player funding</div>
+              <p className="mt-1 text-xs text-txt-3">Distinct real players with paid cards in waiting, countdown, or drawing games. Bots excluded.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-edgeSoft bg-panel2 p-3">
+                <div className="text-xs text-txt-4">Active players</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-txt">{data.active_player_funding?.total_players ?? 0}</div>
+              </div>
+              <div className="rounded-xl border border-edgeSoft bg-panel2 p-3">
+                <div className="text-xs text-txt-4">Using withdrawable cash</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-success">{data.active_player_funding?.cash_players ?? 0}</div>
+              </div>
+              <div className="rounded-xl border border-edgeSoft bg-panel2 p-3">
+                <div className="text-xs text-txt-4">Using bonus</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-warning">{data.active_player_funding?.bonus_players ?? 0}</div>
+              </div>
+              <div className="rounded-xl border border-edgeSoft bg-panel2 p-3">
+                <div className="text-xs text-txt-4">Using both</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-brand">{data.active_player_funding?.mixed_players ?? 0}</div>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-txt-4">Cash and bonus counts overlap when a player uses both; the last number shows that overlap.</p>
+          </Card>
+
           <h2 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wider text-txt-4">
             Games by type
           </h2>

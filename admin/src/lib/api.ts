@@ -154,6 +154,8 @@ export interface AppSettings {
   min_deposit: number;
   referral_enabled: boolean;
   referral_amount: number;
+  join_bonus_enabled: boolean;
+  join_bonus_amount: number;
   maintenance_mode: boolean;
   maintenance_message: string;
   // Per-method deposit switches. Turn a channel off to stop players depositing
@@ -292,6 +294,12 @@ export interface DashboardStats {
   // real-player stakes − winnings (bots excluded). Negative = the house has paid
   // real players more than they staked (real cash exposure from bot-inflated pools).
   real_player_game_pnl: number;
+  active_player_funding: {
+    total_players: number;
+    cash_players: number;
+    bonus_players: number;
+    mixed_players: number;
+  };
 }
 
 export interface LoginResponse {
@@ -459,8 +467,10 @@ export const api = {
     request<{ users: PlayerLite[]; count: number }>(`/admin/users/${segment(id)}/referrals`),
 
   // A player's game history (each links to the game detail).
-  userGames: (id: string, limit = 25) =>
-    request<{ games: GameHistoryEntry[] }>(`/admin/users/${segment(id)}/games?limit=${limit}`),
+  userGames: (id: string, limit = 20, offset = 0) =>
+    request<{ games: GameHistoryEntry[]; total: number; count: number; limit: number; offset: number }>(
+      `/admin/users/${segment(id)}/games?limit=${limit}&offset=${offset}`,
+    ),
 
   setRole: (id: string, role: "user" | "admin") =>
     request<{ message: string }>(`/admin/users/${segment(id)}/role`, {

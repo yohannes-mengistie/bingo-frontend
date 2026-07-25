@@ -340,10 +340,14 @@ function InvitedPlayers({ userId }: { userId: string }) {
   );
 }
 
-// GamesPlayed is the player's game history — each row links to the game detail.
+// GamesPlayed is paginated by distinct game (not by card).
 function GamesPlayed({ userId }: { userId: string }) {
-  const { data, loading } = useApi(() => api.userGames(userId), [userId]);
+  const PAGE = 20;
+  const [page, setPage] = useState(0);
+  const { data, loading } = useApi(() => api.userGames(userId, PAGE, page * PAGE), [userId, page]);
   const games = data?.games ?? [];
+  const total = data?.total ?? 0;
+
   return (
     <Card className="p-0">
       <div className="border-b border-edgeSoft p-4">
@@ -351,46 +355,47 @@ function GamesPlayed({ userId }: { userId: string }) {
         <p className="mt-0.5 text-xs text-txt-3">Click a game to open its full detail.</p>
       </div>
       {loading && !data ? (
-        <div className="p-4">
-          <Spinner />
-        </div>
+        <div className="p-4"><Spinner /></div>
       ) : games.length === 0 ? (
         <EmptyState message="No games played." icon="games" />
       ) : (
-        <div className="max-h-80 overflow-y-auto">
-        <Table>
-          <thead>
-            <tr>
-              <th className={thClass}>Game</th>
-              <th className={thClass}>Type</th>
-              <th className={`${thClass} text-right`}>Staked</th>
-              <th className={thClass}>Result</th>
-              <th className={`${thClass} text-right`}>Won</th>
-              <th className={thClass}>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            {games.map((g) => (
-              <tr key={g.game.id} className={trClass}>
-                <td className={tdClass}>
-                  <Link to={`/games/${g.game.id}`} className="font-mono text-xs text-brand hover:underline">
-                    {shortId(g.game.id)}
-                  </Link>
-                </td>
-                <td className={tdClass}>{g.game.game_type}</td>
-                <td className={`${tdClass} text-right tabular-nums`}>{birr(g.total_stake)}</td>
-                <td className={tdClass}>
-                  {g.is_winner ? <Badge tone="green">Won</Badge> : <span className="text-txt-4">—</span>}
-                </td>
-                <td className={`${tdClass} text-right tabular-nums ${g.is_winner ? "text-success" : "text-txt-4"}`}>
-                  {g.win_amount > 0 ? birr(g.win_amount) : "—"}
-                </td>
-                <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(g.joined_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-        </div>
+        <>
+          <div className="max-h-80 overflow-y-auto">
+            <Table>
+              <thead>
+                <tr>
+                  <th className={thClass}>Game</th>
+                  <th className={thClass}>Type</th>
+                  <th className={`${thClass} text-right`}>Staked</th>
+                  <th className={thClass}>Result</th>
+                  <th className={`${thClass} text-right`}>Won</th>
+                  <th className={thClass}>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {games.map((g) => (
+                  <tr key={g.game.id} className={trClass}>
+                    <td className={tdClass}>
+                      <Link to={`/games/${g.game.id}`} className="font-mono text-xs text-brand hover:underline">
+                        {shortId(g.game.id)}
+                      </Link>
+                    </td>
+                    <td className={tdClass}>{g.game.game_type}</td>
+                    <td className={`${tdClass} text-right tabular-nums`}>{birr(g.total_stake)}</td>
+                    <td className={tdClass}>
+                      {g.is_winner ? <Badge tone="green">Won</Badge> : <span className="text-txt-4">—</span>}
+                    </td>
+                    <td className={`${tdClass} text-right tabular-nums ${g.is_winner ? "text-success" : "text-txt-4"}`}>
+                      {g.win_amount > 0 ? birr(g.win_amount) : "—"}
+                    </td>
+                    <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(g.joined_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+          <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={games.length} />
+        </>
       )}
     </Card>
   );
