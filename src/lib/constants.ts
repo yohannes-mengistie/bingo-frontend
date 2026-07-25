@@ -38,10 +38,8 @@ export const PAYMENT_ACCOUNTS: Record<
   // VERIFY_MPESA_ACCOUNT (render.yaml) — the verifier only auto-approves
   // receipts credited to those exact accounts.
   CBEBirr: {
-    // No house CBE Birr account registered yet — empty hides the method from
-    // the pickers until VITE_CBEBIRR_NUMBER is configured.
-    number: import.meta.env.VITE_CBEBIRR_NUMBER ?? "",
-    name: import.meta.env.VITE_CBEBIRR_NAME ?? import.meta.env.VITE_PAYMENT_NAME ?? "Abebe",
+    number: import.meta.env.VITE_CBEBIRR_NUMBER ?? "0990878233",
+    name: import.meta.env.VITE_CBEBIRR_NAME ?? "Danasa beyene mana",
   },
   Mpesa: {
     number: import.meta.env.VITE_MPESA_NUMBER ?? "0710132230",
