@@ -152,6 +152,7 @@ export interface UserGameStats {
 
 export interface AppSettings {
   min_deposit: number;
+  welcome_bonus_enabled: boolean;
   referral_enabled: boolean;
   referral_amount: number;
   deposit_bonus_enabled: boolean;

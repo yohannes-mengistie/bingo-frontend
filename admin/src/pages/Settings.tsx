@@ -33,6 +33,7 @@ export function Settings() {
     try {
       const res = await api.updateSettings({
         min_deposit: form.min_deposit,
+        welcome_bonus_enabled: form.welcome_bonus_enabled,
         referral_enabled: form.referral_enabled,
         referral_amount: form.referral_amount,
         deposit_bonus_enabled: form.deposit_bonus_enabled,
@@ -146,6 +147,26 @@ export function Settings() {
               </Card>
             );
           })()}
+
+          {/* Welcome bonus */}
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-txt-4">Welcome bonus</h2>
+              <Badge tone={form.welcome_bonus_enabled ? "green" : "neutral"}>
+                {form.welcome_bonus_enabled ? "On" : "Off"}
+              </Badge>
+            </div>
+
+            <Toggle
+              checked={form.welcome_bonus_enabled}
+              onChange={(v) => setForm({ ...form, welcome_bonus_enabled: v })}
+              label={<span className="font-medium text-txt">Give new players a 10 birr play-only bonus</span>}
+            />
+            <p className={hint}>
+              Applies only to accounts registered after you save this setting. Turning it off does not remove bonus
+              already granted to existing players, and it does not affect referral, deposit, promo, campaign, or manual bonuses.
+            </p>
+          </Card>
 
           {/* Referral reward */}
           <Card className="p-5">
