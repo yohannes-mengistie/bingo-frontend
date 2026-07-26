@@ -15,6 +15,13 @@ function segment(value: string): string {
   return encodeURIComponent(value);
 }
 
+export function gameSocketUrl(target: string): string {
+  const base = wsBase();
+  return target === "REGULAR" || target === "VIP"
+    ? `${base}/api/v1/ws/game?type=${encodeURIComponent(target)}`
+    : `${base}/api/v1/ws/game/${segment(target)}`;
+}
+
 type Listener = (msg: WsMessage) => void;
 type StatusListener = (status: "connecting" | "open" | "closed") => void;
 
@@ -29,10 +36,7 @@ export class GameSocket {
 
   /** `target` is a game type (REGULAR / VIP) or a game UUID. */
   constructor(target: string) {
-    const base = wsBase();
-    this.url = /^G[1-7]$/.test(target)
-      ? `${base}/api/v1/ws/game?type=${encodeURIComponent(target)}`
-      : `${base}/api/v1/ws/game/${segment(target)}`;
+    this.url = gameSocketUrl(target);
   }
 
   connect() {
