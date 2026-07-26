@@ -1,20 +1,21 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { isAuthed } from "@/store/auth";
-import { Login } from "@/pages/Login";
-import { Dashboard } from "@/pages/Dashboard";
-import { Transactions } from "@/pages/Transactions";
-import { Users } from "@/pages/Users";
-import { UserDetail } from "@/pages/UserDetail";
-import { Games } from "@/pages/Games";
-import { GameDetail } from "@/pages/GameDetail";
-import { Staff } from "@/pages/Staff";
-import { Bots } from "@/pages/Bots";
-import { Bonus } from "@/pages/Bonus";
-import { PromoCodes } from "@/pages/PromoCodes";
-import { Reports } from "@/pages/Reports";
-import { VerificationLogs } from "@/pages/VerificationLogs";
-import { Settings } from "@/pages/Settings";
+const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
+const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Transactions = lazy(() => import("@/pages/Transactions").then((m) => ({ default: m.Transactions })));
+const Users = lazy(() => import("@/pages/Users").then((m) => ({ default: m.Users })));
+const UserDetail = lazy(() => import("@/pages/UserDetail").then((m) => ({ default: m.UserDetail })));
+const Games = lazy(() => import("@/pages/Games").then((m) => ({ default: m.Games })));
+const GameDetail = lazy(() => import("@/pages/GameDetail").then((m) => ({ default: m.GameDetail })));
+const Staff = lazy(() => import("@/pages/Staff").then((m) => ({ default: m.Staff })));
+const Bots = lazy(() => import("@/pages/Bots").then((m) => ({ default: m.Bots })));
+const Bonus = lazy(() => import("@/pages/Bonus").then((m) => ({ default: m.Bonus })));
+const PromoCodes = lazy(() => import("@/pages/PromoCodes").then((m) => ({ default: m.PromoCodes })));
+const Reports = lazy(() => import("@/pages/Reports").then((m) => ({ default: m.Reports })));
+const VerificationLogs = lazy(() => import("@/pages/VerificationLogs").then((m) => ({ default: m.VerificationLogs })));
+const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   if (!isAuthed()) return <Navigate to="/login" replace />;
@@ -23,7 +24,8 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 export default function App() {
   return (
-    <Routes>
+    <Suspense fallback={<div className="p-6 text-sm text-txt-3">Loading…</div>}>
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route
         element={
@@ -47,6 +49,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }

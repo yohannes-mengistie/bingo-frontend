@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   api,
   type BonusCampaign,
@@ -9,12 +9,12 @@ import {
 } from "@/lib/api";
 import { openCampaignSocket } from "@/lib/campaignSocket";
 import { useApi } from "@/lib/useApi";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Button, Card, Spinner, ErrorNote, Badge, EmptyState, SearchInput, Pagination } from "@/components/ui";
 import { useConfirm } from "@/components/confirm";
 import { useToast } from "@/components/toast";
 import { birr, date, fullName, readable } from "@/lib/format";
 
-const PLAYER_FETCH_LIMIT = 10000;
 const PLAYER_PAGE_SIZE = 50;
 type Tab = "campaign" | "grant" | "policy" | "broadcast";
 
@@ -118,38 +118,21 @@ function GrantPanel({
   onGranted: () => void;
 }) {
   const push = useToast((s) => s.push);
-  const { data, loading, error, reload } = useApi(() => api.users(PLAYER_FETCH_LIMIT, 0), []);
   const [q, setQ] = useState("");
+  const search = useDebouncedValue(q.trim(), 300);
   const [page, setPage] = useState(0);
+  const { data, loading, error, reload } = useApi(
+    () => api.users({ limit: PLAYER_PAGE_SIZE, offset: page * PLAYER_PAGE_SIZE, search }),
+    [page, search],
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Filler bots are excluded outright: they are bankrolled from the house
-  // float, so granting them bonus would double-count the giveaway and inflate
-  // the liability figure. The backend refuses anyway — this keeps them out of
-  // sight rather than letting an admin select rows that can only fail.
-  const players = useMemo(
-    () => (data?.users ?? []).filter((u) => u.telegram_id > 0),
-    [data],
-  );
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return players;
-    return players.filter((u) => {
-      const name = fullName(u.first_name, u.last_name).toLowerCase();
-      return (
-        name.includes(term) ||
-        u.phone_number?.toLowerCase().includes(term) ||
-        String(u.telegram_id).includes(term)
-      );
-    });
-  }, [players, q]);
-
-  const visible = filtered.slice(page * PLAYER_PAGE_SIZE, (page + 1) * PLAYER_PAGE_SIZE);
-  useEffect(() => setPage(0), [q]);
+  const visible = data?.users ?? [];
+  const total = data?.count ?? 0;
+  useEffect(() => setPage(0), [search]);
 
   // "Select all" applies to what is CURRENTLY VISIBLE, not the whole database.
   // Selecting rows a search has hidden is how an operator accidentally pays
@@ -325,11 +308,11 @@ function GrantPanel({
             </table>
           </div>
         )}
-        {filtered.length > 0 && (
+        {total > 0 && (
           <Pagination
             page={page}
             pageSize={PLAYER_PAGE_SIZE}
-            total={filtered.length}
+            total={total}
             shown={visible.length}
             onPage={setPage}
           />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   Card,
   Table,
@@ -23,27 +24,23 @@ import { useConfirm } from "@/components/confirm";
 import { birr, date, fullName, initials } from "@/lib/format";
 
 export function Staff() {
-  // No dedicated "admins" endpoint, so pull a large page and filter to admins.
-  const { data, loading, error, reload, updatedAt } = usePolling(() => api.users(10000, 0), [], 15000);
+  const pageSize = 25;
+  const [q, setQ] = useState("");
+  const search = useDebouncedValue(q.trim(), 300);
+  const [page, setPage] = useState(0);
+  const { data, loading, error, reload, updatedAt } = usePolling(
+    () => api.users({ limit: pageSize, offset: page * pageSize, search, role: "admin" }),
+    [page, search],
+    15000,
+  );
   const push = useToast((s) => s.push);
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(0);
-  const pageSize = 25;
+  const visible = data?.users ?? [];
+  const total = data?.count ?? 0;
 
-  const term = q.trim().toLowerCase();
-  const admins = (data?.users ?? []).filter((u) => {
-    if (u.role !== "admin") return false;
-    if (!term) return true;
-    return `${u.first_name} ${u.last_name ?? ""} ${u.phone_number ?? ""} ${u.telegram_id}`
-      .toLowerCase()
-      .includes(term);
-  });
-  const visible = admins.slice(page * pageSize, (page + 1) * pageSize);
-
-  useEffect(() => setPage(0), [q]);
+  useEffect(() => setPage(0), [search]);
 
   const demote = async (id: string) => {
     if (
@@ -141,8 +138,8 @@ export function Staff() {
             </tbody>
           </Table>
         )}
-        {admins.length > 0 && (
-          <Pagination page={page} pageSize={pageSize} total={admins.length} shown={visible.length} onPage={setPage} />
+        {total > 0 && (
+          <Pagination page={page} pageSize={pageSize} total={total} shown={visible.length} onPage={setPage} />
         )}
       </Card>
 

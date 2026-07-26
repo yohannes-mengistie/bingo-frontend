@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type VerificationLog, type VerificationOutcome, type UserWithWallet } from "@/lib/api";
+import { api, type VerificationLog, type VerificationOutcome } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
@@ -23,7 +23,7 @@ import {
   Drawer,
   DetailRow,
 } from "@/components/ui";
-import { birr, date, fullName, initials, shortId } from "@/lib/format";
+import { birr, date, initials, shortId } from "@/lib/format";
 
 const PAGE_SIZE = 50;
 
@@ -60,14 +60,6 @@ export function VerificationLogs() {
     [reference, page],
     10000,
   );
-
-  // Names for the player column (fallback map, refreshed slowly).
-  const { data: usersData } = usePolling(() => api.users(1000, 0), [], 60000);
-  const userMap = useMemo(() => {
-    const m = new Map<string, UserWithWallet>();
-    for (const u of usersData?.users ?? []) m.set(u.id, u);
-    return m;
-  }, [usersData]);
 
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;
@@ -123,8 +115,7 @@ export function VerificationLogs() {
             </thead>
             <tbody>
               {logs.map((l) => {
-                const u = l.user_id ? userMap.get(l.user_id) : undefined;
-                const name = u ? fullName(u.first_name, u.last_name) : "";
+                const name = l.player_name ?? "";
                 return (
                   <tr key={l.id} className={trClass}>
                     <td className={`${tdClass} whitespace-nowrap text-txt-3`}>{date(l.created_at)}</td>
@@ -133,7 +124,7 @@ export function VerificationLogs() {
                         <Link to={`/users/${l.user_id}`} className="flex items-center gap-2.5">
                           <Avatar initials={name ? initials(name) : "?"} size={22} />
                           <span className="min-w-0 truncate font-medium text-txt">
-                            {name || u?.phone_number || shortId(l.user_id)}
+                            {name || l.player_phone || shortId(l.user_id)}
                           </span>
                         </Link>
                       ) : (
@@ -170,22 +161,20 @@ export function VerificationLogs() {
         )}
       </Card>
 
-      <VerificationDrawer log={detail} user={detail?.user_id ? userMap.get(detail.user_id) : undefined} onClose={() => setDetail(null)} />
+      <VerificationDrawer log={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }
 
 function VerificationDrawer({
   log,
-  user,
   onClose,
 }: {
   log: VerificationLog | null;
-  user?: UserWithWallet;
   onClose: () => void;
 }) {
   if (!log) return null;
-  const name = user ? fullName(user.first_name, user.last_name) : "";
+  const name = log.player_name ?? "";
 
   return (
     <Drawer open title="Verifier lookup" subtitle={date(log.created_at)} onClose={onClose}>
@@ -210,8 +199,8 @@ function VerificationDrawer({
       <DetailRow label="Player">
         {log.user_id ? (
           <Link to={`/users/${log.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
-            <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
-            {name || user?.phone_number || shortId(log.user_id)}
+            <Avatar initials={name ? initials(name) : "?"} size={22} />
+            {name || log.player_phone || shortId(log.user_id)}
           </Link>
         ) : (
           "—"

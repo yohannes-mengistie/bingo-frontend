@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type SupportCategory, type SupportReport, type SupportStatus } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   Card,
   Button,
@@ -36,16 +37,16 @@ export function Reports() {
   const [tab, setTab] = useState<TabKey>("open");
   const [resolving, setResolving] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const searching = q.trim().length > 0;
+  const search = useDebouncedValue(q.trim(), 300);
   const push = useToast((s) => s.push);
 
   const active = TABS.find((t) => t.key === tab)!;
   const PAGE = 50;
   const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [tab, q]);
+  useEffect(() => setPage(0), [tab, search]);
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.reports(active.status, searching ? 10000 : PAGE, searching ? 0 : page * PAGE),
-    [tab, page, searching],
+    () => api.reports(active.status, PAGE, page * PAGE, search),
+    [tab, page, search],
     12000,
   );
   const total = data?.count ?? 0;
@@ -63,27 +64,7 @@ export function Reports() {
     }
   }
 
-  const reports = data?.reports ?? [];
-  const term = q.trim().toLowerCase();
-  const filtered = term
-    ? reports.filter((report) =>
-        [
-          report.message,
-          report.category,
-          report.status,
-          report.reporter_first_name,
-          report.reporter_last_name,
-          report.reporter_phone,
-          report.game_id,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(term),
-      )
-    : reports;
-  const visible = searching ? filtered.slice(page * PAGE, (page + 1) * PAGE) : filtered;
-  const resultTotal = searching ? filtered.length : total;
+  const visible = data?.reports ?? [];
   const link = "text-txt-3 transition hover:text-brand";
 
   return (
@@ -155,9 +136,9 @@ export function Reports() {
               </Card>
             );
           })}
-          {resultTotal > 0 && (
+          {total > 0 && (
             <Card className="p-0">
-              <Pagination page={page} pageSize={PAGE} total={resultTotal} onPage={setPage} shown={visible.length} />
+              <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={visible.length} />
             </Card>
           )}
         </div>

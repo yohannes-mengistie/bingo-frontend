@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type Game, type GameDetail as GameDetailData, type GameState } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   Card,
   Table,
@@ -53,37 +54,29 @@ export function Games() {
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const searching = q.trim().length > 0;
+  const search = useDebouncedValue(q.trim(), 300);
 
   const stateFilter: GameState | undefined = tab === "all" || tab === "active" ? undefined : tab;
 
   const PAGE = 50;
   const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [tab, q]); // reset to first page when the tab changes
+  useEffect(() => setPage(0), [tab, search]); // reset to first page when the tab changes
 
   const { data, loading, error, reload, updatedAt } = usePolling(
     () =>
       api.games({
         state: stateFilter,
-        limit: searching || tab === "active" ? 10000 : PAGE,
-        offset: searching || tab === "active" ? 0 : page * PAGE,
+        active: tab === "active",
+        search,
+        limit: PAGE,
+        offset: page * PAGE,
       }),
-    [tab, page, searching],
+    [tab, page, search],
     6000,
   );
 
-  let rows: Game[] = data?.games ?? [];
-  if (tab === "active") rows = rows.filter((g) => isCancellable(g.state));
-  const term = q.trim().toLowerCase();
-  if (term) {
-    rows = rows.filter((g) =>
-      [g.id, g.game_type, g.state, g.bet_amount].join(" ").toLowerCase().includes(term),
-    );
-  }
-  const visible = searching ? rows.slice(page * PAGE, (page + 1) * PAGE) : rows;
-  const paged = tab !== "active" || searching;
+  const visible: Game[] = data?.games ?? [];
   const total = data?.total ?? 0;
-  const resultTotal = searching ? rows.length : total;
 
   const cancel = async (g: Game) => {
     if (
@@ -188,8 +181,8 @@ export function Games() {
             </tbody>
           </Table>
         )}
-        {paged && resultTotal > 0 && (
-          <Pagination page={page} pageSize={PAGE} total={resultTotal} onPage={setPage} shown={visible.length} />
+        {total > 0 && (
+          <Pagination page={page} pageSize={PAGE} total={total} onPage={setPage} shown={visible.length} />
         )}
       </Card>
 

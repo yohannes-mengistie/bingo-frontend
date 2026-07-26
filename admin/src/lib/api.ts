@@ -331,6 +331,8 @@ export interface VerificationLog {
   reason: string;
   amount?: number | null;
   raw_response: string;
+  player_name?: string;
+  player_phone?: string;
   created_at: string;
 }
 
@@ -426,6 +428,13 @@ export interface BotFillResult {
 
 // ---- Endpoints ----
 
+function adminPageQuery(limit: number, offset: number, search = ""): string {
+  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  const term = search.trim();
+  if (term) q.set("search", term);
+  return q.toString();
+}
+
 export const api = {
   login: (phone: string, password: string) =>
     request<LoginResponse>("/auth/login", {
@@ -444,8 +453,10 @@ export const api = {
     return request<{ logs: AdminEventLog[]; total: number; count: number }>(`/admin/logs?${q.toString()}`);
   },
 
-  users: (limit = 50, offset = 0) => {
-    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  users: (opts: { limit?: number; offset?: number; search?: string; role?: "user" | "admin" } = {}) => {
+    const q = new URLSearchParams({ limit: String(opts.limit ?? 50), offset: String(opts.offset ?? 0) });
+    if (opts.search?.trim()) q.set("search", opts.search.trim());
+    if (opts.role) q.set("role", opts.role);
     return request<{ users: UserWithWallet[]; count: number }>(`/admin/users?${q.toString()}`);
   },
 
@@ -499,40 +510,28 @@ export const api = {
 
   // Transactions. The paginated lists (all, winners) also return `total` — the
   // grand count — so the UI can page through large data instead of truncating.
-  transactions: (limit = 50, offset = 0) => {
-    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    return request<{ transactions: Transaction[]; count: number; total: number }>(
-      `/admin/transactions?${q.toString()}`,
-    );
-  },
-  winners: (limit = 50, offset = 0) => {
-    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    return request<{ transactions: Transaction[]; count: number; total: number }>(
-      `/admin/transactions/winners?${q.toString()}`,
-    );
-  },
+  transactions: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; count: number; total: number }>(
+      `/admin/transactions?${adminPageQuery(limit, offset, search)}`,
+    ),
+  winners: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; count: number; total: number }>(
+      `/admin/transactions/winners?${adminPageQuery(limit, offset, search)}`,
+    ),
   // Pending/completed deposit & withdrawal lists are paginated (they return a
   // grand `total`), so large queues page instead of getting cut off.
-  pendingDeposits: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[]; total: number }>(
-      `/admin/transactions/pending/deposits?limit=${limit}&offset=${offset}`,
-    ),
-  pendingWithdrawals: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[]; total: number }>(
-      `/admin/transactions/pending/withdrawals?limit=${limit}&offset=${offset}`,
-    ),
-  completedDeposits: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[]; total: number }>(
-      `/admin/transactions/completed/deposits?limit=${limit}&offset=${offset}`,
-    ),
-  completedWithdrawals: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[]; total: number }>(
-      `/admin/transactions/completed/withdrawals?limit=${limit}&offset=${offset}`,
-    ),
-  failed: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[] }>(`/admin/transactions/failed?limit=${limit}&offset=${offset}`),
-  transfers: (limit = 50, offset = 0) =>
-    request<{ transactions: Transaction[] }>(`/admin/transactions/transfers?limit=${limit}&offset=${offset}`),
+  pendingDeposits: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/pending/deposits?${adminPageQuery(limit, offset, search)}`),
+  pendingWithdrawals: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/pending/withdrawals?${adminPageQuery(limit, offset, search)}`),
+  completedDeposits: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/completed/deposits?${adminPageQuery(limit, offset, search)}`),
+  completedWithdrawals: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/completed/withdrawals?${adminPageQuery(limit, offset, search)}`),
+  failed: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/failed?${adminPageQuery(limit, offset, search)}`),
+  transfers: (limit = 50, offset = 0, search = "") =>
+    request<{ transactions: Transaction[]; total: number }>(`/admin/transactions/transfers?${adminPageQuery(limit, offset, search)}`),
 
   // App settings (minimum deposit, …).
   getSettings: () => request<{ settings: AppSettings }>("/admin/settings"),
@@ -584,10 +583,12 @@ export const api = {
     request<{ message: string }>(`/admin/transactions/${segment(id)}/cancel`, { method: "POST" }),
 
   // Games
-  games: (opts: { state?: GameState; type?: string; limit?: number; offset?: number } = {}) => {
+  games: (opts: { state?: GameState; type?: string; active?: boolean; search?: string; limit?: number; offset?: number } = {}) => {
     const q = new URLSearchParams();
     if (opts.state) q.set("state", opts.state);
     if (opts.type) q.set("type", opts.type);
+    if (opts.active) q.set("active", "true");
+    if (opts.search?.trim()) q.set("search", opts.search.trim());
     q.set("limit", String(opts.limit ?? 100));
     q.set("offset", String(opts.offset ?? 0));
     return request<{ games: Game[]; total: number; count: number; limit: number; offset: number }>(
@@ -681,9 +682,10 @@ export const api = {
   broadcasts: (limit = 25) => request<{ broadcasts: Broadcast[] }>(`/admin/broadcasts?limit=${limit}`),
 
   // Player problem reports
-  reports: (status?: SupportStatus, limit = 100, offset = 0) => {
+  reports: (status?: SupportStatus, limit = 100, offset = 0, search = "") => {
     const q = new URLSearchParams();
     if (status) q.set("status", status);
+    if (search.trim()) q.set("search", search.trim());
     q.set("limit", String(limit));
     q.set("offset", String(offset));
     return request<{ reports: SupportReport[]; count: number }>(`/admin/support?${q.toString()}`);

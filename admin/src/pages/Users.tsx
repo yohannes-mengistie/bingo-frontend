@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   Card,
   Table,
@@ -26,34 +27,18 @@ const PAGE = 50;
 export function Users() {
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
-  const searching = q.trim().length > 0;
+  const search = useDebouncedValue(q.trim(), 300);
   const navigate = useNavigate();
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => api.users(searching ? 10000 : PAGE, searching ? 0 : offset),
-    [offset, searching],
+    () => api.users({ limit: PAGE, offset, search }),
+    [offset, search],
     10000,
   );
 
-  useEffect(() => setOffset(0), [q]);
+  useEffect(() => setOffset(0), [search]);
 
-  const filtered = useMemo(() => {
-    const users = data?.users ?? [];
-    const term = q.trim().toLowerCase();
-    if (!term) return users;
-    return users.filter((u) => {
-      const name = `${u.first_name} ${u.last_name ?? ""}`.toLowerCase();
-      return (
-        name.includes(term) ||
-        u.phone_number?.toLowerCase().includes(term) ||
-        String(u.telegram_id).includes(term) ||
-        u.referal_code?.toLowerCase().includes(term)
-      );
-    });
-  }, [data, q]);
-
+  const visible = data?.users ?? [];
   const total = data?.count ?? 0;
-  const visible = searching ? filtered.slice(offset, offset + PAGE) : filtered;
-  const resultTotal = searching ? filtered.length : total;
 
   return (
     <div>
@@ -139,11 +124,11 @@ export function Users() {
           </Table>
         )}
 
-        {resultTotal > 0 && (
+        {total > 0 && (
           <Pagination
             page={Math.floor(offset / PAGE)}
             pageSize={PAGE}
-            total={resultTotal}
+            total={total}
             shown={visible.length}
             onPage={(p) => setOffset(p * PAGE)}
           />

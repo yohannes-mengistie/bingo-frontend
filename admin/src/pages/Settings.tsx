@@ -160,7 +160,7 @@ export function Settings() {
               <Toggle
                 checked={form.referral_enabled}
                 onChange={(v) => setForm({ ...form, referral_enabled: v })}
-                label={<span className="font-medium text-txt">Give a reward when an invited player signs up</span>}
+                label={<span className="font-medium text-txt">Give a play-only reward after an invited player's first successful deposit</span>}
               />
               <p className={hint}>
                 Turn this off to stop paying referral rewards entirely — invites are still recorded, but no bonus is

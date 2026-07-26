@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
   ApiError,
   type Transaction,
   type UserGameStats,
-  type UserWithWallet,
   type VerificationLog,
   type VerificationOutcome,
 } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useConfirm } from "@/components/confirm";
 import {
   Card,
@@ -34,7 +34,7 @@ import {
   DetailRow,
 } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { birr, date, fullName, initials, readable, shortId, statusTone } from "@/lib/format";
+import { birr, date, initials, readable, shortId, statusTone } from "@/lib/format";
 
 type TabKey =
   | "pendingDeposits"
@@ -54,29 +54,29 @@ const TABS: {
   key: TabKey;
   label: string;
   paginated?: boolean;
-  fetch: (limit: number, offset: number) => Promise<{ transactions: Transaction[]; total?: number }>;
+  fetch: (limit: number, offset: number, search: string) => Promise<{ transactions: Transaction[]; total?: number }>;
 }[] = [
-  { key: "pendingDeposits", label: "Pending deposits", paginated: true, fetch: (l, o) => api.pendingDeposits(l, o) },
-  { key: "pendingWithdrawals", label: "Pending withdrawals", paginated: true, fetch: (l, o) => api.pendingWithdrawals(l, o) },
-  { key: "winners", label: "Winners", paginated: true, fetch: (l, o) => api.winners(l, o) },
-  { key: "all", label: "All", paginated: true, fetch: (l, o) => api.transactions(l, o) },
-  { key: "completedDeposits", label: "Completed deposits", paginated: true, fetch: (l, o) => api.completedDeposits(l, o) },
-  { key: "completedWithdrawals", label: "Completed withdrawals", paginated: true, fetch: (l, o) => api.completedWithdrawals(l, o) },
-  { key: "transfers", label: "Transfers", paginated: true, fetch: (l, o) => api.transfers(l, o) },
-  { key: "failed", label: "Failed", paginated: true, fetch: (l, o) => api.failed(l, o) },
+  { key: "pendingDeposits", label: "Pending deposits", paginated: true, fetch: (l, o, q) => api.pendingDeposits(l, o, q) },
+  { key: "pendingWithdrawals", label: "Pending withdrawals", paginated: true, fetch: (l, o, q) => api.pendingWithdrawals(l, o, q) },
+  { key: "winners", label: "Winners", paginated: true, fetch: (l, o, q) => api.winners(l, o, q) },
+  { key: "all", label: "All", paginated: true, fetch: (l, o, q) => api.transactions(l, o, q) },
+  { key: "completedDeposits", label: "Completed deposits", paginated: true, fetch: (l, o, q) => api.completedDeposits(l, o, q) },
+  { key: "completedWithdrawals", label: "Completed withdrawals", paginated: true, fetch: (l, o, q) => api.completedWithdrawals(l, o, q) },
+  { key: "transfers", label: "Transfers", paginated: true, fetch: (l, o, q) => api.transfers(l, o, q) },
+  { key: "failed", label: "Failed", paginated: true, fetch: (l, o, q) => api.failed(l, o, q) },
 ];
 
 export function Transactions() {
   const [tab, setTab] = useState<TabKey>("pendingDeposits");
   const [q, setQ] = useState("");
-  const searching = q.trim().length > 0;
+  const search = useDebouncedValue(q.trim(), 300);
   const [page, setPage] = useState(0);
   const active = TABS.find((t) => t.key === tab)!;
   // Reset to the first page whenever the tab changes.
-  useEffect(() => setPage(0), [tab, q]);
+  useEffect(() => setPage(0), [tab, search]);
   const { data, loading, error, reload, updatedAt } = usePolling(
-    () => active.fetch(searching ? 10000 : PAGE_SIZE, searching ? 0 : page * PAGE_SIZE),
-    [tab, page, searching],
+    () => active.fetch(PAGE_SIZE, page * PAGE_SIZE, search),
+    [tab, page, search],
     8000,
   );
   const total = data?.total;
@@ -84,15 +84,6 @@ export function Transactions() {
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction | null>(null);
-
-  // Secondary user map — only a FALLBACK now that each transaction row carries
-  // its own player_name/player_phone from the backend. Kept small + slow.
-  const { data: usersData } = usePolling(() => api.users(searching ? 10000 : 1000, 0), [searching], 60000);
-  const userMap = useMemo(() => {
-    const m = new Map<string, UserWithWallet>();
-    for (const u of usersData?.users ?? []) m.set(u.id, u);
-    return m;
-  }, [usersData]);
 
   const act = async (id: string, fn: (id: string) => Promise<unknown>, label: string) => {
     setBusyId(id);
@@ -159,27 +150,8 @@ export function Transactions() {
 
   const rows = data?.transactions ?? [];
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((t) => {
-      const u = userMap.get(t.user_id);
-      const hay = [
-        readable(t.player_name) || (u ? fullName(u.first_name, u.last_name) : ""),
-        t.player_phone ?? u?.phone_number ?? "",
-        u ? String(u.telegram_id) : "",
-        t.transaction_id ?? "",
-        t.reference ?? "",
-        t.transaction_type ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [rows, q, userMap]);
-
-  const visible = searching ? filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : filtered;
-  const resultTotal = searching ? filtered.length : total;
+  const visible = rows;
+  const resultTotal = total;
 
   return (
     <div>
@@ -221,11 +193,9 @@ export function Transactions() {
             </thead>
             <tbody>
               {visible.map((t) => {
-                const u = userMap.get(t.user_id);
-                // Prefer the name the backend joined onto the row; fall back to
-                // the user map, then phone. Never show a raw id as the name.
-                const name = readable(t.player_name) || (u ? fullName(u.first_name, u.last_name) : "");
-                const phone = t.player_phone || u?.phone_number;
+                // Identity is joined server-side, so this page never needs to load the user directory.
+                const name = readable(t.player_name);
+                const phone = t.player_phone;
                 const typeValue = t.category ?? t.type;
                 const payId = t.transaction_id ?? t.reference;
                 return (
@@ -342,7 +312,6 @@ export function Transactions() {
 
       <TransactionDrawer
         tx={detail}
-        user={detail ? userMap.get(detail.user_id) : undefined}
         busy={detail ? busyId === detail.id : false}
         onClose={() => setDetail(null)}
         onAct={(id, fn, label) => {
@@ -361,7 +330,6 @@ export function Transactions() {
 
 function TransactionDrawer({
   tx,
-  user,
   busy,
   onClose,
   onAct,
@@ -369,7 +337,6 @@ function TransactionDrawer({
   onRollback,
 }: {
   tx: Transaction | null;
-  user?: UserWithWallet;
   busy: boolean;
   onClose: () => void;
   onAct: (id: string, fn: (id: string) => Promise<unknown>, label: string) => void;
@@ -378,8 +345,8 @@ function TransactionDrawer({
 }) {
   if (!tx) return null;
   const isIn = tx.type === "deposit" || tx.type === "transfer_in";
-  const name = readable(tx.player_name) || (user ? fullName(user.first_name, user.last_name) : "");
-  const phone = tx.player_phone || user?.phone_number;
+  const name = readable(tx.player_name);
+  const phone = tx.player_phone;
 
   const footer =
     tx.status === "pending" ? (
@@ -434,7 +401,7 @@ function TransactionDrawer({
 
       <DetailRow label="Player">
         <Link to={`/users/${tx.user_id}`} className="inline-flex items-center gap-2 hover:text-brand" onClick={onClose}>
-          <Avatar initials={user ? initials(user.first_name, user.last_name) : "?"} size={22} />
+          <Avatar initials={name ? initials(name) : "?"} size={22} />
           {name || phone || shortId(tx.user_id)}
         </Link>
       </DetailRow>
