@@ -313,12 +313,13 @@ export type BiasedDrawMode = "disabled" | "legacy" | "protected";
 // Filler bots — house-owned players that auto-fill games short on real players.
 export interface BotConfig {
   enabled: boolean;
-  min_real_players: number; // only fill games with fewer real players than this
-  target_bots: number; // add bots until the game holds this many
+  min_real_players: number; // deprecated compatibility field
+  target_bots: number; // deprecated compatibility field
+  minimum_room_players: number; // desired real+bot room size below the threshold
   tiers: string; // comma-separated game types, e.g. "REGULAR,VIP"
   win_rate: number; // retained compatibility setting; current modes define tie handling
-  bot_always_win: boolean; // force bots to win every co-winner pot
-  biased_draw_mode: BiasedDrawMode; // authoritative draw policy; boolean retained for compatibility
+  bot_always_win: boolean; // compatibility mirror for an enabled saved mode
+  biased_draw_mode: BiasedDrawMode; // saved policy used while real players are below the minimum
   updated_at: string;
 }
 
@@ -612,6 +613,7 @@ export const api = {
         | "enabled"
         | "min_real_players"
         | "target_bots"
+        | "minimum_room_players"
         | "tiers"
         | "win_rate"
         | "bot_always_win"

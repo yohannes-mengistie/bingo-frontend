@@ -13,17 +13,17 @@ const DRAW_MODE_OPTIONS: Array<{ value: BiasedDrawMode; label: string; detail: s
   {
     value: "disabled",
     label: "Disabled",
-    detail: "Use the ordinary random 1–75 draw. Simultaneous winners share the pot.",
+    detail: "Fair random draw at every population. Low-population filler bots receive no winning advantage.",
   },
   {
     value: "legacy",
     label: "Legacy",
-    detail: "Restore the previous full-hopper behavior, protecting bonus-funded human cards only.",
+    detail: "Below the minimum, use the previous full-hopper behavior protecting bonus-funded cards only.",
   },
   {
     value: "protected",
     label: "Protected",
-    detail: "Use bot-card-first draws while protecting every active human card and avoiding early bot bingo.",
+    detail: "Below the minimum, use bot-card-first draws while protecting every active human card.",
   },
 ];
 
@@ -60,6 +60,7 @@ export function Bots() {
       setForm({
         ...data,
         win_rate: data.win_rate ?? 0.8,
+        minimum_room_players: data.minimum_room_players ?? 20,
         biased_draw_mode: mode,
         bot_always_win: mode !== "disabled",
       });
@@ -82,8 +83,7 @@ export function Bots() {
     try {
       const updated = await api.updateBotConfig({
         enabled: form.enabled,
-        min_real_players: form.min_real_players,
-        target_bots: form.target_bots,
+        minimum_room_players: form.minimum_room_players,
         tiers: form.tiers,
         win_rate: form.win_rate,
         biased_draw_mode: biasedDrawMode,
@@ -157,29 +157,27 @@ export function Bots() {
                 />
               </div>
 
-              <div className="mb-4">
-                <label className={label}>Start filling at</label>
+              <div className="mb-5">
+                <label className={label}>Minimum total players</label>
                 <Input
                   type="number"
-                  min={0}
-                  value={form.min_real_players}
-                  onChange={(e) => setForm({ ...form, min_real_players: Number(e.target.value) })}
+                  min={2}
+                  max={200}
+                  value={form.minimum_room_players}
+                  onChange={(e) =>
+                    setForm({ ...form, minimum_room_players: Number(e.target.value) })
+                  }
                 />
                 <p className={hint}>
-                  Real players before bots join. Set to <strong>0</strong> to let bots run games with
-                  no real players yet (keeps the lobby looking alive to attract visitors).
+                  Bots dynamically fill the difference. With a minimum of 20, zero real players
+                  gets 20 bots and three real players gets 17 bots. Real arrivals automatically
+                  replace bots.
                 </p>
-              </div>
-
-              <div className="mb-4">
-                <label className={label}>Fill up to</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.target_bots}
-                  onChange={(e) => setForm({ ...form, target_bots: Number(e.target.value) })}
-                />
-                <p className={hint}>Total players per game.</p>
+                <p className="mt-2 rounded-lg border border-edgeSoft bg-panel2 px-3 py-2 text-xs leading-relaxed text-txt-3">
+                  At or above this minimum, general bot-winning bias is suspended. When the saved
+                  mode is enabled and bonus-funded entrants are present, two guard bots remain;
+                  wallet-funded players and those bots compete fairly.
+                </p>
               </div>
 
               <div className="mb-5">
@@ -259,8 +257,8 @@ export function Bots() {
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-txt-3">
                   {biasedDrawMode === "disabled"
-                    ? "Every card completing on the same draw shares the pot."
-                    : "Bots take mixed bot/human ties while this biased mode is active."}
+                    ? "Every eligible card completing on the same draw shares the pot."
+                    : "Below the minimum, the saved mode controls bot advantage. At or above the minimum, general bias turns off; only bonus-funded cards are ineligible, while wallet cards and the two guard bots compete and share ties fairly."}
                 </p>
               </div>
             </Card>
