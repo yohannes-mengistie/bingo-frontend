@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type AdminEventLog, type BotConfig } from "@/lib/api";
+import { api, type AdminEventLog, type BiasedDrawMode, type BotConfig } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Button, Card, Input, Toggle, Spinner, ErrorNote, Badge, PageHeader, EmptyState } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -8,6 +8,24 @@ import { date, shortId } from "@/lib/format";
 
 const ALL_TIERS = ["REGULAR", "VIP"] as const;
 const COLLECT_WINNERS_SOURCE = "game.collectWinners";
+
+const DRAW_MODE_OPTIONS: Array<{ value: BiasedDrawMode; label: string; detail: string }> = [
+  {
+    value: "disabled",
+    label: "Disabled",
+    detail: "Use the ordinary random 1–75 draw. Simultaneous winners share the pot.",
+  },
+  {
+    value: "legacy",
+    label: "Legacy",
+    detail: "Restore the previous full-hopper behavior, protecting bonus-funded human cards only.",
+  },
+  {
+    value: "protected",
+    label: "Protected",
+    detail: "Use bot-card-first draws while protecting every active human card and avoiding early bot bingo.",
+  },
+];
 
 function metadataNumber(log: AdminEventLog, key: string): number | null {
   const value = log.metadata?.[key];
@@ -38,24 +56,19 @@ export function Bots() {
 
   useEffect(() => {
     if (data) {
+      const mode = data.biased_draw_mode ?? (data.bot_always_win ? "protected" : "disabled");
       setForm({
         ...data,
         win_rate: data.win_rate ?? 0.8,
-        bot_always_win: data.bot_always_win ?? false,
+        biased_draw_mode: mode,
+        bot_always_win: mode !== "disabled",
       });
     }
   }, [data]);
 
   const tiers = form ? form.tiers.split(",").map((t) => t.trim()).filter(Boolean) : [];
-  const winRatePercent = form ? Math.round((form.win_rate ?? 0) * 100) : 0;
+  const biasedDrawMode: BiasedDrawMode = form?.biased_draw_mode ?? "disabled";
   const warnings = warningData?.logs ?? [];
-
-  const setWinRatePercent = (value: string) => {
-    if (!form) return;
-    const pct = Number(value);
-    const bounded = Number.isFinite(pct) ? Math.min(100, Math.max(0, pct)) : 0;
-    setForm({ ...form, win_rate: bounded / 100 });
-  };
 
   const toggleTier = (tier: string) => {
     if (!form) return;
@@ -73,7 +86,8 @@ export function Bots() {
         target_bots: form.target_bots,
         tiers: form.tiers,
         win_rate: form.win_rate,
-        bot_always_win: form.bot_always_win,
+        biased_draw_mode: biasedDrawMode,
+        bot_always_win: biasedDrawMode !== "disabled",
       });
       setForm(updated);
       push("Bot policy saved", "success");
@@ -203,32 +217,51 @@ export function Bots() {
               <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-txt-4">Win policy</h2>
 
               <div className="mb-5">
-                <Toggle
-                  checked={form.bot_always_win}
-                  onChange={(v) => setForm({ ...form, bot_always_win: v })}
-                  label={<span className="font-medium text-txt">Always let bots win ties</span>}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className={label}>Bot co-winner rate</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={winRatePercent}
-                    disabled={form.bot_always_win}
-                    onChange={(e) => setWinRatePercent(e.target.value)}
-                  />
-                  <span className="w-8 shrink-0 text-sm font-semibold text-txt-2">%</span>
+                <label className={label}>Biased draw mode</label>
+                <div className="space-y-2">
+                  {DRAW_MODE_OPTIONS.map((option) => {
+                    const selected = biasedDrawMode === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            biased_draw_mode: option.value,
+                            bot_always_win: option.value !== "disabled",
+                          })
+                        }
+                        className={`w-full rounded-lg border px-3.5 py-3 text-left transition ${
+                          selected
+                            ? "border-brand bg-brand/10"
+                            : "border-edge bg-panel2 hover:border-txt-4 hover:bg-edgeSoft"
+                        }`}
+                      >
+                        <span
+                          className={`block text-sm font-semibold ${
+                            selected ? "text-brand" : "text-txt"
+                          }`}
+                        >
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-relaxed text-txt-3">
+                          {option.detail}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <p className={hint}>Used when bots and real players hit bingo on the same draw.</p>
               </div>
-
-              <div className="border-t border-edgeSoft pt-4 text-xs text-txt-4">
-                Current effective rate: {form.bot_always_win ? "100" : winRatePercent}%
+              <div className="border-t border-edgeSoft pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-txt-4">
+                  Winner handling
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-txt-3">
+                  {biasedDrawMode === "disabled"
+                    ? "Every card completing on the same draw shares the pot."
+                    : "Bots take mixed bot/human ties while this biased mode is active."}
+                </p>
               </div>
             </Card>
 
